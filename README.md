@@ -28,7 +28,6 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 - **Articles (Explore)**: eight random articles; shuffle for more.
 - **Favorites**, **Read Aloud** (Windows text-to-speech), **Print**, text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
-- **Startup Sound** under the View menu: choose the jingle's melody instrument (Flute is the default).
 - **Atlas** and **Activities** show "coming soon" for now.
 
 ## Project layout
@@ -39,7 +38,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 | `preload.js` | The small, safe bridge the pages use to talk to the main process |
 | `src/index.html`, `src/styles.css`, `src/app.js` | The main window: chrome, menus, toolbar, and every view |
 | `src/splash.*` | The splash screen |
-| `src/audio.js` | Synthesized startup jingle and click sounds |
+| `src/audio.js` | Synthesized startup jingle (pad, birdsong, and flute), click sounds, and game sounds |
 | `src/wiki.js` | Wikipedia REST API client |
 | `src/bloom.js` | Draws the bloom artwork |
 | `src/trivia.js` | Question engine shared by all games: topics, subject lists, question types |

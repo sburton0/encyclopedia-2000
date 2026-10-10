@@ -652,31 +652,6 @@
     document.body.append(ov);
   }
 
-  function soundPicker() {
-    const saved = store.get('lead', 'flute');
-    let chosen = saved;
-    const rows = E2KAudio.LEAD_INFO.map(([id, name, desc]) => {
-      const row = h('button', { class: 'pick' + (id === saved ? ' on' : ''), onclick: () => select(id) },
-        h('span', { class: 'radio' }), h('span', { class: 'pt' }, h('b', {}, name), h('span', {}, desc)), h('span', { class: 'play' }, '▶'));
-      row.dataset.id = id;
-      return row;
-    });
-    function select(id) {
-      chosen = id;
-      rows.forEach((r) => r.classList.toggle('on', r.dataset.id === id));
-      E2KAudio.jingle({ lead: id, volume: 0.55 });
-    }
-    const close = () => { E2KAudio.fadeOut(0.3); ov.remove(); };
-    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) close(); } });
-    ov.append(h('div', { class: 'dialog picker', role: 'dialog' },
-      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Startup Sound'),
-      h('div', { class: 'pb' }, h('p', {}, 'Every version keeps the same pad and birdsong. Only the melody instrument changes. Click one to hear it.'), rows),
-      h('div', { class: 'df' },
-        h('button', { class: 'go', onclick: () => { store.set('lead', chosen); close(); setIdle(`Startup sound set to ${E2KAudio.LEAD_INFO.find((l) => l[0] === chosen)[1]}`); } }, 'Use This Sound'),
-        h('button', { class: 'go', onclick: close }, 'Cancel'))));
-    document.body.append(ov);
-  }
-
   // ---------- favorites, recent, read aloud ----------
   const favs = () => store.get('favorites', []);
   const isFav = () => !!current && favs().some((f) => f.title === current.title);
@@ -759,7 +734,6 @@
     games: () => go('games'),
     activities: () => ORBS[5].run(),
     about,
-    startupSound: () => soundPicker(),
     exit: () => window.e2k.win('close'),
   };
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
@@ -775,7 +749,7 @@
       ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print…', 'print', 'Ctrl+P'], '-', ['Exit', 'exit', 'Alt+F4']]],
       ['Edit', [['Copy', 'copy', 'Ctrl+C'], ['Find an Article', 'find', 'Ctrl+F']]],
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
-        ['Refresh', 'reload', 'F5'], '-', ['Sound Effects', 'sound', '', soundOn()], ['Startup Sound…', 'startupSound']]],
+        ['Refresh', 'reload', 'F5'], '-', ['Sound Effects', 'sound', '', soundOn()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
       ['Favorites', [[isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',

@@ -4,8 +4,7 @@
   })();
 
   makeBloom(document.getElementById('petals'), 0.56, { animate: true });
-  const lead = (() => { try { return JSON.parse(localStorage.getItem('e2k.lead')) || undefined; } catch { return undefined; } })();
-  if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55, lead }); } catch {} }, 150);
+  if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55 }); } catch {} }, 150);
 
   const status = document.getElementById('status');
   [[1500, 'Connecting to Wikipedia…'], [3100, 'Gathering today’s discoveries…'], [4900, 'Ready']]
