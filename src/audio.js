@@ -37,6 +37,39 @@ window.E2KAudio = (() => {
     return p;
   }
 
+  // One bird chirp: a pure sine that swoops from f0 to f1, optionally with a fast trill. No noise, so it stays clean.
+  function chirp(c, out, t, f0, f1, dur, vol, pan, trill = 0) {
+    const p = panner(c, out, pan);
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    if (trill) {
+      const lfo = c.createOscillator();
+      const depth = c.createGain();
+      lfo.frequency.value = trill;
+      depth.gain.value = f0 * 0.07;
+      lfo.connect(depth).connect(o.frequency);
+      lfo.start(t);
+      lfo.stop(t + dur + 0.05);
+    }
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + 0.008);
+    g.gain.setValueAtTime(vol, t + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(p);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  }
+
+  // Two distant birds calling back and forth while the pad swells: [start, from Hz, to Hz, length, pan, trill Hz].
+  const BIRDS = [
+    [0.45, 3300, 4500, 0.07, -0.55], [0.56, 3400, 4700, 0.07, -0.55], [0.67, 3350, 4600, 0.07, -0.55], [0.8, 4800, 3600, 0.12, -0.55],
+    [1.15, 4300, 5600, 0.05, 0.6], [1.24, 4300, 5700, 0.05, 0.6], [1.36, 4900, 4900, 0.16, 0.6, 32],
+    [1.85, 3500, 4600, 0.07, -0.5], [1.97, 4700, 3700, 0.11, -0.5],
+    [2.55, 4400, 5600, 0.05, 0.55], [2.66, 5200, 4300, 0.09, 0.55],
+  ];
+
   // Sum of sine partials with a quick strike and exponential ring-out.
   function partials(c, out, freq, t, vol, list, ring) {
     list.forEach(([mult, amp]) => {
@@ -198,7 +231,7 @@ window.E2KAudio = (() => {
     ['pluck', 'Synth pluck', 'A gentle early-2000s synth with an echo bouncing left and right.'],
     ['flute', 'Flute', 'Breathy held notes with a little vibrato. Calm and airy.'],
     ['choir', 'Choir', 'Wordless "aah" voices swelling in. The most cinematic option.'],
-    ['none', 'Pads only', 'No melody at all, just the pad and the low swell.'],
+    ['none', 'Pads only', 'No melody at all, just the pad, the low swell, and the birdsong.'],
   ];
 
   // `context` lets a test render the jingle into an OfflineAudioContext.
@@ -261,6 +294,16 @@ window.E2KAudio = (() => {
     if (!melodyOnly) sg.connect(bus);
     sub.start(t0);
     sub.stop(t0 + 6.2);
+
+    // Birdsong, kept quiet and softened so it sits in the distance.
+    const birds = c.createGain();
+    birds.gain.value = 0.5;
+    const soft = c.createBiquadFilter();
+    soft.type = 'lowpass';
+    soft.frequency.value = 6500;
+    birds.connect(soft);
+    if (!melodyOnly) soft.connect(bus);
+    BIRDS.forEach(([dt, f0, f1, dur, pan, trill]) => chirp(c, birds, t0 + dt, f0, f1, dur, 0.035, pan, trill));
 
     // Melody.
     const play = LEADS[lead];
