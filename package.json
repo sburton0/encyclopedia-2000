@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
+  "author": "Scott Burton",
+  "license": "MIT",
   "main": "main.js",
   "scripts": {
     "setup": "npm install && node node_modules/electron/install.js",

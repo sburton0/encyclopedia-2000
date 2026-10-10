@@ -55,6 +55,10 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 
 The game then appears on the Games page automatically, and its route is `game/<id>`.
 
+## License
+
+The code is released under the [MIT License](LICENSE). The "Encyclopedia 2000" name and the Book in Bloom icon are not covered by it; see [TRADEMARKS.md](TRADEMARKS.md). Forks are welcome under their own name and icon.
+
 ## Content and licensing
 
 Article text comes from Wikipedia under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). Every article page credits and links its source. Pictures come from Wikimedia Commons under their own licenses, shown on the Media page. Encyclopedia 2000 is an independent project and isn't affiliated with the Wikimedia Foundation or Microsoft.
