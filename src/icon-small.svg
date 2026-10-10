@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Simplified Book in Bloom for 16-24 px: fewer, bolder shapes so it stays readable. -->
+  <path d="M1 22 Q8.5 18.5 16 22 Q23.5 18.5 31 22 L31 28 Q23.5 24.5 16 28 Q8.5 24.5 1 28Z" fill="#25458a"/>
+  <path d="M2.5 20.5 Q9.5 17 15.3 20.5 L15.3 25.5 Q9.5 22 2.5 25.5Z" fill="#ffffff"/>
+  <path d="M29.5 20.5 Q22.5 17 16.7 20.5 L16.7 25.5 Q22.5 22 29.5 25.5Z" fill="#ffffff"/>
+  <g fill="#ffffff" stroke="#3f6fc4" stroke-width="1">
+    <ellipse cx="16" cy="12" rx="2.8" ry="7.5" transform="rotate(-58 16 19.5)"/>
+    <ellipse cx="16" cy="12" rx="2.8" ry="7.5" transform="rotate(58 16 19.5)"/>
+    <ellipse cx="16" cy="12" rx="2.8" ry="7.5" transform="rotate(-29 16 19.5)"/>
+    <ellipse cx="16" cy="12" rx="2.8" ry="7.5" transform="rotate(29 16 19.5)"/>
+    <ellipse cx="16" cy="11.5" rx="3" ry="8"/>
+  </g>
+  <circle cx="16" cy="19.5" r="3.4" fill="#f5a623" stroke="#b86a08" stroke-width=".8"/>
+  <circle cx="15.2" cy="18.7" r="1.1" fill="#fff3c8"/>
+</svg>

@@ -1,0 +1,6 @@
+node_modules/
+
+# Mockups for separate projects (kept locally, not part of this app)
+mockups/svid/
+mockups/jukebox/
+mockups/publisher/

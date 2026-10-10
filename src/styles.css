@@ -1,0 +1,300 @@
+:root {
+  --ink-0: #0f2250; --ink-1: #1c3566; --ink-2: #25458a; --ink-3: #4f78c4;
+  --orange: #f5a623; --gold: #ffd27a; --sky: #aac0e6;
+  --bar-line: #2b2f38; --bar-edge: #3a4050;
+  --fs: 1;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
+body { font-family: "Segoe UI", Tahoma, sans-serif; color: #fff; user-select: none; cursor: default; }
+button { font-family: inherit; cursor: default; }
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ---------- title bar ---------- */
+.titlebar { height: 28px; flex: none; display: flex; align-items: center; gap: 8px; padding-left: 8px;
+            background: linear-gradient(#2a2a2a, #0d0d0d); color: #ddd; font-size: 12px; -webkit-app-region: drag; }
+.titlebar .emb { width: 16px; height: 16px; }
+.titlebar .wc { margin-left: auto; display: flex; height: 100%; -webkit-app-region: no-drag; }
+.titlebar .wc button { width: 46px; height: 100%; border: 0; background: transparent; color: #bbb;
+                       font: 10px "Segoe MDL2 Assets", "Segoe Fluent Icons"; }
+.titlebar .wc button:hover { background: #2c2c2c; color: #fff; }
+.titlebar .wc button.close:hover { background: #c42b1c; }
+
+/* ---------- menu bar ---------- */
+.menubar { height: 22px; flex: none; display: flex; padding: 0 4px; background: #000; font-size: 12px; position: relative; z-index: 40; }
+.menubar .m { position: relative; padding: 0 9px; line-height: 22px; color: #e8e8e8; }
+.menubar .m:hover, .menubar .m.open { background: var(--ink-2); }
+.menu { position: absolute; top: 22px; left: 0; min-width: 230px; padding: 3px; background: #16181d; border: 1px solid var(--bar-edge);
+        box-shadow: 3px 4px 10px rgba(0, 0, 0, .6); }
+.menu .mi { display: flex; justify-content: space-between; gap: 28px; padding: 4px 12px 4px 26px; line-height: 16px; color: #e8e8e8; position: relative; white-space: nowrap; }
+.menu .mi:hover { background: var(--ink-2); }
+.menu .mi .k { color: #8a93a6; }
+.menu .mi.checked::before { content: "\2713"; position: absolute; left: 9px; }
+.menu .mi.disabled { color: #5d6474; }
+.menu .mi.disabled:hover { background: transparent; }
+.menu .msep { height: 1px; margin: 3px 2px; background: #30343e; }
+
+/* ---------- toolbar: flat buttons that sit inside the dark band ---------- */
+.toolbar { height: 38px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; position: relative; z-index: 30;
+           background: linear-gradient(#17191e, #050608); border-top: 1px solid #23262d; border-bottom: 1px solid var(--bar-line); }
+.find { display: flex; align-items: center; }
+.find label { margin-right: 7px; font-size: 12px; color: #cfd6e2; }
+.field { position: relative; display: flex; width: 250px; height: 24px; background: #0a0c10; border: 1px solid var(--bar-edge); }
+.field:focus-within { border-color: var(--orange); }
+.field input { flex: 1; min-width: 0; padding: 0 7px; border: 0; outline: none; background: transparent; color: #fff; font: 12px "Segoe UI"; user-select: text; }
+.field input::placeholder { color: #5d6474; }
+.field .dd { width: 20px; border: 0; border-left: 1px solid var(--bar-edge); background: #14171d; color: #8a93a6; font-size: 8px; }
+.field .dd:hover { background: #232731; color: #fff; }
+.go { height: 24px; margin-left: 4px; padding: 0 14px; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262;
+      color: var(--orange); font: 700 12px "Segoe UI"; }
+.go:hover { background: #333a48; border-color: var(--orange); }
+.go:active { background: #0c0e12; }
+.tbtn { height: 28px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0;
+        background: transparent; border: 1px solid transparent; color: #cfd6e2; font-size: 12px; }
+.tbtn.lbl { padding: 0 9px; }
+.tbtn .ic { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tbtn:hover { background: #232731; border-color: var(--bar-edge); color: #fff; }
+.tbtn:active { background: #0c0e12; border-color: var(--bar-line); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .7); }
+.tbtn.on { color: var(--orange); background: #1b1f28; border-color: #4a3a1a; }
+.tbtn:disabled { color: #454b59; background: transparent; border-color: transparent; box-shadow: none; }
+.tsep { width: 1px; height: 22px; margin: 0 6px; background: var(--bar-line); box-shadow: 1px 0 #000; }
+
+.suggest { position: absolute; top: 24px; left: -1px; width: 380px; max-height: 420px; overflow: auto; z-index: 60;
+           background: #0d1017; border: 1px solid var(--bar-edge); box-shadow: 3px 5px 14px rgba(0, 0, 0, .65); }
+.suggest .si { display: flex; gap: 9px; align-items: center; padding: 5px 8px; border-bottom: 1px solid #1a1e27; }
+.suggest .si.sel, .suggest .si:hover { background: var(--ink-2); }
+.suggest .si .th { width: 34px; height: 34px; flex: none; background: #1c3566 center/cover; border: 1px solid #2f3b55; }
+.suggest .si b { display: block; font: 600 12.5px "Segoe UI"; color: #fff; }
+.suggest .si span { display: block; font: 11px "Segoe UI"; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 310px; }
+.suggest .empty { padding: 8px 10px; font-size: 12px; color: #8a93a6; }
+
+/* ---------- status bar ---------- */
+.statusbar { height: 22px; flex: none; display: flex; align-items: stretch; background: #000; border-top: 1px solid #23262d; color: #9aa3b5; font-size: 11px; }
+.statusbar .sb { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid #1d2027; white-space: nowrap; }
+.statusbar .sb.grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.statusbar .sb:last-child { border-right: 0; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #3fbf4a; box-shadow: 0 0 4px #3fbf4a; }
+.dot.off { background: #d23a3a; box-shadow: 0 0 4px #d23a3a; }
+.statusbar.busy #status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%;
+                                  background: var(--orange); animation: pulse .8s ease-in-out infinite alternate; vertical-align: 0; }
+@keyframes pulse { from { opacity: .25; } to { opacity: 1; } }
+
+/* ---------- main view ---------- */
+#view { flex: 1; position: relative; overflow: hidden; background: radial-gradient(ellipse at 55% 40%, #4f78c4, #25458a 45%, #0f2250); }
+.fade-in { animation: viewin .25s ease-out both; }
+@keyframes viewin { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- home ---------- */
+.home { position: absolute; inset: 0; overflow: hidden; }
+.home-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
+.home-canvas > svg { position: absolute; left: 0; top: 0; width: 1024px; height: 610px; overflow: visible; pointer-events: none; }
+.home .brand { position: absolute; left: 34px; top: 24px; color: #fff; }
+.home .brand small { display: block; margin-bottom: -2px; font: 300 22px "Segoe UI"; }
+.home .brand .y { font: 300 64px/1 "Segoe UI"; letter-spacing: 2px; }
+.home .brand .y b { font-weight: 400; color: var(--orange); }
+.home .brand .tag { margin-top: 6px; font: 600 9.5px "Segoe UI"; letter-spacing: 4px; color: var(--sky); }
+.home .dial { position: absolute; left: 440px; top: 120px; width: 250px; height: 250px; padding: 0; border-radius: 50%; overflow: hidden;
+              background: #3a5f99 center/cover; border: 4px solid rgba(255, 255, 255, .82);
+              box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 50px rgba(160, 195, 255, .55); transition: box-shadow .2s; }
+.home .dial::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+                     background: radial-gradient(ellipse at 40% 16%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 44%), radial-gradient(circle, transparent 62%, rgba(0, 0, 0, .35)); }
+.home .dial:hover { box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 70px rgba(255, 220, 160, .7); }
+.home .dialcap { position: absolute; left: 415px; top: 384px; width: 300px; padding: 4px 10px; border-radius: 6px; background: rgba(10, 24, 60, .6);
+                 text-align: center; color: #e6eefc; font: 12px/1.4 "Segoe UI"; text-shadow: 0 1px 3px #000;
+                 display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.home .dialcap b { font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.home .orb { position: absolute; width: 74px; padding: 0; background: none; border: 0; text-align: center; color: #fff;
+             font: 600 12px "Segoe UI"; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
+.home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden;
+               border: 2px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 22px rgba(140, 180, 255, .45);
+               transition: transform .15s, box-shadow .15s; }
+.home .orb i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(ellipse at 40% 15%, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 50%); }
+.home .orb i svg { width: 22px; height: 22px; fill: #fff; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.home .orb:hover { color: var(--gold); }
+.home .orb:hover i { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 30px rgba(255, 220, 160, .7); }
+.home .orb:active i { transform: scale(.97); }
+.panel { position: absolute; padding: 12px 14px 14px; border-radius: 6px; color: #fff;
+         background: linear-gradient(rgba(10, 24, 60, .72), rgba(10, 24, 60, .55)); border: 1px solid rgba(160, 190, 255, .25); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+.panel h3 { margin: 0 0 8px; padding-bottom: 4px; font: 600 15px "Segoe UI"; color: var(--orange); border-bottom: 1px solid rgba(255, 255, 255, .3); }
+.home .disc { left: 34px; top: 190px; width: 300px; }
+.home .disc .row { display: flex; gap: 10px; }
+.home .disc .thumb { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #3a5f99 center/cover; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 0 14px rgba(140, 180, 255, .5); }
+.home .disc b { display: block; font: 600 italic 14px "Segoe UI"; color: var(--gold); }
+.home .disc p { margin: 2px 0 0; font: 12px/1.45 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+.home .disc .more, .home .alm .more { display: inline-block; margin-top: 10px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff; }
+.home .disc .more:hover, .home .alm .more:hover { color: var(--gold); text-decoration: underline; }
+.home .alm { right: 18px; top: 18px; bottom: 18px; width: 214px; display: flex; flex-direction: column; }
+.home .alm .d { margin: -4px 0 10px; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--sky); }
+.home .alm .list { flex: 1; overflow: hidden; }
+.home .alm .ev { position: relative; display: block; width: 100%; padding: 0 0 10px 16px; background: none; border: 0; text-align: left; color: #fff; }
+.home .alm .ev::before { content: ""; position: absolute; left: 1px; top: 6px; width: 5px; height: 5px; background: #8fb4ff; transform: rotate(45deg); }
+.home .alm .ev b { font: 600 13px "Segoe UI"; }
+.home .alm .ev div { font: 11.5px/1.35 "Segoe UI"; color: var(--sky); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.home .alm .ev:hover b, .home .alm .ev:hover div { color: var(--gold); }
+.home .muted { font: 12px "Segoe UI"; color: var(--sky); }
+
+/* ---------- page shell (articles and feature pages) ---------- */
+.page { position: absolute; inset: 0; display: flex; background: #e9eef5; }
+.rail { width: 230px; flex: none; position: relative; overflow: hidden; color: #fff; background: linear-gradient(#25458a, #0f2250); }
+.rail > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.rail .in { position: absolute; inset: 0; overflow: auto; padding: 14px; }
+.rail h4 { margin: 0 0 6px; font: 600 15px "Segoe UI"; color: var(--orange); }
+.rail hr { margin: 12px 0; border: 0; border-top: 1px solid rgba(255, 255, 255, .3); }
+.rail .lnk { display: block; width: 100%; padding: 2px 0 2px 10px; background: none; border: 0; border-left: 3px solid transparent; text-align: left;
+             font: 600 12.5px/1.5 "Segoe UI"; color: #fff; }
+.rail .lnk:hover { color: var(--gold); }
+.rail .lnk.on { background: linear-gradient(90deg, rgba(245, 166, 35, .3), transparent); border-left-color: var(--orange); padding-left: 7px; }
+.rail .lnk.sub { font-weight: 400; color: var(--sky); }
+.rail .lnk.sub:hover { color: var(--gold); }
+.rail .lnk .n { float: right; color: var(--sky); font-weight: 400; }
+.rail .note { font-size: 11.5px; color: var(--sky); line-height: 1.45; }
+.art { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.band { height: 96px; flex: none; position: relative; overflow: hidden; color: #fff; background: var(--ink-1); }
+.band > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.band .t { position: absolute; left: 22px; right: 360px; bottom: 10px; }
+.band .t small { font: 600 11px "Segoe UI"; letter-spacing: 2px; color: var(--orange); }
+.band h1 { margin: 0; font: 300 34px/1.15 "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+.band .desc { font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.band .tools { position: absolute; right: 14px; top: 12px; display: flex; gap: 6px; }
+.bbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; background: rgba(5, 12, 30, .45); border: 1px solid rgba(255, 255, 255, .35);
+        color: #fff; font: 600 11px "Segoe UI"; }
+.bbtn .ic { width: 13px; height: 13px; fill: currentColor; }
+.bbtn:hover { background: rgba(5, 12, 30, .7); border-color: var(--orange); color: var(--gold); }
+.bbtn.on { color: var(--orange); border-color: var(--orange); }
+.content { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; gap: 22px; padding: 18px 24px 30px; background: #fbfcfe; }
+.content.wide { display: block; }
+.media { position: sticky; top: 0; width: 260px; flex: none; }
+.media:empty { display: none; }
+.media .frame { padding: 4px; background: #fff; border: 1px solid #9fb0d0; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+.media .frame img { display: block; width: 100%; max-height: 320px; object-fit: cover; cursor: zoom-in; }
+.media .cap { padding: 6px 2px 0; font: 11.5px/1.4 "Segoe UI"; color: #333; user-select: text; }
+.facts { margin-top: 12px; background: #fff; border: 1px solid #9fb0d0; font: 11.5px "Segoe UI"; color: #222; }
+.facts h6 { margin: 0; padding: 4px 8px; font: 600 12px "Segoe UI"; color: #fff; background: linear-gradient(#35599e, #1c3566); }
+.facts .r { display: flex; justify-content: space-between; gap: 10px; padding: 4px 8px; border-top: 1px solid #e3e8f3; user-select: text; }
+.facts .r span:first-child { flex: none; max-width: 45%; color: #555; }
+.facts .r span:last-child { text-align: right; }
+
+/* scrollbars in the period style */
+.content::-webkit-scrollbar, .rail .in::-webkit-scrollbar, .suggest::-webkit-scrollbar { width: 15px; }
+.content::-webkit-scrollbar-track { background: #e3e8f3; border-left: 1px solid #c9d3ea; }
+.content::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #4f78c4, #25458a); border: 2px solid #e3e8f3; }
+.rail .in::-webkit-scrollbar-track, .suggest::-webkit-scrollbar-track { background: transparent; }
+.rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
+
+/* ---------- article typography ---------- */
+.text { flex: 1; min-width: 0; max-width: 820px; font: calc(15px * var(--fs))/1.65 Georgia, "Times New Roman", serif; color: #1c1c1c; user-select: text; cursor: auto; }
+.text p { margin: 0 0 11px; }
+.text .lede::first-letter { float: left; padding: 5px 7px 0 0; font: 400 calc(52px * var(--fs))/.85 Georgia, serif; color: var(--ink-2); }
+.text h2 { clear: both; margin: 24px 0 6px; padding-bottom: 3px; font: 600 calc(20px * var(--fs)) "Segoe UI"; color: var(--ink-2); border-bottom: 1px solid #c9d3ea; }
+.text h3 { margin: 18px 0 4px; font: 600 calc(16px * var(--fs)) "Segoe UI"; color: #33507f; }
+.text h4 { margin: 14px 0 4px; font: 600 calc(14px * var(--fs)) "Segoe UI"; color: #33507f; }
+.text a { color: #1d47a8; text-decoration: none; border-bottom: 1px dotted rgba(29, 71, 168, .5); cursor: pointer; }
+.text a:hover { color: #c26a00; border-bottom-color: #c26a00; }
+.text figure { float: right; clear: right; max-width: 250px; margin: 4px 0 12px 18px; padding: 4px; background: #fff; border: 1px solid #c9d3ea; }
+.text figure a { border: 0; }
+.text figure img { display: block; max-width: 100%; height: auto; cursor: zoom-in; }
+.text figcaption { padding-top: 4px; font: 11.5px/1.4 "Segoe UI"; color: #444; }
+.text img { max-width: 100%; height: auto; }
+.text table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font: 12.5px/1.4 "Segoe UI"; }
+.text th, .text td { padding: 3px 7px; border: 1px solid #c9d3ea; vertical-align: top; }
+.text th { background: #e6ecf7; }
+.text .hatnote, .text [role="note"] { margin: 0 0 10px; padding-left: 16px; font: italic 12.5px "Segoe UI"; color: #555; }
+.text blockquote { margin: 12px 0; padding: 2px 14px; border-left: 3px solid var(--orange); color: #333; }
+.text ul, .text ol { padding-left: 24px; margin: 0 0 11px; }
+.text li { margin-bottom: 3px; }
+.text ul.gallery { display: flex; flex-wrap: wrap; gap: 10px; padding: 0; list-style: none; }
+.text ul.gallery li { width: 160px; font: 11.5px "Segoe UI"; }
+.text .attrib { clear: both; margin-top: 28px; padding-top: 8px; border-top: 1px solid #c9d3ea; font: 11.5px/1.5 "Segoe UI"; color: #666; }
+.text .attrib a { font-weight: 600; }
+
+.loading { padding: 30px 0; font: 13px "Segoe UI"; color: #4a5a7a; }
+.loading::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 10px; vertical-align: -2px; border-radius: 50%;
+                   border: 2px solid #c9d3ea; border-top-color: var(--orange); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.errbox { max-width: 520px; margin: 30px 0; padding: 16px 18px; background: #fff; border: 1px solid #c9d3ea; border-left: 4px solid var(--orange);
+          font: 13px/1.5 "Segoe UI"; color: #333; }
+.errbox b { display: block; margin-bottom: 4px; font-size: 15px; color: var(--ink-2); }
+.errbox .bbtn { margin-top: 10px; background: var(--ink-2); }
+
+/* explore cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
+.card { padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
+.card:hover { transform: translateY(-2px); border-color: var(--orange); }
+.card .ph { height: 120px; background: linear-gradient(135deg, #4f78c4, #1c3566) center/cover; }
+.card .b { padding: 9px 11px 12px; }
+.card .b b { display: block; font: 600 14px "Segoe UI"; color: var(--ink-2); }
+.card .b span { display: block; margin-bottom: 4px; font: 11.5px "Segoe UI"; color: #777; }
+.card .b p { margin: 0; font: 12.5px/1.45 Georgia, serif; color: #333; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.card.ghost { height: 250px; background: linear-gradient(90deg, #eef2f9, #f8fafd, #eef2f9); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+/* timeline */
+.tl { max-width: 860px; }
+.tl-item { display: flex; gap: 16px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
+.tl-item:hover { background: #f1f5fc; }
+.tl-item .yr { flex: none; width: 70px; text-align: right; font: 300 26px/1.1 "Segoe UI"; color: var(--orange); }
+.tl-item .tx { flex: 1; font: calc(14.5px * var(--fs))/1.5 Georgia, serif; color: #222; }
+.tl-item .tx small { display: block; margin-top: 3px; font: 11.5px "Segoe UI"; color: #1d47a8; }
+.tl-item .th { flex: none; width: 70px; height: 70px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }
+
+/* gallery */
+.potd { max-width: 980px; }
+.content.wide .text { max-width: none; }
+.potd figure { float: none; max-width: none; margin: 0; padding: 6px; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.potd figure img { display: block; max-width: 100%; max-height: 52vh; margin: 0 auto; cursor: zoom-in; }
+.potd .desc { margin: 12px 0 4px; font: calc(14.5px * var(--fs))/1.55 Georgia, serif; color: #222; user-select: text; }
+.potd .credit { font: 11.5px "Segoe UI"; color: #666; user-select: text; }
+.potd .credit .bbtn { margin-left: 8px; background: var(--ink-2); vertical-align: middle; }
+.strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+.strip button { width: 120px; padding: 3px; background: #fff; border: 1px solid #c9d3ea; text-align: center; font: 11px "Segoe UI"; color: #555; }
+.strip button:hover, .strip button.on { border-color: var(--orange); color: #000; }
+.strip button i { display: block; height: 80px; margin-bottom: 3px; background: #dfe6f3 center/cover; }
+
+/* search results */
+.results { max-width: 860px; }
+.res { display: flex; gap: 14px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
+.res:hover { background: #f1f5fc; }
+.res .th { flex: none; width: 64px; height: 64px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }
+.res b { display: block; font: 600 15px "Segoe UI"; color: var(--ink-2); }
+.res span { display: block; font: 11.5px "Segoe UI"; color: #777; }
+.res p { margin: 3px 0 0; font: 13px/1.5 Georgia, serif; color: #333; }
+.res p strong { background: #fff1cf; font-weight: 600; }
+
+/* ---------- overlays ---------- */
+.overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); animation: viewin .15s ease-out; }
+.dialog { width: 400px; background: linear-gradient(#25458a, #0f2250); border: 1px solid var(--ink-3); box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+.dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; }
+.dialog .dt img { width: 16px; height: 16px; }
+.dialog .db { display: flex; gap: 14px; padding: 18px 18px 8px; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
+.dialog .db > img { width: 60px; height: 60px; flex: none; filter: drop-shadow(0 0 10px rgba(190, 215, 255, .5)); }
+.dialog .db h2 { margin: 0 0 4px; font: 600 17px "Segoe UI"; color: var(--orange); }
+.dialog .db p { margin: 0 0 8px; }
+.dialog .df { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 14px 14px; }
+.dialog .df .go { min-width: 80px; }
+.picker { width: 480px; }
+.picker .pb { padding: 12px 14px 4px; }
+.picker .pb > p { margin: 0 0 10px; font: 12.5px/1.45 "Segoe UI"; color: #cfdcf5; }
+.pick { display: flex; align-items: center; gap: 10px; width: 100%; margin-bottom: 4px; padding: 7px 10px; text-align: left; color: #fff;
+        background: rgba(5, 12, 30, .35); border: 1px solid rgba(160, 190, 255, .2); }
+.pick:hover { background: rgba(5, 12, 30, .6); border-color: rgba(160, 190, 255, .45); }
+.pick.on { border-color: var(--orange); background: rgba(245, 166, 35, .12); }
+.pick .radio { width: 13px; height: 13px; flex: none; border-radius: 50%; border: 1px solid #8a93a6; background: #0a0c10; }
+.pick.on .radio { border-color: var(--orange); box-shadow: inset 0 0 0 3px #0a0c10; background: var(--orange); }
+.pick .pt { flex: 1; }
+.pick .pt b { display: block; font: 600 13px "Segoe UI"; }
+.pick .pt span { display: block; font: 11.5px "Segoe UI"; color: var(--sky); }
+.pick .play { font-size: 11px; color: var(--sky); }
+.pick:hover .play, .pick.on .play { color: var(--orange); }
+.lightbox { flex-direction: column; background: rgba(4, 10, 26, .88); cursor: zoom-out; }
+.lightbox img { max-width: 88vw; max-height: 78vh; border: 6px solid #fff; box-shadow: 0 10px 40px rgba(0, 0, 0, .7); }
+.lightbox div { max-width: 70vw; margin-top: 10px; text-align: center; font: 13px "Segoe UI"; color: #e6eefc; }
+
+/* ---------- print ---------- */
+@media print {
+  html, body, #app, #view { height: auto; overflow: visible; background: #fff; }
+  .titlebar, .menubar, .toolbar, .statusbar, .rail, .band .tools, .media, .band > svg { display: none !important; }
+  .page, .content { position: static; display: block; overflow: visible; }
+  .band { height: auto; background: none; color: #000; }
+  .band .t { position: static; }
+  .band h1 { color: #000; text-shadow: none; }
+}

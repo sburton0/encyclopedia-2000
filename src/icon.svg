@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e2d8bf"/></linearGradient>
+    <linearGradient id="cover" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f78c4"/><stop offset=".5" stop-color="#25458a"/><stop offset="1" stop-color="#0f2250"/></linearGradient>
+    <radialGradient id="petal" cx="50%" cy="95%" r="85%"><stop offset="0" stop-color="#2f6fd0"/><stop offset=".45" stop-color="#7fa8ec"/><stop offset=".8" stop-color="#d6e6ff"/><stop offset="1" stop-color="#ffffff"/></radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#ffe0a0"/><stop offset=".7" stop-color="#f5a623"/><stop offset="1" stop-color="#f5a623" stop-opacity="0"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%"><stop offset="0" stop-color="#cfe0ff" stop-opacity=".9"/><stop offset="1" stop-color="#cfe0ff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <circle cx="64" cy="60" r="48" fill="url(#glow)" opacity=".35"/>
+  <path d="M6 88 Q35 75 64 88 Q93 75 122 88 L122 110 Q93 97 64 110 Q35 97 6 110Z" fill="url(#cover)"/>
+  <path d="M11 82 Q38 70 62 82 L62 103 Q38 91 11 103Z" fill="url(#page)"/>
+  <path d="M117 82 Q90 70 66 82 L66 103 Q90 91 117 103Z" fill="url(#page)"/>
+  <path d="M19 87 Q38 79 55 87M19 93 Q38 85 55 93M73 87 Q90 79 109 87M73 93 Q90 85 109 93" stroke="#b9ab88" stroke-width="1.3" fill="none"/>
+  <g stroke="#2a5aae" stroke-opacity=".85" stroke-width="1.6" fill="url(#petal)">
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(-66 64 78)"/>
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(66 64 78)"/>
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(-44 64 78)"/>
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(44 64 78)"/>
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(-22 64 78)"/>
+    <ellipse cx="64" cy="52" rx="9" ry="26" transform="rotate(22 64 78)"/>
+    <ellipse cx="64" cy="50" rx="9.5" ry="28"/>
+  </g>
+  <circle cx="64" cy="78" r="11" fill="url(#core)"/>
+  <circle cx="64" cy="78" r="4" fill="#fff"/>
+</svg>

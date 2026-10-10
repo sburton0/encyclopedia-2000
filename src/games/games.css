@@ -1,0 +1,112 @@
+/* ---------- Games page ---------- */
+.gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; max-width: 1000px; }
+.gcard { display: flex; flex-direction: column; padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea;
+         box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
+.gcard:not(.soon):hover { transform: translateY(-2px); border-color: var(--orange); }
+.gcard .gart { height: 150px; background: radial-gradient(ellipse at 50% 60%, #2a4f96, #0b1a40 70%); }
+.gcard .gart svg { display: block; width: 100%; height: 100%; }
+.gcard .gb { flex: 1; display: flex; flex-direction: column; padding: 12px 14px 12px; }
+.gcard .gb b { font: 600 17px "Segoe UI"; color: var(--ink-2); }
+.gcard .gb p { flex: 1; margin: 4px 0 10px; font: 13px/1.5 Georgia, serif; color: #333; }
+.gcard .gfoot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.gcard .gprog { font: 11.5px "Segoe UI"; color: #777; }
+.gcard .gplay { padding: 3px 12px; font: 700 12px "Segoe UI"; color: var(--orange); background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262; }
+.gcard.soon { opacity: .65; }
+.gcard.soon .gart { display: grid; place-items: center; background: repeating-linear-gradient(135deg, #1c2f5e 0 10px, #182a55 10px 20px); }
+.gcard .gart svg.gicon { width: 56px; height: 56px; fill: rgba(200, 215, 245, .55); }
+
+/* ---------- Star Chart ---------- */
+.game-root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 50%, #1d3a7a, #0b1a40 55%, #050c22); }
+.sc-holder { position: absolute; inset: 0; }
+.sc-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); color: #fff; }
+.sc-canvas > svg { position: absolute; inset: 0; width: 1024px; height: 610px; overflow: visible; }
+.sc-canvas h1 { margin: 0; font: 300 40px/1.1 "Segoe UI"; }
+.sc-canvas small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+
+.sc-title { position: absolute; left: 30px; top: 20px; width: 290px; }
+.sc-title p { margin: 6px 0 0; font: 12.5px/1.5 "Segoe UI"; color: var(--sky); }
+.sc-hud { position: absolute; right: 24px; top: 18px; width: 250px; text-align: right; }
+.sc-rank { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); text-transform: uppercase; }
+.sc-score { font: 300 34px/1.1 "Segoe UI"; }
+.sc-score span { font-size: 13px; color: var(--sky); }
+.sc-count { font: 12px "Segoe UI"; color: var(--sky); }
+.sc-medals { display: flex; justify-content: flex-end; gap: 6px; margin: 7px 0 9px; }
+.sc-medals i { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(160, 190, 255, .45); background: rgba(5, 12, 30, .6); }
+.sc-btns { display: flex; justify-content: flex-end; gap: 5px; }
+
+.sc-const { cursor: pointer; }
+.sc-const .sc-hit { fill: transparent; }
+.sc-const .sc-halo { opacity: 0; transition: opacity .2s; }
+.sc-const .sc-halo.done { opacity: .18; }
+.sc-const:hover .sc-halo { opacity: .32; }
+.sc-const:hover .sc-lbl { fill: var(--gold); }
+.sc-lbl { font: 600 13px "Segoe UI"; fill: #fff; text-anchor: middle; }
+.sc-topic { font: 600 9.5px "Segoe UI"; letter-spacing: 2.5px; text-anchor: middle; }
+.sc-prog { font: 11px "Segoe UI"; fill: var(--sky); text-anchor: middle; }
+
+.sc-pole { cursor: pointer; }
+.sc-pole .sc-pole-star { opacity: .3; transform-box: fill-box; transform-origin: center; }
+.sc-pole .sc-pole-glow { opacity: .25; }
+.sc-pole.open .sc-pole-star { opacity: 1; animation: scpole 2.4s ease-in-out infinite; }
+.sc-pole.open .sc-pole-glow { opacity: .9; }
+.sc-pole.done .sc-pole-star { opacity: 1; animation: none; }
+.sc-pole:hover .sc-lbl { fill: var(--gold); }
+@keyframes scpole { 0%, 100% { transform: scale(1) rotate(0); } 50% { transform: scale(1.12) rotate(12deg); } }
+
+.sc-next { transform-box: fill-box; transform-origin: center; animation: scpulse 1.4s ease-in-out infinite; }
+@keyframes scpulse { 0%, 100% { opacity: .3; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.35); } }
+.sc-pop { transform-box: fill-box; transform-origin: center; animation: scpop .7s cubic-bezier(.2, 1.7, .4, 1) both; }
+@keyframes scpop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); } }
+.sc-draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: scdraw .9s ease-out .15s forwards; }
+@keyframes scdraw { to { stroke-dashoffset: 0; } }
+
+/* constellation view */
+.sc-chead { position: absolute; left: 30px; top: 16px; }
+.sc-chead .bbtn { margin-bottom: 10px; }
+.sc-chead small { display: block; }
+.sc-cprog { margin-top: 2px; font: 12px "Segoe UI"; color: var(--sky); }
+.sc-mini { position: absolute; left: 400px; top: 26px; font: 12px "Segoe UI"; color: var(--sky); }
+.sc-mini b { font: 300 24px "Segoe UI"; color: #fff; }
+.sc-panel { position: absolute; left: 580px; top: 22px; right: 22px; bottom: 22px; display: flex; flex-direction: column; overflow: auto; padding: 16px 18px;
+            background: linear-gradient(rgba(10, 24, 60, .82), rgba(10, 24, 60, .66)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 8px 30px rgba(0, 0, 0, .45); }
+.sc-loading { margin: auto; font: 13px "Segoe UI"; color: var(--sky); }
+.sc-loading::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 10px; vertical-align: -2px; border-radius: 50%;
+                      border: 2px solid rgba(160, 190, 255, .3); border-top-color: var(--orange); animation: spin .8s linear infinite; }
+.sc-q-kicker { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.sc-q-prompt { margin: 3px 0 10px; font: 300 21px/1.25 "Segoe UI"; }
+.sc-q-img { flex: none; height: 180px; margin-bottom: 10px; background: #0b1a40 center/contain no-repeat; border: 4px solid rgba(255, 255, 255, .85); }
+.sc-q-detail { margin-bottom: 4px; padding: 8px 12px; font: italic 14px/1.55 Georgia, serif; color: #e6eefc; background: rgba(0, 0, 0, .25); border-left: 3px solid var(--orange); user-select: text; }
+.sc-choices { display: grid; gap: 6px; margin-top: 8px; }
+.sc-choice { display: flex; align-items: center; gap: 10px; padding: 7px 10px; text-align: left; color: #fff; font: 13.5px "Segoe UI";
+             background: rgba(5, 12, 30, .5); border: 1px solid rgba(160, 190, 255, .25); }
+.sc-choice i { flex: none; width: 22px; height: 22px; display: grid; place-items: center; font: 700 11px "Segoe UI"; font-style: normal;
+               background: #1c2a4d; border: 1px solid rgba(160, 190, 255, .35); }
+.sc-choice:hover:not(:disabled) { border-color: var(--orange); background: rgba(5, 12, 30, .75); }
+.sc-choice:hover:not(:disabled) i { background: var(--orange); color: #2b1d00; }
+.sc-choice.right { border-color: #5fd38a; background: rgba(60, 180, 100, .28); }
+.sc-choice.right i { background: #2f9e57; border-color: #5fd38a; }
+.sc-choice.wrong { border-color: #e25555; background: rgba(200, 60, 60, .25); }
+.sc-choice.wrong i { background: #b33a3a; border-color: #e25555; }
+.sc-choice.dim { opacity: .45; }
+.sc-feedback { margin-top: 10px; font: 13px/1.5 "Segoe UI"; }
+.sc-feedback b.ok { color: #7fe39f; }
+.sc-feedback b.no { color: #ffa4a4; }
+.sc-fact { margin: 4px 0 0; font: 12.5px/1.5 Georgia, serif; color: #cfdcf5; user-select: text; }
+.sc-actions { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+/* awards */
+.sc-ov { background: rgba(3, 8, 24, .72); }
+.sc-award { width: 420px; padding: 26px 28px 22px; text-align: center; color: #fff; animation: scaward .5s cubic-bezier(.2, 1.4, .4, 1) both;
+            background: linear-gradient(#25458a, #0f2250); border: 1px solid var(--ink-3); box-shadow: 0 16px 50px rgba(0, 0, 0, .65); }
+@keyframes scaward { from { transform: scale(.8); opacity: 0; } to { transform: none; opacity: 1; } }
+.sc-award small { font: 600 11px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.sc-award h2 { margin: 4px 0 6px; font: 300 26px "Segoe UI"; }
+.sc-award p { margin: 0 0 16px; font: 13px/1.5 "Segoe UI"; color: #cfdcf5; }
+.sc-award .sc-actions { justify-content: center; }
+.sc-medallion { width: 130px; height: 130px; margin: 0 auto 14px; padding: 12px; border-radius: 50%; animation: scspin 1.2s cubic-bezier(.2, .9, .3, 1) both;
+                background: conic-gradient(#f6dc94, #9a6a1e, #f3d27c, #7d5212, #f6dc94, #a77622, #f6dc94);
+                box-shadow: 0 0 0 2px #5a3a0a, 0 0 40px var(--c), 0 8px 20px rgba(0, 0, 0, .5); }
+@keyframes scspin { from { transform: rotateY(180deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+.sc-medallion .face { width: 100%; height: 100%; border-radius: 50%; display: grid; place-items: center; box-shadow: inset 0 3px 8px rgba(0, 0, 0, .6);
+                      background: radial-gradient(circle at 40% 30%, #fff 0%, var(--c) 35%, #0f2250 100%); }
+.sc-medallion svg { width: 52px; height: 52px; fill: #fff; filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .5)); }

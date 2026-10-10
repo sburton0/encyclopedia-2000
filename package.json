@@ -1,0 +1,16 @@
+{
+  "name": "encyclopedia-2000",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
+  "main": "main.js",
+  "scripts": {
+    "setup": "npm install && node node_modules/electron/install.js",
+    "start": "electron .",
+    "icons": "electron tools/make-icons.js",
+    "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1"
+  },
+  "devDependencies": {
+    "electron": "^44.7.0"
+  }
+}

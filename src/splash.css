@@ -1,0 +1,39 @@
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0f2250; }
+body { position: relative; font-family: "Segoe UI", Tahoma, sans-serif; color: #fff; user-select: none; cursor: default;
+       transition: opacity .45s ease; }
+body.out { opacity: 0; }
+
+svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.spin { transform-origin: 0 0; animation: spin 9s linear both; }
+.petal { transform-origin: 0 0; animation: grow 1.9s cubic-bezier(.16, .84, .3, 1) both; }
+.core { transform-box: view-box; transform-origin: 320px 150px; animation: core 2.6s ease-out .35s both; }
+.arcs { animation: fade 2s ease-out .8s both; }
+.spark { transform-origin: 0 0; animation: spark 1.5s ease-out 2.05s both; }
+
+@keyframes spin { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
+@keyframes grow { from { transform: scale(.05) rotate(-40deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+@keyframes core { 0% { opacity: 0; transform: scale(.2); } 55% { opacity: 1; transform: scale(1.3); } 100% { opacity: .85; transform: scale(1); } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes spark { 0% { opacity: 0; transform: scale(.2) rotate(0); } 35% { opacity: .95; transform: scale(1.15) rotate(20deg); } 100% { opacity: 0; transform: scale(.5) rotate(50deg); } }
+
+.emblem { position: absolute; left: 272px; top: 98px; width: 96px; height: 96px;
+          filter: drop-shadow(0 0 14px rgba(190, 215, 255, .85)); animation: emblem 1.2s cubic-bezier(.2, .8, .2, 1.2) 1.1s both; }
+@keyframes emblem { from { opacity: 0; transform: translateY(16px) scale(.6); } to { opacity: 1; transform: none; } }
+
+.title { position: absolute; left: 0; right: 0; top: 206px; text-align: center; text-shadow: 0 2px 12px rgba(5, 15, 45, .85); }
+.title .e { font: 300 24px "Segoe UI"; letter-spacing: 1px; animation: rise .9s ease-out 1.6s both; }
+.title .y { font: 300 66px/1 "Segoe UI"; letter-spacing: 4px; animation: track 1.7s cubic-bezier(.2, .8, .2, 1) 1.8s both; }
+.title .y b { font-weight: 400; color: #f5a623; }
+.title .tag { margin-top: 8px; font: 600 10px "Segoe UI"; letter-spacing: 5px; color: #aac0e6; animation: rise .9s ease-out 2.5s both; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes track { from { opacity: 0; letter-spacing: 30px; } to { opacity: 1; letter-spacing: 4px; } }
+
+.load { position: absolute; left: 160px; right: 160px; bottom: 34px; animation: rise .6s ease-out .4s both; }
+.status { height: 15px; margin-bottom: 6px; text-align: center; font: 11px "Segoe UI"; color: #cfdcf5; }
+.bar { height: 4px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
+.bar i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0);
+         box-shadow: 0 0 8px #f5a623; animation: fill 5.5s cubic-bezier(.4, .1, .3, 1) .2s forwards; }
+@keyframes fill { to { width: 100%; } }
+
+.foot { position: absolute; left: 14px; right: 14px; bottom: 10px; display: flex; justify-content: space-between; font: 10px "Segoe UI"; color: #7f95c4; }
+.frame { position: absolute; inset: 0; border: 1px solid rgba(160, 190, 255, .35); pointer-events: none; }
