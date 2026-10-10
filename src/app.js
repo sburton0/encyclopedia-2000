@@ -670,7 +670,7 @@
     const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) close(); } });
     ov.append(h('div', { class: 'dialog picker', role: 'dialog' },
       h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Startup Sound'),
-      h('div', { class: 'pb' }, h('p', {}, 'Every version keeps the same pad and shimmer. Only the melody instrument changes. Click one to hear it.'), rows),
+      h('div', { class: 'pb' }, h('p', {}, 'Every version keeps the same pad. Only the melody instrument changes. Click one to hear it.'), rows),
       h('div', { class: 'df' },
         h('button', { class: 'go', onclick: () => { store.set('lead', chosen); close(); setIdle(`Startup sound set to ${E2KAudio.LEAD_INFO.find((l) => l[0] === chosen)[1]}`); } }, 'Use This Sound'),
         h('button', { class: 'go', onclick: close }, 'Cancel'))));

@@ -198,7 +198,7 @@ window.E2KAudio = (() => {
     ['pluck', 'Synth pluck', 'A gentle early-2000s synth with an echo bouncing left and right.'],
     ['flute', 'Flute', 'Breathy held notes with a little vibrato. Calm and airy.'],
     ['choir', 'Choir', 'Wordless "aah" voices swelling in. The most cinematic option.'],
-    ['none', 'Pads only', 'No melody at all, just the pad, the low swell, and the shimmer.'],
+    ['none', 'Pads only', 'No melody at all, just the pad and the low swell.'],
   ];
 
   // `context` lets a test render the jingle into an OfflineAudioContext.
@@ -286,21 +286,6 @@ window.E2KAudio = (() => {
       play(c, bus, FINALE[0][0], t0 + FINALE[0][1], 0.1, -0.15, 2.2, fx);
       play(c, bus, FINALE[1][0], t0 + FINALE[1][1], 0.08, 0.2, 2.2, fx);
     }
-
-    // Airy shimmer.
-    const noise = c.createBufferSource();
-    noise.buffer = noiseBuffer(c, 4);
-    const hp = c.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 7000;
-    const ng = c.createGain();
-    ng.gain.setValueAtTime(0, t0);
-    ng.gain.linearRampToValueAtTime(0.025, t0 + 2.2);
-    ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 4.8);
-    noise.connect(hp).connect(ng);
-    if (!melodyOnly) ng.connect(bus);
-    noise.start(t0 + 0.8);
-    noise.stop(t0 + 4.9);
   }
 
   function fadeOut(seconds = 0.4) {
