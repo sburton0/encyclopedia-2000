@@ -68,3 +68,10 @@
 .wx-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .wx-acts .go { margin: 0; }
 .wx-card.intro .wx-cb { padding-top: 18px; }
+.wx-flag img.globe { max-width: 140px; max-height: 136px; border: 0; box-shadow: none; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, .5)); }
+.wx-sum.short { -webkit-line-clamp: 3; }
+.wx-lh { margin: 16px 0 6px; padding-bottom: 4px; font: 600 15px "Segoe UI"; color: var(--orange); border-bottom: 1px solid rgba(255, 255, 255, .25); }
+.wx-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.wx-list button { padding: 2px 0; background: none; border: 0; text-align: left; font: 12.5px/1.5 "Segoe UI"; color: var(--sky);
+                  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wx-list button:hover { color: var(--gold); }

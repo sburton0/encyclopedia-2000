@@ -248,11 +248,11 @@ button { font-family: inherit; cursor: default; }
 .facts .r span:last-child { text-align: right; }
 
 /* scrollbars in the period style */
-.content::-webkit-scrollbar, .rail .in::-webkit-scrollbar, .suggest::-webkit-scrollbar { width: 15px; }
+.content::-webkit-scrollbar, .rail .in::-webkit-scrollbar, .suggest::-webkit-scrollbar, .wx-cb::-webkit-scrollbar { width: 15px; }
 .content::-webkit-scrollbar-track { background: #e3e8f3; border-left: 1px solid #c9d3ea; }
 .content::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #4f78c4, #25458a); border: 2px solid #e3e8f3; }
-.rail .in::-webkit-scrollbar-track, .suggest::-webkit-scrollbar-track { background: transparent; }
-.rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
+.rail .in::-webkit-scrollbar-track, .suggest::-webkit-scrollbar-track, .wx-cb::-webkit-scrollbar-track { background: transparent; }
+.rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb, .wx-cb::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
 
 /* ---------- article typography ---------- */
 .text { flex: 1; min-width: 0; max-width: 820px; font: calc(15px * var(--fs))/1.65 var(--read-font); color: #1c1c1c; user-select: text; cursor: auto; }

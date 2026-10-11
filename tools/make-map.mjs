@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { feature } from 'topojson-client';
-import { geoNaturalEarth1, geoPath } from 'd3-geo';
+import { geoCentroid, geoNaturalEarth1, geoPath } from 'd3-geo';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const topo = JSON.parse(fs.readFileSync(path.join(root, 'node_modules/world-atlas/countries-50m.json'), 'utf8'));
@@ -120,19 +120,32 @@ const graticule = [];
 for (let lon = -180; lon <= 180; lon += 30) graticule.push({ type: 'LineString', coordinates: Array.from({ length: 37 }, (_, i) => [lon, -90 + i * 5]) });
 for (let lat = -60; lat <= 90; lat += 30) graticule.push({ type: 'LineString', coordinates: Array.from({ length: 73 }, (_, i) => [-180 + i * 5, lat]) });
 
-// What each region button zooms to, as [west, south, east, north] in degrees.
-const REGION_VIEWS = {
-  Africa: [-20, -36, 53, 38], Asia: [25, -11, 150, 56], Europe: [-25, 34, 45, 71],
-  'North America': [-170, 6, -50, 80], 'South America': [-84, -56, -33, 13], Oceania: [110, -48, 180, 2],
+// What each region button zooms to: the bounds of the region's landmasses (islands too small to matter are skipped).
+// A piece counts toward a region only if it lies inside that region's rough box, given as [west, south, east, north] in degrees,
+// so France's French Guiana doesn't stretch Europe across the Atlantic.
+const REGION_BOXES = {
+  Africa: [-20, -36, 53, 38], Asia: [25, -11, 150, 56], Europe: [-25, 34, 45, 72],
+  'North America': [-170, 6, -10, 84], 'South America': [-85, -56, -33, 13], Oceania: [110, -48, 180, 2],
 };
 const views = {};
-for (const [r, [w, s, e, n]] of Object.entries(REGION_VIEWS)) {
-  const pts = [];
-  for (let i = 0; i <= 10; i++) { const lon = w + (e - w) * i / 10; pts.push(projection([lon, s]), projection([lon, n])); }
-  for (let i = 0; i <= 10; i++) { const lat = s + (n - s) * i / 10; pts.push(projection([w, lat]), projection([e, lat])); }
-  const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
-  const x0 = Math.min(...xs), y0 = Math.min(...ys);
-  views[r] = [Math.round(x0), Math.round(y0), Math.round(Math.max(...xs) - x0), Math.round(Math.max(...ys) - y0)];
+for (const [r, [w, s, e, n]] of Object.entries(REGION_BOXES)) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [, { info, features: fs }] of groups) {
+    const regions = (info.conts?.value || '').split(' ').map((q) => REGIONS[q]);
+    if (!regions.includes(r)) continue;
+    for (const f of fs) {
+      const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+      for (const p of polys) {
+        const g = { type: 'Polygon', coordinates: p };
+        if (draw.area(g) < 1) continue;
+        const [[a, b], [c, d]] = draw.bounds(g);
+        const [lon, lat] = geoCentroid(g);
+        if (lon < w || lon > e || lat < s || lat > n) continue;
+        x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, c); y1 = Math.max(y1, d);
+      }
+    }
+  }
+  views[r] = [Math.round(x0), Math.round(y0), Math.round(x1 - x0), Math.round(y1 - y0)];
 }
 
 const data = {

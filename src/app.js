@@ -129,14 +129,15 @@
     if (name === 'activity') return [home, { label: 'Activities', r: 'activities' }, { label: E2KActivities.get(arg)?.name || arg, r }];
     return [home];
   }
-  const fullTrail = () => [...crumbs.trail, ...crumbs.sub.map((label) => ({ label }))];
+  const fullTrail = () => [...crumbs.trail, ...crumbs.sub.map((s) => (typeof s === 'string' ? { label: s } : s))];
 
   // The trail an article inherits when opened from this screen. Links between articles replace the last step.
   function linkFrom() {
     const r = nav.stack[nav.idx] || 'home';
     if (r === 'home') return null;
     if (r.startsWith('article/')) return crumbs.trail.slice(0, -1);
-    return fullTrail();
+    // Steps inside a game or activity become plain text: their actions only work while it's on screen.
+    return [...crumbs.trail, ...crumbs.sub.map((s) => ({ label: typeof s === 'string' ? s : s.label }))];
   }
 
   // Clicking a step returns to that screen: back through history if it's there, otherwise as a new page.
@@ -177,6 +178,7 @@
     drawCrumbs();
   }
   // Games and activities report where they are inside themselves: setCrumbs(['The Flask'], backToStart).
+  // A step can also be { label, run } to make it clickable.
   function setCrumbs(sub = [], onRoot = null) {
     crumbs.sub = sub;
     crumbs.onRoot = sub.length ? onRoot : null;

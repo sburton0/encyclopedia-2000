@@ -2,6 +2,8 @@
 // The map comes from map-data.js (built by tools/make-map.mjs). Facts come live from Wikidata, summaries from Wikipedia.
 window.E2KWorld = (() => {
   const REGIONS = ['All', 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'];
+  // Each region's Wikidata item (for its area and population); the Wikipedia article has the same name.
+  const CONTINENTS = { Africa: 'Q15', Asia: 'Q48', Europe: 'Q46', 'North America': 'Q49', 'South America': 'Q18', Oceania: 'Q55643' };
   const MIN_W = 40; // narrowest the view can zoom to, in map units (the whole map is 1000 wide)
   const TINY = 10; // countries smaller than this (width + height, in map units) also get a dot, so they can be clicked
 
@@ -96,7 +98,7 @@ window.E2KWorld = (() => {
     // Header: title, search, regions
     const input = h('input', { placeholder: 'Find a country', spellcheck: 'false', autocomplete: 'off' });
     const sugBox = h('div', { class: 'wx-sug', hidden: true });
-    const regionBtns = REGIONS.map((r) => h('button', { class: 'wx-chip', onclick: () => setRegion(r) }, r));
+    const regionBtns = REGIONS.map((r) => h('button', { class: 'wx-chip', onclick: () => chooseRegion(r) }, r));
     const card = h('div', { class: 'wx-card' });
     const el = h('div', { class: 'wx' },
       h('div', { class: 'wx-head' },
@@ -215,7 +217,19 @@ window.E2KWorld = (() => {
         paths[c.id].classList.toggle('dim', dim);
         dots[c.id]?.classList.toggle('dim', dim);
       }
-      if (zoom) setView(r === 'All' ? { x: 0, y: 0, w: M.w } : { x: M.views[r][0], y: M.views[r][1], w: Math.max(M.views[r][2], M.views[r][3] * (M.w / M.h)) });
+      if (zoom) r === 'All' ? setView({ x: 0, y: 0, w: M.w }) : frame(M.views[r], 1.08);
+    }
+    // Choosing a region zooms to it and shows the region's card (or the welcome card for All).
+    function chooseRegion(r) {
+      clearSel();
+      setRegion(r);
+      showHome();
+    }
+    // The card for when no country is picked.
+    function showHome() {
+      api.setIdle();
+      if (state.region === 'All') { api.setCrumbs([]); showIntro(); }
+      else { api.setCrumbs([state.region], () => chooseRegion('All')); showRegion(state.region); }
     }
 
     // ---------- selection and the card ----------
@@ -229,16 +243,62 @@ window.E2KWorld = (() => {
       // Keep the selected country on top so its outline isn't hidden by its neighbors.
       paths[id].parentNode.insertBefore(paths[id], dotLayer);
       if (zoom) frame(c.box);
-      api.setCrumbs([c.name], () => deselect());
+      // Inside a region, the trail goes World Explorer › Africa › Kenya, and Africa leads back to the region's card.
+      const inRegion = state.region !== 'All' && c.regions.includes(state.region);
+      api.setCrumbs(inRegion ? [{ label: state.region, run: () => deselect() }, c.name] : [c.name], () => chooseRegion('All'));
       api.setIdle(c.name);
       showCard(c);
     }
-    function deselect() {
+    function clearSel() {
       if (state.sel) { paths[state.sel]?.classList.remove('sel'); dots[state.sel]?.classList.remove('sel'); }
       state.sel = null;
-      api.setCrumbs([]);
-      api.setIdle();
-      showIntro();
+    }
+    function deselect() {
+      clearSel();
+      if (state.region !== 'All') frame(M.views[state.region], 1.08);
+      showHome();
+    }
+
+    async function showRegion(r) {
+      const token = ++cardToken;
+      card.classList.remove('intro');
+      const list = M.countries.filter((c) => c.regions.includes(r));
+      const pic = h('div', { class: 'wx-flag' }, h('div', { class: 'wx-flag-ph' }));
+      const rows = h('table', { class: 'wx-facts' },
+        h('tr', {}, h('td', {}, 'Area'), h('td', { class: 'wx-area' }, '…')),
+        h('tr', {}, h('td', {}, 'Population'), h('td', { class: 'wx-pop' }, '…')),
+        h('tr', {}, h('td', {}, 'Countries'), h('td', {}, `${list.length} countries and territories`)));
+      const desc = h('div', { class: 'desc' });
+      const sum = h('p', { class: 'wx-sum short' });
+      card.replaceChildren(pic,
+        h('div', { class: 'wx-cb' },
+          h('small', {}, r === 'Oceania' ? 'REGION' : 'CONTINENT'),
+          h('h2', {}, r), desc, rows, sum,
+          h('div', { class: 'wx-acts' }, h('button', { class: 'go', onclick: () => api.openArticle(r) }, `Read about ${r} ›`)),
+          h('h3', { class: 'wx-lh' }, 'Countries and territories'),
+          h('div', { class: 'wx-list' }, list.map((c) => h('button', {
+            title: c.name,
+            onclick: () => select(c.id, { zoom: true }),
+            onmouseenter: () => setHover(c.id),
+            onmouseleave: () => setHover(null),
+          }, c.name)))));
+
+      loadSummary(r).then((s) => {
+        if (token !== cardToken) return;
+        // Skip a description that only repeats the label above ("Continent").
+        desc.textContent = s.description && s.description.toLowerCase() !== (r === 'Oceania' ? 'region' : 'continent') ? cap(s.description) : '';
+        sum.textContent = s.extract || '';
+        const src = s.thumbnail?.source;
+        if (src) { const img = h('img', { class: 'globe', src, alt: '' }); img.onerror = () => img.remove(); pic.replaceChildren(img); }
+      }).catch(() => {});
+      try {
+        const f = await loadFacts(CONTINENTS[r]);
+        if (token !== cardToken || disposed) return;
+        rows.querySelector('.wx-area').textContent = areaText(f.area) || '—';
+        rows.querySelector('.wx-pop').textContent = people(f.population) || '—';
+      } catch {
+        if (token === cardToken) rows.querySelectorAll('.wx-area, .wx-pop').forEach((td) => { td.textContent = '—'; });
+      }
     }
 
     function showIntro() {
@@ -352,7 +412,7 @@ window.E2KWorld = (() => {
     setRegion(state.region, false);
     apply();
     if (state.sel && byId[state.sel]) select(state.sel);
-    else showIntro();
+    else showHome();
 
     return () => { disposed = true; cancelAnimationFrame(anim); cardToken++; };
   }
