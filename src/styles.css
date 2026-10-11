@@ -37,9 +37,9 @@ button { font-family: inherit; cursor: default; }
 /* ---------- toolbar: flat buttons that sit inside the dark band ---------- */
 .toolbar { height: 38px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; position: relative; z-index: 30;
            background: linear-gradient(#17191e, #050608); border-top: 1px solid #23262d; border-bottom: 1px solid var(--bar-line); }
-.find { display: flex; align-items: center; }
+.find { display: flex; align-items: center; flex: 0 1 auto; min-width: 0; }
 .find label { margin-right: 7px; font-size: 12px; color: #cfd6e2; }
-.field { position: relative; display: flex; width: 250px; height: 24px; background: #0a0c10; border: 1px solid var(--bar-edge); }
+.field { position: relative; display: flex; flex: 0 1 230px; width: 230px; min-width: 140px; height: 24px; background: #0a0c10; border: 1px solid var(--bar-edge); }
 .field:focus-within { border-color: var(--orange); }
 .field input { flex: 1; min-width: 0; padding: 0 7px; border: 0; outline: none; background: transparent; color: #fff; font: 12px "Segoe UI"; user-select: text; }
 .field input::placeholder { color: #5d6474; }
@@ -72,6 +72,9 @@ button { font-family: inherit; cursor: default; }
 #volrange:focus { outline: none; }
 #volrange:focus-visible::-webkit-slider-thumb { outline: 1px solid var(--orange); }
 .volpop.muted #volrange::-webkit-slider-runnable-track { background: linear-gradient(90deg, #4a5262 var(--p, 100%), #0a0c10 var(--p, 100%)); }
+.tbtn.home-btn { height: 30px; padding: 0 10px 0 6px; font-weight: 600; color: #fff; }
+.tbtn.home-btn img { width: 22px; height: 22px; filter: drop-shadow(0 0 4px rgba(190, 215, 255, .6)); transition: filter .15s; }
+.tbtn.home-btn:hover img { filter: drop-shadow(0 0 7px rgba(255, 220, 160, .9)); }
 .tsep { width: 1px; height: 22px; margin: 0 6px; background: var(--bar-line); box-shadow: 1px 0 #000; }
 
 .suggest { position: absolute; top: 24px; left: -1px; width: 380px; max-height: 420px; overflow: auto; z-index: 60;
