@@ -71,7 +71,7 @@
   // ---------- sound ----------
   const soundOn = () => !E2KAudio.isMuted();
   document.addEventListener('click', (e) => {
-    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial, .pt-el, .pt-fam, .wx-chip, .wx-si')) {
+    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial, .pt-el, .pt-fam, .wx-chip, .wx-si, .act-chip')) {
       try { E2KAudio.click(); } catch {}
     }
   }, true);
