@@ -781,8 +781,8 @@
   ], [['Support Wikipedia…', () => supportWikipedia()], ['OK', null, true]]);
   // ---------- feedback ----------
   // Both choices open in the web browser; the app itself sends nothing.
-  // The Discord link is the server's permanent invite. Switch to https://discord.encyclopedia2000.com once that redirect has HTTPS.
-  const DISCORD_URL = 'https://discord.gg/Z4EJdKG39P';
+  // The Discord address forwards to the server's invite (a Cloudflare redirect rule), so the invite can change without an app update.
+  const DISCORD_URL = 'https://discord.encyclopedia2000.com';
   const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform';
   const FORM_FIELDS = { version: 'entry.286759181', windows: 'entry.1837651922' };
   // "0.1.0-beta.1" reads as "0.1 Beta".
