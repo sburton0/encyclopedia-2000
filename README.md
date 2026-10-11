@@ -56,7 +56,6 @@ The World Explorer map lives in `src/world/map-data.js`, generated from Natural 
 | `src/trivia.js` | Question engine shared by all games: topics, subject lists, question types |
 | `src/games/registry.js` | Where games register themselves |
 | `src/games/starchart.js`, `src/games/games.css` | The Star Chart game and the games styles |
-| `mockups/` | Design mockups from each round (`all-options.html` shows them all) |
 
 ## Adding a game
 
