@@ -42,7 +42,7 @@
 
   // ---------- state ----------
   const view = $('#view');
-  const nav = { stack: [], idx: -1 };
+  const nav = { stack: [], from: [], idx: -1 };
   let renderToken = 0;
   let current = null; // the article on screen: { title, desc, thumb }
   let speaking = false;
@@ -92,11 +92,14 @@
   applyPrefs();
 
   // ---------- navigation ----------
-  function go(r, { replace = false } = {}) {
-    if (replace && nav.idx >= 0) nav.stack[nav.idx] = r;
+  // Each history entry can remember the trail it was opened from (see "location bar" below).
+  function go(r, { replace = false, from = null } = {}) {
+    if (replace && nav.idx >= 0) { nav.stack[nav.idx] = r; nav.from[nav.idx] = from || nav.from[nav.idx]; }
     else {
       nav.stack = nav.stack.slice(0, nav.idx + 1);
+      nav.from = nav.from.slice(0, nav.idx + 1);
       nav.stack.push(r);
+      nav.from.push(from);
       nav.idx++;
     }
     render(r);
@@ -104,7 +107,81 @@
   const back = () => { if (nav.idx > 0) render(nav.stack[--nav.idx]); };
   const fwd = () => { if (nav.idx < nav.stack.length - 1) render(nav.stack[++nav.idx]); };
   const reload = () => render(nav.stack[nav.idx] || 'home');
-  const openArticle = (title) => go(route('article', title));
+  // Articles opened without a trail (Find box, Favorites, Home) sit under Articles.
+  const openArticle = (title, from = null) => go(route('article', title), { from });
+
+  // ---------- location bar ----------
+  // A trail is a list of steps: { label, r } links to a route, { label, run } calls a function, { label } is plain text.
+  const crumbsEl = $('#crumbs');
+  const titleEl = $('.titlebar .tt');
+  const SECTIONS = { explore: 'Articles', gallery: 'Media', onthisday: 'Timeline', games: 'Games', activities: 'Activities' };
+  let crumbs = { trail: [], sub: [], onRoot: null };
+
+  function baseTrail(r, from) {
+    const [name, ...rest] = r.split('/');
+    const arg = rest.length ? decodeURIComponent(rest.join('/')) : '';
+    const home = { label: 'Home', r: 'home' };
+    if (SECTIONS[name]) return [home, { label: SECTIONS[name], r: name }];
+    if (name === 'random') return [home, { label: 'Random article' }];
+    if (name === 'search') return [home, { label: 'Search' }, { label: `“${arg}”`, r }];
+    if (name === 'article') return [...(from || [home, { label: 'Articles', r: 'explore' }]), { label: arg, r }];
+    if (name === 'game') return [home, { label: 'Games', r: 'games' }, { label: E2KGames.get(arg)?.name || arg, r }];
+    if (name === 'activity') return [home, { label: 'Activities', r: 'activities' }, { label: E2KActivities.get(arg)?.name || arg, r }];
+    return [home];
+  }
+  const fullTrail = () => [...crumbs.trail, ...crumbs.sub.map((label) => ({ label }))];
+
+  // The trail an article inherits when opened from this screen. Links between articles replace the last step.
+  function linkFrom() {
+    const r = nav.stack[nav.idx] || 'home';
+    if (r === 'home') return null;
+    if (r.startsWith('article/')) return crumbs.trail.slice(0, -1);
+    return fullTrail();
+  }
+
+  // Clicking a step returns to that screen: back through history if it's there, otherwise as a new page.
+  function jumpTo(r) {
+    for (let i = nav.idx - 1; i >= 0; i--) {
+      if (nav.stack[i] === r) { nav.idx = i; render(r); return; }
+    }
+    go(r);
+  }
+
+  function drawCrumbs() {
+    const steps = fullTrail();
+    const here = steps[steps.length - 1];
+    crumbsEl.hidden = steps.length < 2;
+    titleEl.textContent = document.title = steps.length < 2 ? 'Encyclopedia 2000' : `${here.label} – Encyclopedia 2000`;
+    const parts = [h('span', { class: 'lbl' }, 'LOCATION'), h('img', { src: 'icon-small.svg', alt: '' })];
+    steps.forEach((s, i) => {
+      if (i === steps.length - 1) { parts.push(h('span', { class: 'here', title: s.label }, s.label)); return; }
+      // The game or activity step takes you back to its start screen when you're deeper inside it.
+      const isRoot = crumbs.onRoot && i === crumbs.trail.length - 1;
+      const act = isRoot ? crumbs.onRoot : s.run || (s.r ? () => jumpTo(s.r) : null);
+      parts.push(act ? h('a', { href: '#', title: s.label, onclick: (e) => { e.preventDefault(); act(); } }, s.label) : h('span', { class: 'step' }, s.label),
+        h('span', { class: 'sep' }, '›'));
+    });
+    crumbsEl.replaceChildren(...parts);
+    // Light the toolbar button for the section this page belongs to.
+    const section = steps[1]?.r;
+    $$('.tbtn[data-cmd="explore"], .tbtn[data-cmd="gallery"], .tbtn[data-cmd="onthisday"]').forEach((b) => b.classList.toggle('on', b.dataset.cmd === section));
+  }
+
+  function setTrail(r) {
+    crumbs = { trail: baseTrail(r, nav.from[nav.idx]), sub: [], onRoot: null };
+    drawCrumbs();
+  }
+  // Rename the current step, e.g. when an article's real title differs from the link that opened it.
+  function setHere(label) {
+    crumbs.trail[crumbs.trail.length - 1].label = label;
+    drawCrumbs();
+  }
+  // Games and activities report where they are inside themselves: setCrumbs(['The Flask'], backToStart).
+  function setCrumbs(sub = [], onRoot = null) {
+    crumbs.sub = sub;
+    crumbs.onRoot = sub.length ? onRoot : null;
+    drawCrumbs();
+  }
 
   function mount(el, token) {
     if (token !== renderToken) return false;
@@ -124,6 +201,7 @@
     hideSuggest();
     current = null;
     updateToolbar();
+    setTrail(r);
     try {
       switch (name) {
         case 'article': await viewArticle(arg, token); break;
@@ -375,6 +453,7 @@
     const name = sum.titles?.normalized || title;
     const canon = sum.titles?.canonical || name.replace(/ /g, '_');
     pg.setTitle(name, sum.description);
+    setHere(name);
     wikiBtn.onclick = () => window.e2k.openExternal(Wiki.pageUrl(canon));
 
     const html = await Wiki.html(canon);
@@ -398,7 +477,7 @@
     })));
     pg.railIn.append(...tocLinks);
     if (related.length) {
-      pg.railIn.append(h('hr'), h('h4', {}, 'Related articles'), ...related.map((t) => railLink(t, () => openArticle(t), 'sub')));
+      pg.railIn.append(h('hr'), h('h4', {}, 'Related articles'), ...related.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub')));
     }
     pg.content.addEventListener('scroll', () => {
       const y = pg.content.scrollTop + 40;
@@ -435,7 +514,7 @@
     const a = e.target.closest('a');
     if (!a) return;
     e.preventDefault();
-    if (a.dataset.title) openArticle(a.dataset.title);
+    if (a.dataset.title) openArticle(a.dataset.title, linkFrom());
     else if (a.dataset.ext) window.e2k.openExternal(a.dataset.ext);
     else if (a.dataset.file) {
       const img = a.querySelector('img');
@@ -477,7 +556,7 @@
           const txt = decodeHtml(part);
           ex.append(i % 2 ? h('strong', {}, txt) : txt);
         });
-        return h('button', { class: 'res', onclick: () => openArticle(p.title) },
+        return h('button', { class: 'res', onclick: () => openArticle(p.title, linkFrom()) },
           h('i', { class: 'th', style: bg(https(p.thumbnail?.url)) }),
           h('div', {}, h('b', {}, p.title), p.description ? h('span', {}, p.description) : null, ex));
       })));
@@ -504,7 +583,7 @@
       railLink('Picture of the Day', () => go('gallery')),
       railLink('On this day', () => go('onthisday')));
     const recent = store.get('recent', []);
-    if (recent.length) pg.railIn.append(h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => railLink(t, () => openArticle(t), 'sub')));
+    if (recent.length) pg.railIn.append(h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub')));
     const grid = h('div', { class: 'cards' }, Array.from({ length: 8 }, () => h('div', { class: 'card ghost' })));
     pg.text.append(grid);
     if (!mount(pg.root, token)) return;
@@ -583,7 +662,7 @@
       list.replaceChildren(...data[k].map((o) => {
         const page = (o.pages || []).find((p) => p.thumbnail) || (o.pages || [])[0];
         const t = page ? page.titles?.normalized || page.title : null;
-        return h('button', { class: 'tl-item', onclick: () => (t ? openArticle(t) : null) },
+        return h('button', { class: 'tl-item', onclick: () => (t ? openArticle(t, linkFrom()) : null) },
           h('div', { class: 'yr' }, o.year !== undefined ? String(o.year) : '•'),
           h('div', { class: 'tx' }, o.text, t ? h('small', {}, t + ' ›') : null),
           page?.thumbnail ? h('i', { class: 'th', style: bg(page.thumbnail.source) }) : null);
@@ -980,7 +1059,8 @@
   // ---------- API for games ----------
   const E2K = window.E2K = {
     h, svg, icon, store, route, go,
-    openArticle: (t) => openArticle(t),
+    openArticle: (t) => openArticle(t, linkFrom()),
+    setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop,
     dialog: (...args) => dialog(...args),
     soundOn: () => soundOn(),

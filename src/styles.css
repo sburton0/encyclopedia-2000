@@ -102,6 +102,19 @@ button { font-family: inherit; cursor: default; }
 @keyframes pulse { from { opacity: .25; } to { opacity: 1; } }
 
 /* ---------- main view ---------- */
+/* ---------- location bar (breadcrumbs), hidden on Home ---------- */
+.crumbs { height: 25px; flex: none; display: flex; align-items: center; min-width: 0; padding: 0 12px; position: relative; z-index: 20; overflow: hidden; white-space: nowrap;
+          background: linear-gradient(#0e1118, #08090d); border-bottom: 1px solid #23262d; font: 12px "Segoe UI"; color: #8a93a6; }
+.crumbs[hidden] { display: none; }
+.crumbs .lbl { flex: none; margin-right: 10px; font: 600 10px "Segoe UI"; letter-spacing: 2px; color: #5d6474; }
+.crumbs img { flex: none; width: 14px; height: 14px; margin-right: 6px; }
+.crumbs a, .crumbs .step, .crumbs .here { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; border: 1px solid transparent; }
+.crumbs a { flex: 0 1 auto; color: #cfd6e2; text-decoration: none; }
+.crumbs a:hover { color: #ffd27a; border-color: #3a4050; background: #1b1f28; }
+.crumbs .step { flex: 0 1 auto; color: #cfd6e2; }
+.crumbs .sep { flex: none; margin: 0 4px; color: #5d6474; }
+.crumbs .here { flex: 0 1 auto; color: #fff; font-weight: 600; }
+
 #view { flex: 1; position: relative; overflow: hidden; background: radial-gradient(ellipse at 55% 40%, #4f78c4, #25458a 45%, #0f2250); }
 .fade-in { animation: viewin .25s ease-out both; }
 @keyframes viewin { from { opacity: 0; } to { opacity: 1; } }
@@ -304,7 +317,7 @@ button { font-family: inherit; cursor: default; }
 /* ---------- print ---------- */
 @media print {
   html, body, #app, #view { height: auto; overflow: visible; background: #fff; }
-  .titlebar, .menubar, .toolbar, .statusbar, .rail, .band .tools, .band > svg, .overlay, .strip, .bbtn { display: none !important; }
+  .titlebar, .menubar, .toolbar, .crumbs, .statusbar, .rail, .band .tools, .band > svg, .overlay, .strip, .bbtn { display: none !important; }
   .page, .content { position: static; display: block; overflow: visible; padding: 0; background: #fff; }
   .band { height: auto; margin-bottom: 14px; padding-bottom: 8px; background: none; color: #000; border-bottom: 2px solid #25458a; }
   .band .t { position: static; }

@@ -110,6 +110,7 @@
     // ---------- the whole sky ----------
     function overview() {
       gen++;
+      api.setCrumbs([]);
       const s = sky(512, 315, 0.95, 0.17);
       s.append(svg('ellipse', { cx: 512, cy: 315, rx: 286, ry: 193, fill: 'none', stroke: '#9fb4e6', 'stroke-opacity': 0.16, 'stroke-dasharray': '2 6' }));
 
@@ -179,6 +180,7 @@
     // ---------- one constellation, with the question panel ----------
     function constellation(id) {
       const my = ++gen;
+      api.setCrumbs([NAMES[id]], overview);
       const total = SHAPES[id].stars.length;
       const litOf = () => (id === 'pole' ? st.pole : st.lit[id] || 0);
       const s = sky(290, 330, 0.75, 0.15);
