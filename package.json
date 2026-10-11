@@ -13,7 +13,8 @@
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
     "map": "node tools/make-map.mjs",
     "dist": "electron-builder --win --publish never",
-    "release": "electron-builder --win --publish always"
+    "release": "electron-builder --win --publish always",
+    "stats": "node tools/stats.mjs"
   },
   "devDependencies": {
     "d3-geo": "^3.1.1",
