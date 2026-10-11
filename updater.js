@@ -42,7 +42,11 @@ function setup({ getWindow, isEnabled }) {
   autoUpdater.on('update-available', (i) => send({ state: 'downloading', version: i.version, percent: 0 }));
   autoUpdater.on('download-progress', (p) => send({ ...state, state: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
-  autoUpdater.on('error', (err) => send({ state: 'error', message: String(err && err.message || err).split('\n')[0] }));
+  autoUpdater.on('error', (err) => {
+    const message = String((err && err.message) || err).split('\n')[0];
+    // Before the first release there's nothing to compare against, which simply means there's no update.
+    send(/No published versions/i.test(message) ? { state: 'none' } : { state: 'error', message });
+  });
 
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   setTimeout(() => { if (isEnabled()) check(); }, FIRST_CHECK);
