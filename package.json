@@ -82,7 +82,7 @@
         "provider": "github",
         "owner": "sburton0",
         "repo": "encyclopedia-2000",
-        "releaseType": "prerelease"
+        "releaseType": "release"
       }
     ],
     "portable": {
