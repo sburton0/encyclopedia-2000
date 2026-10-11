@@ -15,7 +15,11 @@ window.E2KWorld = (() => {
   // ---------- data ----------
   async function loadFacts(id) {
     if (facts[id]) return facts[id];
-    const en = (v, l) => `OPTIONAL { ?c wdt:${v} ?${l}x. ?${l}x rdfs:label ?${l} FILTER(LANG(?${l}) = "en") }`;
+    // Current values only (no end date), named by their English Wikipedia article where there is one, otherwise their English label.
+    const en = (v, l) => `OPTIONAL { ?c p:${v} ?${l}s. ?${l}s ps:${v} ?${l}x; a wikibase:BestRank. FILTER NOT EXISTS { ?${l}s pq:P582 [] }
+      ?${l}x rdfs:label ?${l}l FILTER(LANG(?${l}l) = "en")
+      OPTIONAL { ?${l}a schema:about ?${l}x; schema:isPartOf <https://en.wikipedia.org/>; schema:name ?${l}t }
+      BIND(COALESCE(?${l}t, ?${l}l) AS ?${l}) }`;
     const query = `SELECT
       (SAMPLE(?flag) AS ?flag) (GROUP_CONCAT(DISTINCT ?cap; separator="|") AS ?capital)
       (GROUP_CONCAT(DISTINCT ?lang; separator="|") AS ?langs) (GROUP_CONCAT(DISTINCT ?cur; separator="|") AS ?currency)
@@ -31,7 +35,7 @@ window.E2KWorld = (() => {
     const res = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const b = (await res.json()).results.bindings[0] || {};
-    const list = (k) => (b[k]?.value ? b[k].value.split('|').filter(Boolean) : []);
+    const list = (k) => (b[k]?.value ? [...new Set(b[k].value.split('|').filter(Boolean).map(english))] : []);
     // The most recent population figure.
     const pops = list('pops').map((p) => { const [n, t] = p.split('@'); return { n: Number(n), year: t ? new Date(t).getUTCFullYear() : 0 }; })
       .filter((p) => p.n > 0).sort((a, z) => z.year - a.year);
@@ -48,6 +52,14 @@ window.E2KWorld = (() => {
   async function loadSummary(title) {
     if (!summaries[title]) summaries[title] = await Wiki.summary(title);
     return summaries[title];
+  }
+
+  // Article titles made readable: "French language" is "French", "Georgia (country)" is "Georgia".
+  // A few names Wikipedia uses aren't the ones English speakers know.
+  const KNOWN_AS = { Putonghua: 'Mandarin Chinese' };
+  function english(name) {
+    const n = name.replace(/ \(.*\)$/, '').replace(/ language$/, '');
+    return KNOWN_AS[n] || n;
   }
 
   // ---------- formatting ----------
@@ -348,7 +360,7 @@ window.E2KWorld = (() => {
           row('Area', areaText(f.area)),
           row(f.languages.length > 1 ? 'Languages' : 'Language', join(f.languages, 4)),
           row('Currency', join(f.currency, 2)),
-          row('Government', cap(join(f.government, 2))),
+          row('Government', cap(join(f.government.map((g) => g.charAt(0).toLowerCase() + g.slice(1)), 2))),
         ].filter(Boolean);
         rows.replaceChildren(...(list.length ? list : [h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, 'No facts on record for this place.'))]));
       } catch {
