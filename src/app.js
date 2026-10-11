@@ -234,6 +234,9 @@
   }
 
   // ---------- home ----------
+  // Screens drawn as a fixed picture (Home, and games and activities that scale to fit) stop growing at this size,
+  // so in a big window they don't dwarf the toolbar; the background fills the rest.
+  const MAX_CANVAS = 1.4;
   // The Explore shelf on the home screen, in display order.
   const ORBS = [
     { id: 'articles', label: 'Articles', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
@@ -316,7 +319,7 @@
 
   function fitHome() {
     const c = $('.home-canvas');
-    if (c) c.style.setProperty('--s', Math.min(view.clientWidth / 1024, view.clientHeight / 610));
+    if (c) c.style.setProperty('--s', Math.min(MAX_CANVAS, view.clientWidth / 1024, view.clientHeight / 610));
   }
   new ResizeObserver(fitHome).observe(view);
 
@@ -1117,7 +1120,7 @@
 
   // ---------- API for games ----------
   const E2K = window.E2K = {
-    h, svg, icon, store, route, go,
+    h, svg, icon, store, route, go, maxCanvas: MAX_CANVAS,
     openArticle: (t) => openArticle(t, linkFrom()),
     setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop,

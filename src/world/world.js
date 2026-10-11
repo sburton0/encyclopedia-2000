@@ -216,8 +216,10 @@ window.E2KWorld = (() => {
       const r = holder.getBoundingClientRect();
       tip.textContent = byId[id].name;
       tip.hidden = false;
-      tip.style.left = `${e.clientX - r.left + 14}px`;
-      tip.style.top = `${e.clientY - r.top - 10}px`;
+      // Pointer positions are in screen pixels; the tip is placed in the page's own (possibly zoomed) pixels.
+      const z = r.width / holder.offsetWidth || 1;
+      tip.style.left = `${(e.clientX - r.left) / z + 14}px`;
+      tip.style.top = `${(e.clientY - r.top) / z - 10}px`;
     }
 
     // ---------- regions ----------

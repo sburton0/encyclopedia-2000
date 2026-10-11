@@ -11,6 +11,7 @@ window.E2KOptions = (() => {
     const read = () => ({
       showSplash: main.showSplash,
       windowMode: main.windowMode,
+      hardwareAcceleration: main.hardwareAcceleration !== false,
       startupSound: store.get('startupSound', true),
       startOn: store.get('startOn', 'home'),
       volume: Math.round(E2KAudio.getVolume() * 100),
@@ -63,7 +64,9 @@ window.E2KOptions = (() => {
         group('Start on', radios('startOn', 'o-starton', [
           ['home', 'The Home screen'], ['last', 'The last article I read'], ['featured', 'Today’s featured article'], ['random', 'A random article']])),
         group('Window', radios('windowMode', 'o-window', [
-          ['remember', 'Remember size and position'], ['maximized', 'Always open maximized'], ['default', 'Open at the standard size']]))));
+          ['remember', 'Remember size and position'], ['maximized', 'Always open maximized'], ['default', 'Open at the standard size']]))),
+      group('Display',
+        check('hardwareAcceleration', 'Use hardware acceleration', 'Draws the screen with your graphics card. Turn off if windows flicker, go black, or show blank areas. Takes effect the next time Encyclopedia 2000 starts.')));
     refreshers.push(() => startup.querySelectorAll('.ocheck')[1].classList.toggle('off', !draft.showSplash));
 
     // ---------- Sound ----------
@@ -170,9 +173,11 @@ window.E2KOptions = (() => {
     }
 
     async function apply() {
-      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode });
+      const restart = draft.hardwareAcceleration !== (main.hardwareAcceleration !== false);
+      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration });
       main.showSplash = draft.showSplash;
       main.windowMode = draft.windowMode;
+      main.hardwareAcceleration = draft.hardwareAcceleration;
       ['startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);
@@ -182,7 +187,7 @@ window.E2KOptions = (() => {
       if (draft.muted || draft.volume === 0) api.speechStop();
       saved = JSON.stringify(draft);
       refresh();
-      api.setIdle('Options saved');
+      api.setIdle(restart ? 'Options saved. Restart Encyclopedia 2000 to change hardware acceleration.' : 'Options saved');
     }
     const close = () => { if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = null; } ov.remove(); };
     const okBtn = h('button', { class: 'go', onclick: async () => { await apply(); close(); } }, 'OK');

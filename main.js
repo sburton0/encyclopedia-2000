@@ -18,7 +18,7 @@ const ICON = path.join(__dirname, 'build', 'icon.ico');
 const env = process.env;
 
 // Settings the main process needs before any window opens. Everything else lives in the page's storage.
-const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false };
+const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true };
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 let settings = { ...SETTINGS_DEFAULTS };
 function loadSettings() {
@@ -27,6 +27,10 @@ function loadSettings() {
 function saveSettings() {
   try { fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2)); } catch {}
 }
+// Hardware acceleration has to be decided before the app is ready, so this setting takes effect on the next launch.
+loadSettings();
+if (settings.hardwareAcceleration === false) app.disableHardwareAcceleration();
+
 // Only reuse saved bounds if they still land on a connected screen.
 function onScreen(b) {
   return b && screen.getAllDisplays().some(({ workArea: w }) =>
@@ -34,6 +38,9 @@ function onScreen(b) {
 }
 
 function secure(win) {
+  // Keep Chromium's page zoom at 100%. Its zoom is shared by every window of the app and remembered between
+  // launches, so a stray zoom would also enlarge the startup screen.
+  win.webContents.on('dom-ready', () => { if (win.webContents.getZoomFactor() !== 1) win.webContents.setZoomFactor(1); });
   // Never let the app window navigate away or open new windows; send web links to the browser.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https:\/\//.test(url)) shell.openExternal(url);
@@ -60,6 +67,9 @@ function createMain(route) {
   // setBounds mirrors getNormalBounds exactly. Passing saved bounds to the constructor instead makes a
   // frameless window grow by its invisible resize border on every launch.
   if (saved) win.setBounds(saved);
+  // E2K_SIZE=WIDTHxHEIGHT opens the window at that size (for testing large screens).
+  const size = /^(\d+)x(\d+)$/.exec(env.E2K_SIZE || '');
+  if (size) win.setBounds({ x: 0, y: 0, width: +size[1], height: +size[2] });
   secure(win);
   win.loadFile(path.join(SRC, 'index.html'), route ? { hash: route } : {});
   win.on('maximize', () => win.webContents.send('maximized', true));
@@ -128,13 +138,15 @@ ipcMain.on('win', (e, cmd) => {
   else if (cmd === 'print') win.webContents.print({});
 });
 
-ipcMain.handle('settings:get', () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode }));
+const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration });
+ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
   if (typeof patch.showSplash === 'boolean') settings.showSplash = patch.showSplash;
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
+  if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;
   saveSettings();
-  return { showSplash: settings.showSplash, windowMode: settings.windowMode };
+  return mainSettings();
 });
 
 // ---------- Print Preview ----------
@@ -204,7 +216,6 @@ ipcMain.handle('open-external', (_e, url) => {
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
-  loadSettings();
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
 

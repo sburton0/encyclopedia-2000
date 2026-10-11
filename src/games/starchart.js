@@ -90,7 +90,7 @@
     root.append(defs(svg));
     const holder = h('div', { class: 'sc-holder' });
     root.append(holder);
-    const fit = () => { const c = root.querySelector('.sc-canvas'); if (c) c.style.setProperty('--s', Math.min(root.clientWidth / W, root.clientHeight / H)); };
+    const fit = () => { const c = root.querySelector('.sc-canvas'); if (c) c.style.setProperty('--s', Math.min(api.maxCanvas || 9, root.clientWidth / W, root.clientHeight / H)); };
     const ro = new ResizeObserver(fit);
     ro.observe(root);
 

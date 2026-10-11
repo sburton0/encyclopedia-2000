@@ -117,7 +117,7 @@
       h('p', { class: 'pt-hint', style: `left:${X0}px;top:${y(9) + P + 12}px` },
         'Point at an element to preview it, and click to learn more. Click a family in the key to highlight it.'));
     root.append(h('div', { class: 'pt-holder' }, canvas));
-    const fit = () => canvas.style.setProperty('--s', Math.min(root.clientWidth / W, root.clientHeight / H));
+    const fit = () => canvas.style.setProperty('--s', Math.min(api.maxCanvas || 9, root.clientWidth / W, root.clientHeight / H));
     const ro = new ResizeObserver(fit);
     ro.observe(root);
     fit();
