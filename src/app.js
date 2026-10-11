@@ -236,7 +236,7 @@
     { id: 'articles', label: 'Articles', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
     { id: 'media', label: 'Media', icon: 'film', bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
     { id: 'timeline', label: 'Timeline', icon: 'clock', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
-    { id: 'atlas', label: 'Atlas', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Atlas', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
+    { id: 'world', label: 'World Explorer', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Explorer', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
     { id: 'games', label: 'Games', icon: 'star', bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
     { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => go('activities') },
   ];
@@ -881,7 +881,7 @@
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
     normal: () => setFontScale(1),
     mute: () => toggleMute(),
-    atlas: () => orb('atlas').run(),
+    world: () => orb('world').run(),
     games: () => go('games'),
     activities: () => orb('activities').run(),
     about,
@@ -914,7 +914,7 @@
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
       ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
-      ['Features', [['Articles', 'explore'], ['World Atlas', 'atlas'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
+      ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
     ];

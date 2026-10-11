@@ -31,7 +31,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
 - **Favorites**, **Read Aloud** (Windows text-to-speech), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
-- **Atlas** and **Activities** show "coming soon" for now.
+- **World Explorer** shows "coming soon" for now.
 
 ## Project layout
 
