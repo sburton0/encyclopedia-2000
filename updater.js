@@ -2,7 +2,11 @@
 // The installed app checks a few seconds after it starts and every six hours, downloads in the background, and offers
 // "Restart Now" in the status bar. Updates that are ignored install when the app is closed.
 // The check contacts GitHub only; nothing about the user is sent. It can be turned off in Tools > Options > Privacy.
-const { app, ipcMain } = require('electron');
+const { app, ipcMain, shell } = require('electron');
+
+// The portable version can't replace itself, so it only tells people a new version exists and links to the download page.
+const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR;
+const DOWNLOADS = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
 
 const FIRST_CHECK = 8 * 1000;
 const EVERY = 6 * 60 * 60 * 1000;
@@ -33,13 +37,13 @@ function setup({ getWindow, isEnabled }) {
 
   const { autoUpdater } = require('electron-updater');
   autoUpdater.allowPrerelease = true; // every release is a beta for now
-  autoUpdater.autoDownload = true;
-  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.autoDownload = !PORTABLE;
+  autoUpdater.autoInstallOnAppQuit = !PORTABLE;
   autoUpdater.logger = null;
 
   autoUpdater.on('checking-for-update', () => send({ state: 'checking' }));
   autoUpdater.on('update-not-available', () => send({ state: 'none' }));
-  autoUpdater.on('update-available', (i) => send({ state: 'downloading', version: i.version, percent: 0 }));
+  autoUpdater.on('update-available', (i) => send(PORTABLE ? { state: 'available', version: i.version } : { state: 'downloading', version: i.version, percent: 0 }));
   autoUpdater.on('download-progress', (p) => send({ ...state, state: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
   autoUpdater.on('error', (err) => {
@@ -50,16 +54,17 @@ function setup({ getWindow, isEnabled }) {
 
   const check = () => autoUpdater.checkForUpdates().catch(() => {});
   setTimeout(() => { if (isEnabled()) check(); }, FIRST_CHECK);
-  setInterval(() => { if (isEnabled() && state.state !== 'ready' && state.state !== 'downloading') check(); }, EVERY);
+  setInterval(() => { if (isEnabled() && !['ready', 'downloading', 'available'].includes(state.state)) check(); }, EVERY);
 
   ipcMain.handle('update:state', () => state);
   ipcMain.handle('update:check', async () => {
-    if (state.state === 'ready' || state.state === 'downloading') return state;
+    if (['ready', 'downloading', 'available'].includes(state.state)) return state;
     try { await autoUpdater.checkForUpdates(); } catch {}
     return state;
   });
   ipcMain.handle('update:install', () => {
-    if (state.state === 'ready') setImmediate(() => autoUpdater.quitAndInstall(false, true));
+    if (state.state === 'available') shell.openExternal(DOWNLOADS);
+    else if (state.state === 'ready') setImmediate(() => autoUpdater.quitAndInstall(false, true));
   });
 }
 

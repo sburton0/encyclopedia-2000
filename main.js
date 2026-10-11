@@ -11,6 +11,11 @@ app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (https://encyclope
 // Keep it in sync with tools/make-shortcut.ps1.
 if (process.platform === 'win32') app.setAppUserModelId('com.svid.encyclopedia2000');
 
+// The portable version (no installer) keeps its settings, favorites, and progress in a folder next to the .exe,
+// so it can run from a USB stick and leaves nothing behind on the computer.
+const PORTABLE_DIR = process.env.PORTABLE_EXECUTABLE_DIR;
+if (PORTABLE_DIR) app.setPath('userData', path.join(PORTABLE_DIR, 'Encyclopedia 2000 Data'));
+
 // Development aid: E2K_PROFILE points test runs at a separate profile so they don't touch real saved data.
 if (process.env.E2K_PROFILE) app.setPath('userData', process.env.E2K_PROFILE);
 

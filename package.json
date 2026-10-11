@@ -12,8 +12,8 @@
     "icons": "electron tools/make-icons.js",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
     "map": "node tools/make-map.mjs",
-    "dist": "electron-builder --win nsis --publish never",
-    "release": "electron-builder --win nsis --publish always"
+    "dist": "electron-builder --win --publish never",
+    "release": "electron-builder --win --publish always"
   },
   "devDependencies": {
     "d3-geo": "^3.1.1",
@@ -54,22 +54,27 @@
           "arch": [
             "x64"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "build/icon.ico"
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "runAfterFinish": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Encyclopedia 2000",
       "uninstallDisplayName": "Encyclopedia 2000",
       "artifactName": "Encyclopedia-2000-Setup-${version}.${ext}",
       "installerIcon": "build/icon.ico",
-      "uninstallerIcon": "build/icon.ico",
-      "license": "LICENSE"
+      "uninstallerIcon": "build/icon.ico"
     },
     "publish": [
       {
@@ -78,6 +83,9 @@
         "repo": "encyclopedia-2000",
         "releaseType": "prerelease"
       }
-    ]
+    ],
+    "portable": {
+      "artifactName": "Encyclopedia-2000-Portable-${version}.${ext}"
+    }
   }
 }
