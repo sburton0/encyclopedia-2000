@@ -71,7 +71,7 @@
   // ---------- sound ----------
   const soundOn = () => !E2KAudio.isMuted();
   document.addEventListener('click', (e) => {
-    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial, .pt-el, .pt-fam')) {
+    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial, .pt-el, .pt-fam, .wx-chip, .wx-si')) {
       try { E2KAudio.click(); } catch {}
     }
   }, true);
@@ -114,7 +114,7 @@
   // A trail is a list of steps: { label, r } links to a route, { label, run } calls a function, { label } is plain text.
   const crumbsEl = $('#crumbs');
   const titleEl = $('.titlebar .tt');
-  const SECTIONS = { explore: 'Articles', gallery: 'Media', onthisday: 'Timeline', games: 'Games', activities: 'Activities' };
+  const SECTIONS = { explore: 'Articles', gallery: 'Media', onthisday: 'Timeline', world: 'World Explorer', games: 'Games', activities: 'Activities' };
   let crumbs = { trail: [], sub: [], onRoot: null };
 
   function baseTrail(r, from) {
@@ -214,6 +214,7 @@
         case 'game': viewGame(arg, token); break;
         case 'activities': viewActivities(token); break;
         case 'activity': viewActivity(arg, token); break;
+        case 'world': await viewWorld(token); break;
         default: viewHome(token);
       }
     } catch (err) {
@@ -236,7 +237,7 @@
     { id: 'articles', label: 'Articles', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
     { id: 'media', label: 'Media', icon: 'film', bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
     { id: 'timeline', label: 'Timeline', icon: 'clock', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
-    { id: 'world', label: 'World Explorer', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Explorer', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
+    { id: 'world', label: 'World Explorer', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => go('world') },
     { id: 'games', label: 'Games', icon: 'star', bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
     { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => go('activities') },
   ];
@@ -720,6 +721,23 @@
     setIdle(activity.name);
   }
 
+  // ---------- World Explorer ----------
+  // The map data is large, so it's only loaded the first time the World Explorer opens.
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    document.head.append(h('script', { src, onload: resolve, onerror: () => reject(new Error('Couldn’t load ' + src)) }));
+  });
+  async function viewWorld(token) {
+    if (!window.E2KWorldMap) {
+      setStatus('Loading the map…', true);
+      await loadScript('world/map-data.js');
+      if (!live(token)) return;
+    }
+    const root = h('div', { class: 'game-root' });
+    if (!mount(root, token)) return;
+    setIdle();
+    gameCleanup = E2KWorld.mount(root, E2K) || null;
+  }
+
   // ---------- errors ----------
   function showError(err, name, arg, token) {
     const offline = !navigator.onLine;
@@ -749,7 +767,6 @@
     document.body.append(ov);
     (ov.querySelector('.df .go.default') || ov.querySelector('.df .go')).focus();
   }
-  const soon = (name, blurb) => dialog('Encyclopedia 2000', name, [blurb, 'This feature is coming in a future edition of Encyclopedia 2000.']);
   const about = () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
     'Version 0.1 (demo edition).',
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',

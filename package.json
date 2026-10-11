@@ -10,9 +10,13 @@
     "setup": "npm install && node node_modules/electron/install.js",
     "start": "electron .",
     "icons": "electron tools/make-icons.js",
-    "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1"
+    "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
+    "map": "node tools/make-map.mjs"
   },
   "devDependencies": {
-    "electron": "^44.7.0"
+    "d3-geo": "^3.1.1",
+    "electron": "^44.7.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   }
 }

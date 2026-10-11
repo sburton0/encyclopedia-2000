@@ -17,6 +17,8 @@ To launch it like a regular program, run `npm run shortcut` once. It adds **Ency
 
 The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simplified for 16 to 24 px). After editing either one, run `npm run icons` to rebuild `build/icon.ico` and the PNG sizes.
 
+The World Explorer map lives in `src/world/map-data.js`, generated from Natural Earth country shapes (public domain) and Wikidata (CC0). Run `npm run map` to rebuild it; it needs an internet connection.
+
 ## What's in the demo
 
 - **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip.
@@ -31,7 +33,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
 - **Favorites**, **Read Aloud** (Windows text-to-speech), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
-- **World Explorer** shows "coming soon" for now.
+- **World Explorer**: a clickable map of 237 countries and territories, with region filters, search, and Random Country. Each country's card shows its flag, capital, population, area, languages, currency, and government, live from Wikidata.
 
 ## Project layout
 
