@@ -1,6 +1,7 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 
 // Wikimedia asks API clients to identify themselves with a descriptive User-Agent.
 app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (desktop encyclopedia demo; Electron)`;
@@ -99,6 +100,7 @@ function createSplash() {
 
 // Development aid: E2K_CAPTURE=out.png saves a screenshot of a window after E2K_DELAY ms, then quits.
 // E2K_EVAL optionally runs a script in the page first (for testing menus, dialogs, and so on).
+// E2K_CAPTURE_WIN=top captures the newest window (for example, Print Preview).
 function captureLater(win) {
   if (!env.E2K_CAPTURE) return;
   setTimeout(async () => {
@@ -108,7 +110,8 @@ function captureLater(win) {
         if (env.E2K_EVAL_OUT) fs.writeFileSync(env.E2K_EVAL_OUT, JSON.stringify(result, null, 2));
         await new Promise((r) => setTimeout(r, Number(env.E2K_EVAL_WAIT || 2000)));
       }
-      const img = await win.webContents.capturePage();
+      const target = env.E2K_CAPTURE_WIN === 'top' ? BrowserWindow.getAllWindows().sort((a, b) => b.id - a.id)[0] : win;
+      const img = await target.webContents.capturePage();
       fs.writeFileSync(env.E2K_CAPTURE, img.toPNG());
     } finally {
       app.quit();
@@ -132,6 +135,67 @@ ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
   saveSettings();
   return { showSplash: settings.showSplash, windowMode: settings.windowMode };
+});
+
+// ---------- Print Preview ----------
+// The preview is a real PDF of the page, made with the same print layout that printing uses.
+let preview = null;
+let previewSource = null;
+let previewFile = null;
+let printOpts = { pageSize: 'Letter', landscape: false, images: true };
+
+async function makePdf() {
+  await previewSource.webContents.executeJavaScript(`document.documentElement.classList.toggle('print-noimg', ${!printOpts.images})`);
+  return previewSource.webContents.printToPDF({ pageSize: printOpts.pageSize, landscape: printOpts.landscape, printBackground: false });
+}
+function clearPreviewFile() {
+  if (previewFile) { try { fs.unlinkSync(previewFile); } catch {} previewFile = null; }
+}
+
+ipcMain.handle('print:open', (e) => {
+  if (preview && !preview.isDestroyed()) { preview.focus(); return; }
+  previewSource = BrowserWindow.fromWebContents(e.sender);
+  preview = new BrowserWindow({
+    width: 900, height: 760, minWidth: 720, minHeight: 520, frame: false, show: false, parent: previewSource,
+    backgroundColor: '#0f2250', title: 'Print Preview', icon: ICON,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, plugins: true },
+  });
+  secure(preview);
+  preview.loadFile(path.join(SRC, 'preview.html'));
+  preview.once('ready-to-show', () => preview.show());
+  preview.on('closed', () => {
+    preview = null;
+    clearPreviewFile();
+    if (previewSource && !previewSource.isDestroyed()) {
+      previewSource.webContents.executeJavaScript(`document.documentElement.classList.remove('print-noimg')`).catch(() => {});
+    }
+  });
+});
+
+ipcMain.handle('print:render', async (_e, opts = {}) => {
+  printOpts = { ...printOpts, ...opts };
+  const data = await makePdf();
+  clearPreviewFile();
+  previewFile = path.join(app.getPath('temp'), `e2k-preview-${process.pid}-${Date.now()}.pdf`);
+  fs.writeFileSync(previewFile, data);
+  const title = await previewSource.webContents.executeJavaScript(`(document.querySelector('.band h1') || {}).textContent || ''`);
+  return { url: pathToFileURL(previewFile).href, opts: printOpts, title };
+});
+
+ipcMain.handle('print:print', () => new Promise((resolve) => {
+  previewSource.webContents.print({ pageSize: printOpts.pageSize, landscape: printOpts.landscape, printBackground: false },
+    (ok, reason) => resolve({ ok, reason }));
+}));
+
+ipcMain.handle('print:save', async () => {
+  const title = await previewSource.webContents.executeJavaScript(`(document.querySelector('.band h1') || {}).textContent || 'Encyclopedia 2000'`);
+  const safe = title.replace(/[\\/:*?"<>|]+/g, '').trim() || 'Encyclopedia 2000';
+  const { canceled, filePath } = await dialog.showSaveDialog(preview, {
+    title: 'Save as PDF', defaultPath: path.join(app.getPath('documents'), safe + '.pdf'), filters: [{ name: 'PDF document', extensions: ['pdf'] }],
+  });
+  if (canceled || !filePath) return { saved: false };
+  fs.writeFileSync(filePath, await makePdf());
+  return { saved: true, filePath };
 });
 
 ipcMain.handle('open-external', (_e, url) => {
@@ -164,3 +228,4 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => app.quit());
+app.on('will-quit', clearPreviewFile);

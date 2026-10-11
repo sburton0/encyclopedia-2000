@@ -28,7 +28,8 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 - **Articles (Explore)**: eight random articles; shuffle for more.
 - **Options** (Tools → Options…, or Ctrl+,): skip the startup screen or its sound, choose which page to start on, remember the window size, set the volume, click sounds, and Read Aloud voice and speed, change the text size and article font, turn off animations, clear the recently viewed list, or reset everything.
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
-- **Favorites**, **Read Aloud** (Windows text-to-speech), **Print**, text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
+- **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
+- **Favorites**, **Read Aloud** (Windows text-to-speech), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
 - **Atlas** and **Activities** show "coming soon" for now.
 
@@ -40,6 +41,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 | `preload.js` | The small, safe bridge the pages use to talk to the main process |
 | `src/index.html`, `src/styles.css`, `src/app.js` | The main window: chrome, menus, toolbar, and every view |
 | `src/splash.*` | The splash screen |
+| `src/preview.*` | The Print Preview window |
 | `src/options.js` | The Options dialog (Tools → Options) |
 | `src/audio.js` | Synthesized startup jingle (pad, birdsong, and flute), click sounds, and game sounds |
 | `src/wiki.js` | Wikipedia REST API client |

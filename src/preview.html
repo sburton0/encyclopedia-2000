@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'self' file:">
+<title>Print Preview</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="preview.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-print" viewBox="0 0 16 16"><path d="M4 2h8v3H4zM2 6h12v5h-2v3H4v-3H2zm3 4v3h6v-3z"/></symbol>
+    <symbol id="i-pdf" viewBox="0 0 16 16"><path d="M3 1h7l3 3v11H3zm6.5 1.2V4.5h2.3zM5 8v1.2h6V8zm0 2.4v1.2h6v-1.2zM5 5.6v1.2h3V5.6z"/></symbol>
+    <symbol id="i-portrait" viewBox="0 0 16 16"><path d="M4 1.5h8v13H4zm1.3 1.3v10.4h5.4V2.8z"/></symbol>
+    <symbol id="i-landscape" viewBox="0 0 16 16"><path d="M1.5 4h13v8h-13zm1.3 1.3v5.4h10.4V5.3z"/></symbol>
+  </defs>
+</svg>
+
+<div id="app">
+  <div class="titlebar">
+    <img class="emb" src="icon-small.svg" alt="">
+    <span id="tt">Print Preview</span>
+    <div class="wc">
+      <button data-win="min" title="Minimize">&#xE921;</button>
+      <button data-win="close" class="close" title="Close">&#xE8BB;</button>
+    </div>
+  </div>
+
+  <div class="toolbar pv-toolbar">
+    <button class="go" id="print"><svg class="ic"><use href="#i-print"/></svg>Print…</button>
+    <button class="tbtn lbl" id="save" title="Save this article as a PDF file"><svg class="ic"><use href="#i-pdf"/></svg>Save as PDF…</button>
+    <span class="tsep"></span>
+    <label class="pv-label" for="paper">Paper</label>
+    <select id="paper" class="pv-select">
+      <option value="Letter">Letter</option>
+      <option value="A4">A4</option>
+      <option value="Legal">Legal</option>
+    </select>
+    <span class="tsep"></span>
+    <button class="tbtn" id="portrait" title="Portrait"><svg class="ic"><use href="#i-portrait"/></svg></button>
+    <button class="tbtn" id="landscape" title="Landscape"><svg class="ic"><use href="#i-landscape"/></svg></button>
+    <span class="tsep"></span>
+    <label class="pv-check"><input type="checkbox" id="images"><span class="box"></span>Include pictures</label>
+    <button class="tbtn lbl pv-close" id="close">Close</button>
+  </div>
+
+  <main class="pv-stage">
+    <embed id="pdf" type="application/pdf">
+    <div class="pv-busy" id="busy">Preparing the preview…</div>
+  </main>
+
+  <div class="statusbar">
+    <div class="sb grow" id="status">Ready</div>
+    <div class="sb" id="setup"></div>
+  </div>
+</div>
+
+<script src="preview.js"></script>
+</body>
+</html>

@@ -737,7 +737,8 @@
     fav: toggleFav,
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
-    print: () => window.e2k.win('print'),
+    print: () => (printable() ? window.e2k.printPreview() : nothingToPrint()),
+    printNow: () => (printable() ? window.e2k.win('print') : nothingToPrint()),
     find: () => { $('#q').focus(); $('#q').select(); },
     bigger: () => setFontScale(store.get('fontScale', 1) + 0.1),
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
@@ -750,6 +751,9 @@
     options: () => E2KOptions.open(E2K),
     exit: () => window.e2k.win('close'),
   };
+  // Articles and the other reading pages can be printed; the home screen and games can't.
+  const printable = () => !!view.querySelector('.page');
+  const nothingToPrint = () => setIdle('There’s nothing to print on this screen. Open an article first.');
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
   $('#toolbar').addEventListener('click', (e) => {
     const b = e.target.closest('.tbtn');
@@ -760,7 +764,7 @@
   function menus() {
     const f = favs();
     return [
-      ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print…', 'print', 'Ctrl+P'], '-', ['Exit', 'exit', 'Alt+F4']]],
+      ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print Preview…', 'print', 'Ctrl+P'], ['Print…', 'printNow', 'Ctrl+Shift+P'], '-', ['Exit', 'exit', 'Alt+F4']]],
       ['Edit', [['Copy', 'copy', 'Ctrl+C'], ['Find an Article', 'find', 'Ctrl+F']]],
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
@@ -938,6 +942,7 @@
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
+    else if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'p') { e.preventDefault(); runCmd('printNow'); }
     else if (e.ctrlKey && !e.shiftKey) {
       const map = { p: 'print', f: 'find', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];

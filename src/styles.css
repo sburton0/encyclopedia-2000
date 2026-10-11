@@ -304,11 +304,26 @@ button { font-family: inherit; cursor: default; }
 /* ---------- print ---------- */
 @media print {
   html, body, #app, #view { height: auto; overflow: visible; background: #fff; }
-  .titlebar, .menubar, .toolbar, .statusbar, .rail, .band .tools, .media, .band > svg { display: none !important; }
-  .page, .content { position: static; display: block; overflow: visible; }
-  .band { height: auto; background: none; color: #000; }
+  .titlebar, .menubar, .toolbar, .statusbar, .rail, .band .tools, .band > svg, .overlay, .strip, .bbtn { display: none !important; }
+  .page, .content { position: static; display: block; overflow: visible; padding: 0; background: #fff; }
+  .band { height: auto; margin-bottom: 14px; padding-bottom: 8px; background: none; color: #000; border-bottom: 2px solid #25458a; }
   .band .t { position: static; }
-  .band h1 { color: #000; text-shadow: none; }
+  .band small { color: #b86a08; }
+  .band h1 { color: #000; text-shadow: none; white-space: normal; font-size: 30px; }
+  .band .desc { color: #444; white-space: normal; }
+  .text { max-width: none; font-size: 11.5pt; }
+  .text a { color: #000; border-bottom: 0; }
+  .text h2, .text h3 { break-after: avoid; }
+  .text figure, .text table, .text blockquote { break-inside: avoid; }
+  /* The lead picture and quick facts sit in a narrow column beside the article. */
+  .content:not(.wide) { display: flex; align-items: flex-start; gap: 20px; }
+  .media { position: static; width: 190px; flex: none; }
+  .media .frame img { max-height: 240px; cursor: auto; }
+  .facts h6 { color: #000; background: none; border-bottom: 1px solid #9fb0d0; }
+  .tl-item, .res { break-inside: avoid; }
+  .card { break-inside: avoid; }
+  /* "Include pictures" turned off in Print Preview. */
+  .print-noimg img, .print-noimg figure, .print-noimg .frame, .print-noimg .media .cap, .print-noimg .th, .print-noimg .card .ph { display: none !important; }
 }
 
 /* ---------- Options dialog ---------- */

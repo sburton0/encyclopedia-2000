@@ -1,0 +1,17 @@
+/* Print Preview window. Shares the title bar, toolbar, and status bar styles with the main window. */
+.pv-toolbar { gap: 6px; }
+.pv-toolbar .go { display: inline-flex; align-items: center; gap: 6px; height: 26px; }
+.pv-toolbar .go .ic { width: 14px; height: 14px; fill: currentColor; }
+.pv-label { margin-left: 2px; font-size: 12px; color: #cfd6e2; }
+.pv-select { height: 24px; padding: 0 6px; background: #0a0c10; color: #fff; border: 1px solid var(--bar-edge); font: 12px "Segoe UI"; }
+.pv-select:focus { outline: none; border-color: var(--orange); }
+.pv-check { position: relative; display: flex; align-items: center; gap: 7px; font-size: 12px; color: #cfd6e2; }
+.pv-check input { position: absolute; opacity: 0; pointer-events: none; }
+.pv-check .box { width: 13px; height: 13px; border: 1px solid #8a93a6; background: #0a0c10; }
+.pv-check input:checked + .box { border-color: var(--orange); background: var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5l2.6 2.6L11 4.5' fill='none' stroke='%232b1d00' stroke-width='2'/%3E%3C/svg%3E") center/11px no-repeat; }
+.pv-check input:focus-visible + .box { outline: 1px solid var(--orange); outline-offset: 2px; }
+.pv-close { margin-left: auto; }
+.pv-stage { position: relative; flex: 1; background: #525659; }
+.pv-stage embed { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pv-busy { position: absolute; inset: 0; display: grid; place-items: center; font: 13px "Segoe UI"; color: #e6eefc; background: rgba(15, 34, 80, .85); }
+.pv-busy[hidden] { display: none; }
