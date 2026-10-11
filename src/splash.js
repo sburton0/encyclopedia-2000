@@ -6,6 +6,7 @@
   makeBloom(document.getElementById('petals'), 0.56, { animate: true });
   if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55 }); } catch {} }, 150);
 
+  if (window.e2k && window.e2k.appInfo) window.e2k.appInfo().then((i) => { document.getElementById('ver').textContent = `Version ${E2KVersion.pretty(i.version)}`; }).catch(() => {});
   const status = document.getElementById('status');
   [[1500, 'Connecting to Wikipedia…'], [3100, 'Gathering today’s discoveries…'], [4900, 'Ready']]
     .forEach(([t, msg]) => setTimeout(() => { status.textContent = msg; }, t));

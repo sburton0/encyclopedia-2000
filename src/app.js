@@ -773,8 +773,8 @@
     document.body.append(ov);
     (ov.querySelector('.df .go.default') || ov.querySelector('.df .go')).focus();
   }
-  const about = () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
-    'Version 0.1 Beta.',
+  const about = async () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
+    `Version ${prettyVersion((await window.e2k.appInfo().catch(() => ({}))).version)}.`,
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
@@ -785,13 +785,7 @@
   const DISCORD_URL = 'https://discord.encyclopedia2000.com';
   const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform';
   const FORM_FIELDS = { version: 'entry.286759181', windows: 'entry.1837651922' };
-  // "0.1.0-beta.1" reads as "0.1 Beta", "0.1.0-beta.2" as "0.1 Beta 2", and "0.1.2" as "0.1.2".
-  const prettyVersion = (v = '') => {
-    const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta(?:\.(\d+))?)?/.exec(v);
-    if (!m) return v;
-    const base = m[3] === '0' ? `${m[1]}.${m[2]}` : `${m[1]}.${m[2]}.${m[3]}`;
-    return /-beta/.test(v) ? `${base} Beta${m[4] && m[4] !== '1' ? ' ' + m[4] : ''}` : base;
-  };
+  const prettyVersion = (v) => E2KVersion.pretty(v);
   async function feedback() {
     if (document.querySelector('.dialog.feedback')) return;
     const info = await window.e2k.appInfo().catch(() => ({ version: '', windows: '' }));
