@@ -1,0 +1,49 @@
+/* ---------- Activities page (reuses the Games page card styles) ---------- */
+.pt-art { display: grid; grid-template-columns: repeat(6, 34px); grid-template-rows: repeat(2, 34px); gap: 4px; place-content: center; height: 100%; }
+.pt-art i { display: grid; place-items: center; font: 700 13px "Segoe UI"; font-style: normal; color: #1a1a2e; border-radius: 3px;
+            background: linear-gradient(rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 55%), var(--c); box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+
+/* ---------- Periodic Table ---------- */
+.pt { background: radial-gradient(ellipse at 50% 45%, #2a4f96, #0f2250 60%, #071330); }
+.pt-holder { position: absolute; inset: 0; overflow: hidden; }
+.pt-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); color: #fff; }
+.pt-head { position: absolute; left: 30px; top: 14px; }
+.pt-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.pt-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; }
+
+.pt-el { position: absolute; width: 43px; height: 43px; padding: 0; border: 1px solid rgba(0, 0, 0, .45); border-radius: 3px; color: #141a2e;
+         background: linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 52%), var(--c);
+         box-shadow: 0 1px 3px rgba(0, 0, 0, .35); transition: transform .1s, opacity .15s, box-shadow .1s; }
+.pt-el i { position: absolute; left: 4px; top: 2px; font: 600 9px "Segoe UI"; font-style: normal; opacity: .8; }
+.pt-el b { display: block; margin-top: 9px; font: 700 18px "Segoe UI"; }
+.pt-el:hover { transform: scale(1.12); z-index: 2; box-shadow: 0 3px 10px rgba(0, 0, 0, .6); }
+.pt-el.sel { z-index: 3; outline: 2px solid #fff; outline-offset: 1px; box-shadow: 0 0 14px rgba(255, 255, 255, .55); }
+.pt-el.dim, .pt-ph.dim { opacity: .18; }
+.pt-ph { position: absolute; width: 43px; height: 43px; display: grid; place-items: center; font: 600 10px "Segoe UI"; color: #141a2e; border-radius: 3px;
+         background: var(--c); opacity: .55; border: 1px dashed rgba(0, 0, 0, .45); }
+
+.pt-card { position: absolute; display: flex; gap: 14px; padding: 10px 12px; overflow: hidden;
+           background: linear-gradient(rgba(10, 24, 60, .82), rgba(10, 24, 60, .65)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+.pt-intro b { display: block; font: 600 16px "Segoe UI"; color: var(--orange); margin-bottom: 4px; }
+.pt-intro p { margin: 0; font: 13px/1.5 "Segoe UI"; color: #cfdcf5; }
+.pt-big { flex: none; position: relative; width: 112px; height: 112px; border-radius: 5px; color: #141a2e; text-align: center;
+          background: linear-gradient(rgba(255, 255, 255, .5), rgba(255, 255, 255, 0) 52%), var(--c); border: 1px solid rgba(0, 0, 0, .45); }
+.pt-big i { position: absolute; left: 8px; top: 5px; font: 600 13px "Segoe UI"; font-style: normal; }
+.pt-big b { display: block; margin-top: 18px; font: 700 44px/1 "Segoe UI"; }
+.pt-big span { display: block; margin-top: 4px; font: 600 11px "Segoe UI"; }
+.pt-big small { display: block; font: 10.5px "Segoe UI"; opacity: .8; }
+.pt-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pt-info h2 { margin: 0; font: 300 22px/1.1 "Segoe UI"; }
+.pt-tags { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 4px 0 4px; font: 11.5px "Segoe UI"; color: var(--sky); }
+.pt-tags .chip { padding: 0 6px; font-weight: 600; color: #141a2e; background: var(--c); border-radius: 2px; }
+.pt-sum { margin: 0 0 6px; max-height: 2.8em; font: 12px/1.4 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pt-read { align-self: flex-start; margin-top: 2px; }
+
+.pt-key { position: absolute; width: 130px; display: flex; flex-direction: column; gap: 2px; }
+.pt-key small { margin-bottom: 4px; font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.pt-fam { display: flex; align-items: center; gap: 7px; padding: 3px 5px; text-align: left; background: none; border: 1px solid transparent; color: #e6eefc; font: 11px/1.2 "Segoe UI"; }
+.pt-fam i { flex: none; width: 13px; height: 13px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .45); }
+.pt-fam:hover { background: rgba(5, 12, 30, .5); border-color: rgba(160, 190, 255, .3); }
+.pt-fam.on { background: rgba(245, 166, 35, .18); border-color: var(--orange); color: #fff; }
+.pt-fam.all { margin-top: 4px; color: var(--sky); }
+.pt-hint { position: absolute; margin: 0; font: 12px "Segoe UI"; color: var(--sky); }

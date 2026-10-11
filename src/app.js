@@ -71,7 +71,7 @@
   // ---------- sound ----------
   const soundOn = () => !E2KAudio.isMuted();
   document.addEventListener('click', (e) => {
-    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial')) {
+    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial, .pt-el, .pt-fam')) {
       try { E2KAudio.click(); } catch {}
     }
   }, true);
@@ -134,6 +134,8 @@
         case 'random': await viewRandom(token); break;
         case 'games': viewGames(token); break;
         case 'game': viewGame(arg, token); break;
+        case 'activities': viewActivities(token); break;
+        case 'activity': viewActivity(arg, token); break;
         default: viewHome(token);
       }
     } catch (err) {
@@ -158,7 +160,7 @@
     { id: 'timeline', label: 'Timeline', icon: 'clock', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
     { id: 'atlas', label: 'Atlas', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Atlas', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
     { id: 'games', label: 'Games', icon: 'star', bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
-    { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => soon('Activities', 'Hands-on explorations, puzzles, and interactive features.') },
+    { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => go('activities') },
   ];
   const orb = (id) => ORBS.find((o) => o.id === id);
 
@@ -616,6 +618,27 @@
     if (!mount(root, token)) return;
     gameCleanup = game.mount(root, E2K) || null;
     setIdle(game.name);
+  }
+
+  // ---------- activities ----------
+  function viewActivities(token) {
+    const pg = shell({ kicker: 'ACTIVITIES', title: 'Activities', desc: 'Interactive tools and explorations', railTitle: 'Activities', wide: true });
+    const list = E2KActivities.list;
+    pg.railIn.append(...list.map((a) => railLink(a.name, () => go(route('activity', a.id)))));
+    pg.text.append(h('div', { class: 'gcards' }, list.map((a) => h('button', { class: 'gcard', onclick: () => go(route('activity', a.id)) },
+      h('div', { class: 'gart' }, a.art ? a.art(E2K) : null),
+      h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, ''), h('span', { class: 'gplay' }, 'Open ›')))))));
+    mount(pg.root, token);
+    setIdle();
+  }
+
+  function viewActivity(id, token) {
+    const activity = E2KActivities.get(id);
+    if (!activity) throw Object.assign(new Error('Activity not found'), { status: 404 });
+    const root = h('div', { class: 'game-root' });
+    if (!mount(root, token)) return;
+    gameCleanup = activity.mount(root, E2K) || null;
+    setIdle(activity.name);
   }
 
   // ---------- errors ----------
