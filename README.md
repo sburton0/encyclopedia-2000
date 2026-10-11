@@ -26,7 +26,7 @@ Use **Help → Send Feedback** in the app, join the [Discord](https://discord.en
 
 ## Privacy
 
-Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, and game progress stay on your computer. The app connects only to Wikipedia and Wikidata to fetch what you ask for, and to GitHub to check for updates (you can turn that off in Tools → Options → Privacy).
+Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, and game progress stay on your computer. The app connects only to Wikipedia and Wikidata to fetch what you ask for, and to GitHub to check for updates (you can turn that off in Tools → Options → Privacy). Read the full [privacy policy](PRIVACY.md).
 
 ## Features
 

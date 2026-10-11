@@ -973,6 +973,7 @@
     fav: toggleFav,
     support: () => supportWikipedia(),
     feedback: () => feedback(),
+    privacy: () => window.e2k.openExternal('https://github.com/sburton0/encyclopedia-2000/blob/main/PRIVACY.md'),
     updates: () => checkForUpdates(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
@@ -1020,7 +1021,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');
