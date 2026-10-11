@@ -91,7 +91,7 @@ button { font-family: inherit; cursor: default; }
 .suggest .empty { padding: 8px 10px; font-size: 12px; color: #8a93a6; }
 
 /* ---------- status bar ---------- */
-.statusbar { height: 22px; flex: none; display: flex; align-items: stretch; background: #000; border-top: 1px solid #23262d; color: #9aa3b5; font-size: 11px; }
+.statusbar { height: 25px; flex: none; display: flex; align-items: stretch; background: #000; border-top: 1px solid #23262d; color: #9aa3b5; font-size: 12px; }
 .statusbar .sb { display: flex; align-items: center; gap: 6px; padding: 0 10px 2px; line-height: 1; border-right: 1px solid #1d2027; white-space: nowrap; }
 /* Segoe UI's letters sit high in their line box; nudge the dot down to line up with the middle of the text. */
 .statusbar .dot { margin-top: 2px; }
