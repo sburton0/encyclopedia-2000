@@ -64,13 +64,26 @@ window.E2KTrivia = (() => {
     return out;
   }
 
+  // Marks a hidden word in a passage. A private-use character, so it never appears in real text.
+  const BLANK = '';
+
   // Hide the subject's name (and words built from it, like "Roman" -> "Romans") in a passage.
+  // Consecutive hidden words merge into one blank, so a two-word name shows as a single gap.
   function redact(text, ...names) {
     const words = new Set(names.join(' ').split(/[^\p{L}\p{N}']+/u).map((w) => w.replace(/'s$/i, ''))
       .filter((w) => w.length >= 3 && !STOP.has(w.toLowerCase())));
     let out = text.replace(/\s*\([^()]*[/ˈˌ][^()]*\)/g, ''); // pronunciation guides
-    for (const w of words) out = out.replace(new RegExp(`(?<![\\p{L}])${escapeRe(w)}[\\p{L}']*`, 'giu'), '▒▒▒▒');
-    return out;
+    for (const w of words) out = out.replace(new RegExp(`(?<![\\p{L}])${escapeRe(w)}[\\p{L}']*`, 'giu'), BLANK);
+    return out
+      .replace(new RegExp(`${BLANK}(?:[\\s-]+${BLANK})+`, 'g'), BLANK)
+      .replace(/\(\s*\)/g, '')
+      .replace(/\s+([,.;:!?])/g, '$1')
+      .replace(/\s{2,}/g, ' ');
+  }
+
+  // Splits a passage into DOM-ready pieces: plain text, plus a styled "?" blank wherever a word was hidden.
+  function passage(text, h) {
+    return text.split(BLANK).flatMap((part, i) => (i ? [h('span', { class: 'blank', title: 'Hidden word' }, '?'), part] : [part]));
   }
 
   const RECENT_KEY = 'e2k.trivia.recent';
@@ -159,5 +172,5 @@ window.E2KTrivia = (() => {
     }, display(name), wrong);
   }
 
-  return { TOPICS, make, display };
+  return { TOPICS, make, display, passage };
 })();

@@ -232,7 +232,7 @@
           h('div', { class: 'sc-q-kicker' }, q.kicker.toUpperCase()),
           h('div', { class: 'sc-q-prompt' }, q.prompt),
           q.image ? h('div', { class: 'sc-q-img', style: `background-image:url("${q.image}")` }) : null,
-          q.detail ? h('div', { class: 'sc-q-detail' }, q.detail) : null,
+          q.detail ? h('div', { class: 'sc-q-detail' }, E2KTrivia.passage(q.detail, h)) : null,
           h('div', { class: 'sc-choices' }, buttons),
           feedback,
         ].filter(Boolean));
