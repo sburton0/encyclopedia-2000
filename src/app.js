@@ -71,7 +71,7 @@
   // ---------- sound ----------
   const soundOn = () => !E2KAudio.isMuted();
   document.addEventListener('click', (e) => {
-    if (soundOn() && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial')) {
+    if (soundOn() && store.get('clicks', true) && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial')) {
       try { E2KAudio.click(); } catch {}
     }
   }, true);
@@ -83,6 +83,13 @@
     document.documentElement.style.setProperty('--fs', s);
   }
   setFontScale(store.get('fontScale', 1));
+
+  // Article font and animations, from Options.
+  function applyPrefs() {
+    document.documentElement.dataset.font = store.get('articleFont', 'serif');
+    document.documentElement.classList.toggle('no-anim', !store.get('animations', true));
+  }
+  applyPrefs();
 
   // ---------- navigation ----------
   function go(r, { replace = false } = {}) {
@@ -374,6 +381,7 @@
 
     current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
     addRecent(name);
+    store.set('lastArticle', name);
 
     const attrib = h('div', { class: 'attrib' },
       'This article uses material from the Wikipedia article ', h('a', { href: '#', 'data-ext': Wiki.pageUrl(canon) }, `“${name}”`),
@@ -686,6 +694,9 @@
     parts.forEach((p, i) => {
       const u = new SpeechSynthesisUtterance(p);
       u.volume = Math.sqrt(E2KAudio.level()); // speech volume is already perceptual, so use the slider position
+      u.rate = store.get('rate', 1);
+      const voice = speechSynthesis.getVoices().find((v) => v.voiceURI === store.get('voice', ''));
+      if (voice) u.voice = voice;
       if (i === parts.length - 1) u.onend = () => { speaking = false; updateToolbar(); };
       speechSynthesis.speak(u);
     });
@@ -739,6 +750,7 @@
     games: () => go('games'),
     activities: () => orb('activities').run(),
     about,
+    options: () => E2KOptions.open(E2K),
     exit: () => window.e2k.win('close'),
   };
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
@@ -760,6 +772,7 @@
       ['Favorites', [[isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Atlas', 'atlas'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
+      ['Tools', [['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['About Encyclopedia 2000', 'about']]],
     ];
   }
@@ -929,7 +942,7 @@
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { p: 'print', f: 'find', h: 'home', m: 'mute', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { p: 'print', f: 'find', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }
@@ -943,13 +956,19 @@
   const E2K = window.E2K = {
     h, svg, icon, store, route, go,
     openArticle: (t) => openArticle(t),
-    setIdle, setStatus,
+    setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop,
     dialog: (...args) => dialog(...args),
     soundOn: () => soundOn(),
     sfx: (kind) => { if (soundOn()) { try { E2KAudio.sfx(kind); } catch {} } },
   };
 
   // ---------- start ----------
-  const start = location.hash.slice(1) || 'home';
-  go(start);
+  // Where to start: a route from the command line (for testing), otherwise the "Start on" option.
+  const startOn = store.get('startOn', 'home');
+  const last = store.get('lastArticle', '');
+  if (location.hash.length > 1) go(location.hash.slice(1));
+  else if (startOn === 'last' && last) go(route('article', last));
+  else if (startOn === 'random') go('random');
+  else if (startOn === 'featured') { go('home'); runCmd('featured'); }
+  else go('home');
 })();

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -15,6 +15,22 @@ if (process.env.E2K_PROFILE) app.setPath('userData', process.env.E2K_PROFILE);
 const SRC = path.join(__dirname, 'src');
 const ICON = path.join(__dirname, 'build', 'icon.ico');
 const env = process.env;
+
+// Settings the main process needs before any window opens. Everything else lives in the page's storage.
+const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false };
+const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
+let settings = { ...SETTINGS_DEFAULTS };
+function loadSettings() {
+  try { settings = { ...SETTINGS_DEFAULTS, ...JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) }; } catch { settings = { ...SETTINGS_DEFAULTS }; }
+}
+function saveSettings() {
+  try { fs.writeFileSync(settingsFile(), JSON.stringify(settings, null, 2)); } catch {}
+}
+// Only reuse saved bounds if they still land on a connected screen.
+function onScreen(b) {
+  return b && screen.getAllDisplays().some(({ workArea: w }) =>
+    b.x < w.x + w.width - 80 && b.x + b.width > w.x + 80 && b.y >= w.y - 20 && b.y < w.y + w.height - 80);
+}
 
 function secure(win) {
   // Never let the app window navigate away or open new windows; send web links to the browser.
@@ -34,16 +50,36 @@ function secure(win) {
 }
 
 function createMain(route) {
+  const saved = settings.windowMode === 'remember' && onScreen(settings.bounds) ? settings.bounds : null;
   const win = new BrowserWindow({
     width: 1024, height: 740, minWidth: 980, minHeight: 640,
     frame: false, show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });
+  // setBounds mirrors getNormalBounds exactly. Passing saved bounds to the constructor instead makes a
+  // frameless window grow by its invisible resize border on every launch.
+  if (saved) win.setBounds(saved);
   secure(win);
   win.loadFile(path.join(SRC, 'index.html'), route ? { hash: route } : {});
   win.on('maximize', () => win.webContents.send('maximized', true));
   win.on('unmaximize', () => win.webContents.send('maximized', false));
+  win.on('close', () => {
+    if (settings.windowMode !== 'remember') return;
+    // Display scaling can round the size by a pixel or two each launch; ignore that so the window doesn't creep.
+    const b = win.getNormalBounds();
+    const p = settings.bounds;
+    if (p) for (const k of ['x', 'y', 'width', 'height']) if (Math.abs(b[k] - p[k]) <= 4) b[k] = p[k];
+    settings.bounds = b;
+    settings.maximized = win.isMaximized();
+    saveSettings();
+  });
   return win;
+}
+
+// Shows the main window, maximized if the settings ask for it.
+function present(win) {
+  if (settings.windowMode === 'maximized' || (settings.windowMode === 'remember' && settings.maximized)) win.maximize();
+  win.show();
 }
 
 function createSplash() {
@@ -89,17 +125,27 @@ ipcMain.on('win', (e, cmd) => {
   else if (cmd === 'print') win.webContents.print({});
 });
 
+ipcMain.handle('settings:get', () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode }));
+ipcMain.handle('settings:set', (_e, patch = {}) => {
+  if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
+  if (typeof patch.showSplash === 'boolean') settings.showSplash = patch.showSplash;
+  if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
+  saveSettings();
+  return { showSplash: settings.showSplash, windowMode: settings.windowMode };
+});
+
 ipcMain.handle('open-external', (_e, url) => {
   if (typeof url === 'string' && /^https:\/\//.test(url)) return shell.openExternal(url);
 });
 
 app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
+  loadSettings();
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
 
-  if (route || env.E2K_NOSPLASH) {
-    main.once('ready-to-show', () => main.show());
+  if (route || env.E2K_NOSPLASH || !settings.showSplash) {
+    main.once('ready-to-show', () => present(main));
     captureLater(main);
     return;
   }
@@ -108,7 +154,7 @@ app.whenReady().then(() => {
   let splashDone = false, mainReady = false;
   const reveal = () => {
     if (!splashDone || !mainReady || main.isDestroyed()) return;
-    main.show();
+    present(main);
     if (!splash.isDestroyed()) splash.destroy();
   };
   main.once('ready-to-show', () => { mainReady = true; reveal(); });

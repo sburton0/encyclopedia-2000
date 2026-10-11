@@ -1,5 +1,7 @@
 (() => {
-  const muted = new URLSearchParams(location.search).get('mute') === '1' || E2KAudio.isMuted();
+  const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+  const muted = new URLSearchParams(location.search).get('mute') === '1' || E2KAudio.isMuted() || !pref('startupSound', true);
+  if (!pref('animations', true)) document.body.classList.add('no-anim');
 
   makeBloom(document.getElementById('petals'), 0.56, { animate: true });
   if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55 }); } catch {} }, 150);

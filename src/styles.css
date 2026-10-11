@@ -3,7 +3,11 @@
   --orange: #f5a623; --gold: #ffd27a; --sky: #aac0e6;
   --bar-line: #2b2f38; --bar-edge: #3a4050;
   --fs: 1;
+  --read-font: Georgia, "Times New Roman", serif;
 }
+:root[data-font="sans"] { --read-font: "Segoe UI", Tahoma, sans-serif; }
+/* Animations turned off in Options. */
+.no-anim *, .no-anim *::before, .no-anim *::after { animation: none !important; transition: none !important; }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #000; }
 body { font-family: "Segoe UI", Tahoma, sans-serif; color: #fff; user-select: none; cursor: default; }
@@ -205,9 +209,9 @@ button { font-family: inherit; cursor: default; }
 .rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
 
 /* ---------- article typography ---------- */
-.text { flex: 1; min-width: 0; max-width: 820px; font: calc(15px * var(--fs))/1.65 Georgia, "Times New Roman", serif; color: #1c1c1c; user-select: text; cursor: auto; }
+.text { flex: 1; min-width: 0; max-width: 820px; font: calc(15px * var(--fs))/1.65 var(--read-font); color: #1c1c1c; user-select: text; cursor: auto; }
 .text p { margin: 0 0 11px; }
-.text .lede::first-letter { float: left; padding: 5px 7px 0 0; font: 400 calc(52px * var(--fs))/.85 Georgia, serif; color: var(--ink-2); }
+.text .lede::first-letter { float: left; padding: 5px 7px 0 0; font: 400 calc(52px * var(--fs))/.85 var(--read-font); color: var(--ink-2); }
 .text h2 { clear: both; margin: 24px 0 6px; padding-bottom: 3px; font: 600 calc(20px * var(--fs)) "Segoe UI"; color: var(--ink-2); border-bottom: 1px solid #c9d3ea; }
 .text h3 { margin: 18px 0 4px; font: 600 calc(16px * var(--fs)) "Segoe UI"; color: #33507f; }
 .text h4 { margin: 14px 0 4px; font: 600 calc(14px * var(--fs)) "Segoe UI"; color: #33507f; }
@@ -247,7 +251,7 @@ button { font-family: inherit; cursor: default; }
 .card .b { padding: 9px 11px 12px; }
 .card .b b { display: block; font: 600 14px "Segoe UI"; color: var(--ink-2); }
 .card .b span { display: block; margin-bottom: 4px; font: 11.5px "Segoe UI"; color: #777; }
-.card .b p { margin: 0; font: 12.5px/1.45 Georgia, serif; color: #333; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.card .b p { margin: 0; font: 12.5px/1.45 var(--read-font); color: #333; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .card.ghost { height: 250px; background: linear-gradient(90deg, #eef2f9, #f8fafd, #eef2f9); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 
@@ -256,7 +260,7 @@ button { font-family: inherit; cursor: default; }
 .tl-item { display: flex; gap: 16px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
 .tl-item:hover { background: #f1f5fc; }
 .tl-item .yr { flex: none; width: 70px; text-align: right; font: 300 26px/1.1 "Segoe UI"; color: var(--orange); }
-.tl-item .tx { flex: 1; font: calc(14.5px * var(--fs))/1.5 Georgia, serif; color: #222; }
+.tl-item .tx { flex: 1; font: calc(14.5px * var(--fs))/1.5 var(--read-font); color: #222; }
 .tl-item .tx small { display: block; margin-top: 3px; font: 11.5px "Segoe UI"; color: #1d47a8; }
 .tl-item .th { flex: none; width: 70px; height: 70px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }
 
@@ -265,7 +269,7 @@ button { font-family: inherit; cursor: default; }
 .content.wide .text { max-width: none; }
 .potd figure { float: none; max-width: none; margin: 0; padding: 6px; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
 .potd figure img { display: block; max-width: 100%; max-height: 52vh; margin: 0 auto; cursor: zoom-in; }
-.potd .desc { margin: 12px 0 4px; font: calc(14.5px * var(--fs))/1.55 Georgia, serif; color: #222; user-select: text; }
+.potd .desc { margin: 12px 0 4px; font: calc(14.5px * var(--fs))/1.55 var(--read-font); color: #222; user-select: text; }
 .potd .credit { font: 11.5px "Segoe UI"; color: #666; user-select: text; }
 .potd .credit .bbtn { margin-left: 8px; background: var(--ink-2); vertical-align: middle; }
 .strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
@@ -280,7 +284,7 @@ button { font-family: inherit; cursor: default; }
 .res .th { flex: none; width: 64px; height: 64px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }
 .res b { display: block; font: 600 15px "Segoe UI"; color: var(--ink-2); }
 .res span { display: block; font: 11.5px "Segoe UI"; color: #777; }
-.res p { margin: 3px 0 0; font: 13px/1.5 Georgia, serif; color: #333; }
+.res p { margin: 3px 0 0; font: 13px/1.5 var(--read-font); color: #333; }
 .res p strong { background: #fff1cf; font-weight: 600; }
 
 /* ---------- overlays ---------- */
@@ -307,3 +311,42 @@ button { font-family: inherit; cursor: default; }
   .band .t { position: static; }
   .band h1 { color: #000; text-shadow: none; }
 }
+
+/* ---------- Options dialog ---------- */
+.dialog.options { width: 540px; }
+.options .otabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--ink-3); }
+.options .otab { padding: 6px 16px; margin-bottom: -1px; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--sky); font: 600 12px "Segoe UI"; }
+.options .otab:hover { color: #fff; }
+.options .otab.on { color: #fff; background: rgba(5, 12, 30, .45); border-color: var(--ink-3); border-top: 2px solid var(--orange); }
+.options .obody { height: 380px; overflow: auto; padding: 12px 16px 4px; background: rgba(5, 12, 30, .45); }
+.options .ocols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.options .ogroup { margin: 0 0 12px; padding: 6px 12px 10px; border: 1px solid rgba(160, 190, 255, .25); }
+.options .ogroup legend { padding: 0 6px; font: 600 11px "Segoe UI"; letter-spacing: 1.5px; text-transform: uppercase; color: var(--orange); }
+.options .ocheck { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; color: #fff; font: 13px "Segoe UI"; }
+.options .ocheck input, .options .oradio input { position: absolute; opacity: 0; pointer-events: none; }
+.options .ocheck .box { flex: none; width: 14px; height: 14px; margin-top: 2px; border: 1px solid #8a93a6; background: #0a0c10; }
+.options .ocheck input:checked + .box { border-color: var(--orange); background: var(--orange) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 7.5l2.6 2.6L11 4.5' fill='none' stroke='%232b1d00' stroke-width='2'/%3E%3C/svg%3E") center/12px no-repeat; }
+.options .ocheck input:focus-visible + .box, .options .oradio input:focus-visible + .dot { outline: 1px solid var(--orange); outline-offset: 2px; }
+.options .ocheck b { display: block; font-weight: 600; }
+.options .ocheck small { display: block; font-size: 11.5px; color: var(--sky); }
+.options .ocheck.off { opacity: .45; }
+.options .oradios { display: grid; gap: 2px; padding-top: 2px; }
+.options .oradio { position: relative; display: flex; align-items: center; gap: 9px; padding: 3px 0; font: 13px "Segoe UI"; color: #fff; }
+.options .oradio .dot { flex: none; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #8a93a6; background: #0a0c10; }
+.options .oradio input:checked + .dot { border-color: var(--orange); box-shadow: inset 0 0 0 3px #0a0c10; background: var(--orange); }
+.options .orow { display: flex; align-items: center; gap: 10px; padding: 4px 0; }
+.options .orow.top { align-items: flex-start; }
+.options .orow.end { justify-content: flex-end; }
+.options .olabel { width: 64px; flex: none; font: 13px "Segoe UI"; color: #cfdcf5; }
+.options .oval { width: 52px; text-align: right; font: 11px Consolas, monospace; color: #cfd6e2; }
+.options .onote { margin: 2px 0 6px; font: 12px/1.45 "Segoe UI"; color: var(--sky); }
+.options .oselect { flex: 1; height: 24px; padding: 0 6px; background: #0a0c10; color: #fff; border: 1px solid var(--bar-edge); font: 12px "Segoe UI"; }
+.options .oselect:focus { outline: none; border-color: var(--orange); }
+.options .oslider { flex: 1; height: 16px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; }
+.options .oslider::-webkit-slider-runnable-track { height: 4px; border: 1px solid var(--bar-edge); background: linear-gradient(90deg, var(--orange) var(--p, 50%), #0a0c10 var(--p, 50%)); }
+.options .oslider.muted::-webkit-slider-runnable-track { background: linear-gradient(90deg, #4a5262 var(--p, 50%), #0a0c10 var(--p, 50%)); }
+.options .oslider::-webkit-slider-thumb { -webkit-appearance: none; width: 9px; height: 16px; margin-top: -7px; background: linear-gradient(#e8ecf2, #9aa3b5); border: 1px solid #000; }
+.options .oslider:focus { outline: none; }
+.options .osample { margin: 8px 0 2px; padding: 10px 12px; background: #fbfcfe; color: #1c1c1c; border: 1px solid #9fb0d0; font-family: Georgia, "Times New Roman", serif; line-height: 1.6; }
+.options .osample[data-font="sans"] { font-family: "Segoe UI", Tahoma, sans-serif; }
+.options .df .go:disabled { opacity: .45; }

@@ -2,6 +2,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0f2250; }
 body { position: relative; font-family: "Segoe UI", Tahoma, sans-serif; color: #fff; user-select: none; cursor: default;
        transition: opacity .45s ease; }
 body.out { opacity: 0; }
+/* Animations turned off in Options: show the finished splash screen without motion. */
+body.no-anim *, body.no-anim { animation: none !important; transition: none !important; }
+body.no-anim .bar i { width: 100%; }
+body.no-anim .spark { opacity: 0; }
 
 svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .spin { transform-origin: 0 0; animation: spin 9s linear both; }

@@ -5,4 +5,8 @@ contextBridge.exposeInMainWorld('e2k', {
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   onMaximized: (cb) => ipcRenderer.on('maximized', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
+  settings: {
+    get: () => ipcRenderer.invoke('settings:get'),
+    set: (patch) => ipcRenderer.invoke('settings:set', patch),
+  },
 });
