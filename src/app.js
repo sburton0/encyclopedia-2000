@@ -189,6 +189,7 @@
     if (token !== renderToken) return false;
     el.classList.add('fade-in');
     view.replaceChildren(el);
+    updateToolbar();
     return true;
   }
   const live = (token) => token === renderToken;
@@ -870,6 +871,7 @@
     btn('back').disabled = nav.idx <= 0;
     btn('fwd').disabled = nav.idx >= nav.stack.length - 1;
     btn('speak').disabled = !current;
+    btn('print').disabled = !printable();
     const fav = isFav();
     btn('speak').classList.toggle('on', speaking);
     btn('speak').title = speaking ? 'Stop reading' : 'Read Aloud';
@@ -896,8 +898,9 @@
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
-    print: () => (printable() ? window.e2k.printPreview() : nothingToPrint()),
-    printNow: () => (printable() ? window.e2k.win('print') : nothingToPrint()),
+    // Print is turned off on screens without a printable page; the keyboard shortcuts quietly do nothing there.
+    print: () => { if (printable()) window.e2k.printPreview(); },
+    printNow: () => { if (printable()) window.e2k.win('print'); },
     find: () => { $('#q').focus(); $('#q').select(); },
     bigger: () => setFontScale(store.get('fontScale', 1) + 0.1),
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
@@ -912,7 +915,6 @@
   };
   // Articles and the other reading pages can be printed; the home screen and games can't.
   const printable = () => !!view.querySelector('.page');
-  const nothingToPrint = () => setIdle('There’s nothing to print on this screen. Open an article first.');
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
   const supportLink = $('#support');
   supportLink.addEventListener('click', (e) => { e.preventDefault(); supportWikipedia(); });
@@ -928,7 +930,7 @@
   function menus() {
     const f = favs();
     return [
-      ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print Preview…', 'print', 'Ctrl+P'], ['Print…', 'printNow', 'Ctrl+Shift+P'], '-', ['Exit', 'exit', 'Alt+F4']]],
+      ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print Preview…', 'print', 'Ctrl+P', null, !printable()], ['Print…', 'printNow', 'Ctrl+Shift+P', null, !printable()], '-', ['Exit', 'exit', 'Alt+F4']]],
       ['Edit', [['Copy', 'copy', 'Ctrl+C'], ['Find an Article', 'find', 'Ctrl+F']]],
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
