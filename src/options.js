@@ -12,6 +12,7 @@ window.E2KOptions = (() => {
       showSplash: main.showSplash,
       windowMode: main.windowMode,
       hardwareAcceleration: main.hardwareAcceleration !== false,
+      autoUpdate: main.autoUpdate !== false,
       startupSound: store.get('startupSound', true),
       startOn: store.get('startOn', 'home'),
       volume: Math.round(E2KAudio.getVolume() * 100),
@@ -143,6 +144,8 @@ window.E2KOptions = (() => {
           updateRecent();
           api.setIdle('Recently viewed list cleared');
         } }, 'Clear Recently Viewed'))),
+      group('Updates',
+        check('autoUpdate', 'Check for updates automatically', 'Downloads new versions from the Encyclopedia 2000 page on GitHub, and asks before restarting. Only GitHub is contacted, and nothing about you is sent. You can always use Help › Check for Updates.')),
       group('Reset',
         h('p', { class: 'onote' }, 'Put every option back the way it was when you first installed Encyclopedia 2000. Your favorites and game progress aren’t affected.'),
         h('div', { class: 'orow end' }, h('button', { class: 'go', onclick: () => {
@@ -174,10 +177,11 @@ window.E2KOptions = (() => {
 
     async function apply() {
       const restart = draft.hardwareAcceleration !== (main.hardwareAcceleration !== false);
-      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration });
+      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration, autoUpdate: draft.autoUpdate });
       main.showSplash = draft.showSplash;
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
+      main.autoUpdate = draft.autoUpdate;
       ['startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);

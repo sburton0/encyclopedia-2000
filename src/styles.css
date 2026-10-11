@@ -99,6 +99,10 @@ button { font-family: inherit; cursor: default; }
 .statusbar .sb:last-child { border-right: 0; }
 .statusbar .sup { color: #c9d2e3; text-decoration: underline; text-decoration-color: rgba(201, 210, 227, .35); }
 .statusbar .sup:hover { color: var(--gold); text-decoration-color: var(--gold); }
+.statusbar .upd { color: #fff; background: linear-gradient(#25458a, #1c3566); }
+.statusbar .upd[hidden] { display: none; }
+.statusbar .upd button { margin: 0 0 0 4px; padding: 1px 8px 2px; background: var(--orange); border: 0; color: #1a1406; font: 600 11.5px "Segoe UI"; }
+.statusbar .upd button:hover { background: var(--gold); }
 .statusbar .beta { padding: 1px 5px; border-radius: 2px; background: var(--orange); color: #1a1406; font: 700 10px "Segoe UI"; letter-spacing: 1px; }
 
 /* ---------- Send Feedback dialog ---------- */

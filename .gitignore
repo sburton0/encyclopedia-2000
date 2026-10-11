@@ -6,3 +6,6 @@ mockups/
 # Personal planning notes and promotional screenshots
 AGENDA.md
 screenshots/
+
+# Installer builds
+dist/

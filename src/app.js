@@ -785,8 +785,13 @@
   const DISCORD_URL = 'https://discord.encyclopedia2000.com';
   const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform';
   const FORM_FIELDS = { version: 'entry.286759181', windows: 'entry.1837651922' };
-  // "0.1.0-beta.1" reads as "0.1 Beta".
-  const prettyVersion = (v) => { const [, mm, beta] = /^(\d+\.\d+)(?:\.\d+)?(-beta)?/.exec(v) || [, v]; return mm + (beta ? ' Beta' : ''); };
+  // "0.1.0-beta.1" reads as "0.1 Beta", "0.1.0-beta.2" as "0.1 Beta 2", and "0.1.2" as "0.1.2".
+  const prettyVersion = (v = '') => {
+    const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta(?:\.(\d+))?)?/.exec(v);
+    if (!m) return v;
+    const base = m[3] === '0' ? `${m[1]}.${m[2]}` : `${m[1]}.${m[2]}.${m[3]}`;
+    return /-beta/.test(v) ? `${base} Beta${m[4] && m[4] !== '1' ? ' ' + m[4] : ''}` : base;
+  };
   async function feedback() {
     if (document.querySelector('.dialog.feedback')) return;
     const info = await window.e2k.appInfo().catch(() => ({ version: '', windows: '' }));
@@ -812,6 +817,37 @@
       h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
     document.body.append(ov);
     ov.querySelector('.fbopt').focus();
+  }
+
+  // ---------- updates ----------
+  // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
+  const updateBar = $('#updatebar');
+  function showUpdate(s) {
+    if (s.state === 'ready') {
+      updateBar.replaceChildren(`Version ${prettyVersion(s.version)} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
+      updateBar.title = 'Restart Encyclopedia 2000 to finish updating. Otherwise the update installs the next time you close it.';
+      updateBar.hidden = false;
+    } else if (s.state === 'downloading') {
+      updateBar.replaceChildren(`Downloading version ${prettyVersion(s.version)}${s.percent ? ` · ${s.percent}%` : '…'}`);
+      updateBar.title = '';
+      updateBar.hidden = false;
+    } else updateBar.hidden = true;
+  }
+  window.e2k.update.onChange(showUpdate);
+  window.e2k.update.state().then(showUpdate).catch(() => {});
+
+  async function checkForUpdates() {
+    setStatus('Checking for updates…', true);
+    const s = await window.e2k.update.check().catch(() => ({ state: 'error' }));
+    setIdle();
+    showUpdate(s);
+    const title = 'Check for Updates';
+    if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
+      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
+    else if (s.state === 'downloading') dialog(title, 'An update is on its way', [`Version ${prettyVersion(s.version)} is downloading. You’ll see a Restart Now button in the status bar when it’s ready.`]);
+    else if (s.state === 'none') dialog(title, 'You’re up to date', [`Encyclopedia 2000 ${prettyVersion((await window.e2k.appInfo()).version)} is the newest version.`]);
+    else if (s.state === 'dev') dialog(title, 'Updates aren’t available here', ['This copy of Encyclopedia 2000 is running from its source folder. Updates work in the installed app.']);
+    else dialog(title, 'Couldn’t check for updates', [navigator.onLine ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.']);
   }
 
   // Wikipedia's own donation page, opened in the user's web browser.
@@ -931,6 +967,7 @@
     fav: toggleFav,
     support: () => supportWikipedia(),
     feedback: () => feedback(),
+    updates: () => checkForUpdates(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
@@ -977,7 +1014,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['Send Feedback…', 'feedback'], ['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');

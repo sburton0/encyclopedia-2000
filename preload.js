@@ -6,6 +6,12 @@ contextBridge.exposeInMainWorld('e2k', {
   onMaximized: (cb) => ipcRenderer.on('maximized', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  update: {
+    state: () => ipcRenderer.invoke('update:state'),
+    check: () => ipcRenderer.invoke('update:check'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onChange: (cb) => ipcRenderer.on('update', (_e, s) => cb(s)),
+  },
   printPreview: () => ipcRenderer.invoke('print:open'),
   print: {
     render: (opts) => ipcRenderer.invoke('print:render', opts),

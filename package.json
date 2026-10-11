@@ -11,12 +11,73 @@
     "start": "electron .",
     "icons": "electron tools/make-icons.js",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
-    "map": "node tools/make-map.mjs"
+    "map": "node tools/make-map.mjs",
+    "dist": "electron-builder --win nsis --publish never",
+    "release": "electron-builder --win nsis --publish always"
   },
   "devDependencies": {
     "d3-geo": "^3.1.1",
     "electron": "^44.7.0",
+    "electron-builder": "^26.0.12",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
+  },
+  "dependencies": {
+    "electron-updater": "^6.6.2"
+  },
+  "build": {
+    "appId": "com.svid.encyclopedia2000",
+    "productName": "Encyclopedia 2000",
+    "copyright": "© 2026 Scott Burton",
+    "electronDist": "node_modules/electron/dist",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "updater.js",
+      "src/**/*",
+      "build/icon.ico",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "author": {
+        "name": "Encyclopedia 2000"
+      }
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Encyclopedia 2000",
+      "uninstallDisplayName": "Encyclopedia 2000",
+      "artifactName": "Encyclopedia-2000-Setup-${version}.${ext}",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "license": "LICENSE"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "sburton0",
+        "repo": "encyclopedia-2000",
+        "releaseType": "prerelease"
+      }
+    ]
   }
 }

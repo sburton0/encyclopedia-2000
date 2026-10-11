@@ -19,7 +19,7 @@ const ICON = path.join(__dirname, 'build', 'icon.ico');
 const env = process.env;
 
 // Settings the main process needs before any window opens. Everything else lives in the page's storage.
-const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true };
+const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true, autoUpdate: true };
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 let settings = { ...SETTINGS_DEFAULTS };
 function loadSettings() {
@@ -139,13 +139,14 @@ ipcMain.on('win', (e, cmd) => {
   else if (cmd === 'print') win.webContents.print({});
 });
 
-const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration });
+const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate });
 ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
   if (typeof patch.showSplash === 'boolean') settings.showSplash = patch.showSplash;
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
   if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;
+  if (typeof patch.autoUpdate === 'boolean') settings.autoUpdate = patch.autoUpdate;
   saveSettings();
   return mainSettings();
 });
@@ -226,6 +227,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
+  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));
