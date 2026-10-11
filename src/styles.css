@@ -108,17 +108,17 @@ button { font-family: inherit; cursor: default; }
 .home .brand .y { font: 300 64px/1 "Segoe UI"; letter-spacing: 2px; }
 .home .brand .y b { font-weight: 400; color: var(--orange); }
 .home .brand .tag { margin-top: 6px; font: 600 9.5px "Segoe UI"; letter-spacing: 4px; color: var(--sky); }
-.home .dial { position: absolute; left: 440px; top: 120px; width: 250px; height: 250px; padding: 0; border-radius: 50%; overflow: hidden;
+.home .dial { position: absolute; left: 423px; top: 18px; width: 280px; height: 280px; padding: 0; border-radius: 50%; overflow: hidden;
               background: #3a5f99 center/cover; border: 4px solid rgba(255, 255, 255, .82);
               box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 50px rgba(160, 195, 255, .55); transition: box-shadow .2s; }
 .home .dial::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
                      background: radial-gradient(ellipse at 40% 16%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 44%), radial-gradient(circle, transparent 62%, rgba(0, 0, 0, .35)); }
 .home .dial:hover { box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 70px rgba(255, 220, 160, .7); }
-.home .dialcap { position: absolute; left: 415px; top: 384px; width: 300px; padding: 4px 10px; border-radius: 6px; background: rgba(10, 24, 60, .6);
+.home .dialcap { position: absolute; left: 398px; top: 312px; width: 330px; padding: 4px 10px; border-radius: 6px; background: rgba(10, 24, 60, .6);
                  text-align: center; color: #e6eefc; font: 12px/1.4 "Segoe UI"; text-shadow: 0 1px 3px #000;
                  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .home .dialcap b { font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
-.home .orb { position: absolute; width: 74px; padding: 0; background: none; border: 0; text-align: center; color: #fff;
+.home .orb { width: 74px; padding: 0; background: none; border: 0; text-align: center; color: #fff;
              font: 600 12px "Segoe UI"; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 .home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden;
                border: 2px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 22px rgba(140, 180, 255, .45);
@@ -131,7 +131,12 @@ button { font-family: inherit; cursor: default; }
 .panel { position: absolute; padding: 12px 14px 14px; border-radius: 6px; color: #fff;
          background: linear-gradient(rgba(10, 24, 60, .72), rgba(10, 24, 60, .55)); border: 1px solid rgba(160, 190, 255, .25); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
 .panel h3 { margin: 0 0 8px; padding-bottom: 4px; font: 600 15px "Segoe UI"; color: var(--orange); border-bottom: 1px solid rgba(255, 255, 255, .3); }
-.home .disc { left: 34px; top: 190px; width: 300px; }
+.home .disc { left: 34px; top: 176px; width: 300px; }
+.home .shelf { position: absolute; left: 34px; top: 474px; width: 740px; height: 118px; padding: 10px 14px 0; border-radius: 8px;
+               background: linear-gradient(rgba(10, 24, 60, .55), rgba(10, 24, 60, .75)); border: 1px solid rgba(160, 190, 255, .25);
+               box-shadow: 0 6px 20px rgba(0, 0, 0, .35), inset 0 1px rgba(255, 255, 255, .12); }
+.home .shelf small { display: block; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.home .shelf .row { display: flex; justify-content: space-around; margin-top: 8px; }
 .home .disc .row { display: flex; gap: 10px; }
 .home .disc .thumb { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #3a5f99 center/cover; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 0 14px rgba(140, 180, 255, .5); }
 .home .disc b { display: block; font: 600 italic 14px "Segoe UI"; color: var(--gold); }

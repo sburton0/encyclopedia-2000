@@ -144,22 +144,24 @@
   }
 
   // ---------- home ----------
+  // The Explore shelf on the home screen, in display order.
   const ORBS = [
-    { label: 'Articles', icon: 'book', x: 528, y: 14, bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
-    { label: 'Atlas', icon: 'globe', x: 720, y: 94, bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Atlas', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
-    { label: 'Media', icon: 'film', x: 714, y: 320, bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
-    { label: 'Timeline', icon: 'clock', x: 528, y: 468, bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
-    { label: 'Games', icon: 'star', x: 348, y: 382, bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
-    { label: 'Activities', icon: 'puzzle', x: 348, y: 84, bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => soon('Activities', 'Hands-on explorations, puzzles, and interactive features.') },
+    { id: 'articles', label: 'Articles', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
+    { id: 'media', label: 'Media', icon: 'film', bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
+    { id: 'timeline', label: 'Timeline', icon: 'clock', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
+    { id: 'atlas', label: 'Atlas', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => soon('World Atlas', 'Explore countries, cities, and landmarks on an interactive map of the world.') },
+    { id: 'games', label: 'Games', icon: 'star', bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
+    { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => soon('Activities', 'Hands-on explorations, puzzles, and interactive features.') },
   ];
+  const orb = (id) => ORBS.find((o) => o.id === id);
 
   function viewHome(token) {
     const art = svg('svg', { viewBox: '0 0 1024 610' });
-    const bloom = svg('g', { transform: 'translate(565 245)', filter: 'url(#soft)' });
+    const bloom = svg('g', { transform: 'translate(563 158)', filter: 'url(#soft)' });
     makeBloom(bloom, 1);
     art.append(
       bloom,
-      svg('circle', { cx: 565, cy: 245, r: 150, fill: 'url(#core)', filter: 'url(#softer)' }),
+      svg('circle', { cx: 563, cy: 158, r: 150, fill: 'url(#core)', filter: 'url(#softer)' }),
       svg('path', { d: 'M 360 -40 C 200 150 220 450 420 700', fill: 'none', stroke: '#9fc0ff', 'stroke-opacity': '.22', 'stroke-width': '1.5' }),
       svg('path', { d: 'M 770 -40 C 930 150 910 450 710 700', fill: 'none', stroke: '#9fc0ff', 'stroke-opacity': '.18', 'stroke-width': '1.5' }),
     );
@@ -177,8 +179,9 @@
       h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '20', h('b', {}, '00')), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
       dial,
       h('div', { class: 'dialcap' }, h('b', {}, 'PICTURE OF THE DAY'), h('br'), dialCap),
-      ORBS.map((o) => h('button', { class: 'orb', style: `left:${o.x}px;top:${o.y}px`, onclick: o.run },
-        h('i', { style: `background:radial-gradient(circle at 40% 30%,${o.bg})` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)),
+      h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),
+        h('div', { class: 'row' }, ORBS.map((o) => h('button', { class: 'orb', onclick: o.run },
+          h('i', { style: `background:radial-gradient(circle at 40% 30%,${o.bg})` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)))),
       h('div', { class: 'panel disc' }, h('h3', {}, 'Today’s discovery'),
         h('div', { class: 'row' }, discThumb, h('div', {}, discTitle, discText)), discMore),
       h('div', { class: 'panel alm' }, h('h3', {}, 'Almanac'), h('div', { class: 'd' }, longDate().toUpperCase()), almList,
@@ -732,9 +735,9 @@
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
     normal: () => setFontScale(1),
     mute: () => toggleMute(),
-    atlas: () => ORBS[1].run(),
+    atlas: () => orb('atlas').run(),
     games: () => go('games'),
-    activities: () => ORBS[5].run(),
+    activities: () => orb('activities').run(),
     about,
     exit: () => window.e2k.win('close'),
   };
