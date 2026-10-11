@@ -826,14 +826,14 @@
     q.blur();
     openArticle(it.title);
   }
-  function submit() {
-    if (sugSel >= 0) return pick(sugSel);
+  // Enter and the Search button show the results page. Enter opens a suggestion only if one was picked with the arrow keys.
+  function submit({ fromButton = false } = {}) {
+    if (!fromButton && sugSel >= 0) return pick(sugSel);
     const v = q.value.trim();
-    if (!v) return;
-    const exact = sugItems.find((s) => s.title.toLowerCase() === v.toLowerCase());
+    if (!v) return q.focus();
     hideSuggest();
     q.blur();
-    exact ? openArticle(exact.title) : go(route('search', v));
+    go(route('search', v));
   }
   q.addEventListener('input', () => {
     clearTimeout(sugTimer);
@@ -855,7 +855,7 @@
     else if (e.key === 'Escape') hideSuggest();
   });
   q.addEventListener('blur', () => setTimeout(hideSuggest, 120));
-  $('#go').addEventListener('click', submit);
+  $('#go').addEventListener('click', () => submit({ fromButton: true }));
   $('#qdd').addEventListener('mousedown', (e) => {
     e.preventDefault();
     e.stopPropagation();
