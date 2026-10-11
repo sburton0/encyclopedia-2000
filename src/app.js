@@ -255,8 +255,8 @@
     art.append(
       bloom,
       svg('circle', { cx: 563, cy: 158, r: 150, fill: 'url(#core)', filter: 'url(#softer)' }),
-      svg('path', { d: 'M 360 -40 C 200 150 220 450 420 700', fill: 'none', stroke: '#9fc0ff', 'stroke-opacity': '.22', 'stroke-width': '1.5' }),
-      svg('path', { d: 'M 770 -40 C 930 150 910 450 710 700', fill: 'none', stroke: '#9fc0ff', 'stroke-opacity': '.18', 'stroke-width': '1.5' }),
+      svg('path', { d: 'M 360 -40 C 200 150 220 450 420 700', fill: 'none', stroke: 'url(#arcfade)', 'stroke-opacity': '.22', 'stroke-width': '1.5' }),
+      svg('path', { d: 'M 770 -40 C 930 150 910 450 710 700', fill: 'none', stroke: 'url(#arcfade)', 'stroke-opacity': '.18', 'stroke-width': '1.5' }),
     );
 
     const dial = h('button', { class: 'dial', title: 'Picture of the Day', onclick: () => go('gallery') });
