@@ -744,17 +744,21 @@
     ov.append(h('div', { class: 'dialog', role: 'dialog' },
       h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), title),
       h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
-        h('div', {}, h('h2', {}, heading), paragraphs.map((p) => h('p', {}, p)))),
-      h('div', { class: 'df' }, buttons.map(([label, fn]) => h('button', { class: 'go', onclick: () => { ov.remove(); fn && fn(); } }, label)))));
+        h('div', {}, h('h2', {}, heading), paragraphs.map((p) => (p instanceof Node ? p : h('p', {}, p))))),
+      h('div', { class: 'df' }, buttons.map(([label, fn, isDefault]) => h('button', { class: 'go' + (isDefault ? ' default' : ''), onclick: () => { ov.remove(); fn && fn(); } }, label)))));
     document.body.append(ov);
-    ov.querySelector('.df .go').focus();
+    (ov.querySelector('.df .go.default') || ov.querySelector('.df .go')).focus();
   }
   const soon = (name, blurb) => dialog('Encyclopedia 2000', name, [blurb, 'This feature is coming in a future edition of Encyclopedia 2000.']);
   const about = () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
     'Version 0.1 (demo edition).',
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
-  ]);
+    h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
+  ], [['Support Wikipedia…', () => supportWikipedia()], ['OK', null, true]]);
+  // Wikipedia's own donation page, opened in the user's web browser.
+  const DONATE_URL = 'https://donate.wikimedia.org/';
+  const supportWikipedia = () => window.e2k.openExternal(DONATE_URL);
 
   function lightbox(src, caption) {
     if (!src) return;
@@ -866,6 +870,7 @@
     random: () => go('random'),
     featured: () => todayFeed().then((d) => d.tfa && openArticle(d.tfa.titles?.normalized || d.tfa.title)).catch(() => setIdle('Couldn’t load today’s featured article')),
     fav: toggleFav,
+    support: () => supportWikipedia(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
@@ -887,6 +892,11 @@
   const printable = () => !!view.querySelector('.page');
   const nothingToPrint = () => setIdle('There’s nothing to print on this screen. Open an article first.');
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
+  const supportLink = $('#support');
+  supportLink.addEventListener('click', (e) => { e.preventDefault(); supportWikipedia(); });
+  supportLink.addEventListener('mouseover', () => setStatus('Opens in your web browser: donate.wikimedia.org'));
+  supportLink.addEventListener('mouseout', () => setStatus(statusIdle));
+
   $('#toolbar').addEventListener('click', (e) => {
     const b = e.target.closest('.tbtn');
     if (b && !b.disabled) runCmd(b.dataset.cmd);
@@ -906,7 +916,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Atlas', 'atlas'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['About Encyclopedia 2000', 'about']]],
+      ['Help', [['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');

@@ -95,6 +95,8 @@ button { font-family: inherit; cursor: default; }
 .statusbar .sb { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid #1d2027; white-space: nowrap; }
 .statusbar .sb.grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .statusbar .sb:last-child { border-right: 0; }
+.statusbar .sup { color: #c9d2e3; text-decoration: underline; text-decoration-color: rgba(201, 210, 227, .35); }
+.statusbar .sup:hover { color: var(--gold); text-decoration-color: var(--gold); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #3fbf4a; box-shadow: 0 0 4px #3fbf4a; }
 .dot.off { background: #d23a3a; box-shadow: 0 0 4px #d23a3a; }
 .statusbar.busy #status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%;
@@ -340,6 +342,7 @@ button { font-family: inherit; cursor: default; }
 .dialog .db > img { width: 60px; height: 60px; flex: none; filter: drop-shadow(0 0 10px rgba(190, 215, 255, .5)); }
 .dialog .db h2 { margin: 0 0 4px; font: 600 17px "Segoe UI"; color: var(--orange); }
 .dialog .db p { margin: 0 0 8px; }
+.dialog .db p.support { margin-top: 4px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .2); }
 .dialog .df { display: flex; justify-content: flex-end; gap: 8px; padding: 8px 14px 14px; }
 .dialog .df .go { min-width: 80px; }
 .lightbox { flex-direction: column; background: rgba(4, 10, 26, .88); cursor: zoom-out; }
