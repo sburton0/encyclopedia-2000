@@ -779,6 +779,41 @@
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
   ], [['Support Wikipedia…', () => supportWikipedia()], ['OK', null, true]]);
+  // ---------- feedback ----------
+  // Both choices open in the web browser; the app itself sends nothing.
+  // The Discord link is the server's permanent invite. Switch to https://discord.encyclopedia2000.com once that redirect has HTTPS.
+  const DISCORD_URL = 'https://discord.gg/Z4EJdKG39P';
+  const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform';
+  const FORM_FIELDS = { version: 'entry.286759181', windows: 'entry.1837651922' };
+  // "0.1.0-beta.1" reads as "0.1 Beta".
+  const prettyVersion = (v) => { const [, mm, beta] = /^(\d+\.\d+)(?:\.\d+)?(-beta)?/.exec(v) || [, v]; return mm + (beta ? ' Beta' : ''); };
+  async function feedback() {
+    if (document.querySelector('.dialog.feedback')) return;
+    const info = await window.e2k.appInfo().catch(() => ({ version: '', windows: '' }));
+    const line = `Encyclopedia 2000 ${prettyVersion(info.version)} (${info.version}) · ${info.windows}`;
+    const form = `${FORM_URL}?usp=pp_url&${FORM_FIELDS.version}=${encodeURIComponent(info.version)}&${FORM_FIELDS.windows}=${encodeURIComponent(info.windows)}`;
+    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
+    const go = (url) => { window.e2k.openExternal(url); ov.remove(); setIdle('Opened in your web browser'); };
+    const copyBtn = h('button', { onclick: () => {
+      navigator.clipboard.writeText(line).then(() => { copyBtn.textContent = 'Copied'; }, () => { copyBtn.textContent = 'Copy failed'; });
+    } }, 'Copy');
+    ov.append(h('div', { class: 'dialog feedback', role: 'dialog', 'aria-label': 'Send Feedback' },
+      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Send Feedback'),
+      h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
+        h('div', {},
+          h('h2', {}, 'Help shape the Beta'),
+          h('p', {}, 'Found a problem, or have an idea? We’d love to hear it. Both choices open in your web browser.'),
+          h('div', { class: 'fbopts' },
+            h('button', { class: 'fbopt', onclick: () => go(DISCORD_URL) }, h('i', { style: 'background:#5865f2' }, 'D'),
+              h('div', {}, h('b', {}, 'Join the Discord'), h('span', {}, 'Report bugs, share ideas and screenshots, and see what’s coming next.'))),
+            h('button', { class: 'fbopt', onclick: () => go(form) }, h('i', { style: 'background:#2a86d6' }, '✎'),
+              h('div', {}, h('b', {}, 'Send feedback without an account'), h('span', {}, 'A short form. Your app and Windows versions are filled in for you.')))),
+          h('div', { class: 'fbver' }, 'Your versions', h('code', {}, line), copyBtn))),
+      h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
+    document.body.append(ov);
+    ov.querySelector('.fbopt').focus();
+  }
+
   // Wikipedia's own donation page, opened in the user's web browser.
   const DONATE_URL = 'https://donate.wikimedia.org/';
   const supportWikipedia = () => window.e2k.openExternal(DONATE_URL);
@@ -895,6 +930,7 @@
     featured: () => todayFeed().then((d) => d.tfa && openArticle(d.tfa.titles?.normalized || d.tfa.title)).catch(() => setIdle('Couldn’t load today’s featured article')),
     fav: toggleFav,
     support: () => supportWikipedia(),
+    feedback: () => feedback(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
@@ -916,6 +952,7 @@
   // Articles and the other reading pages can be printed; the home screen and games can't.
   const printable = () => !!view.querySelector('.page');
   const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
+  $('#feedback-link').addEventListener('click', (e) => { e.preventDefault(); feedback(); });
   const supportLink = $('#support');
   supportLink.addEventListener('click', (e) => { e.preventDefault(); supportWikipedia(); });
   supportLink.addEventListener('mouseover', () => setStatus('Opens in your web browser: donate.wikimedia.org'));
@@ -940,7 +977,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['Send Feedback…', 'feedback'], ['Support Wikipedia…', 'support'], '-', ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');

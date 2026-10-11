@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const os = require('os');
 const { pathToFileURL } = require('url');
 
 // Wikimedia asks API clients to identify themselves with a descriptive User-Agent.
@@ -208,6 +209,13 @@ ipcMain.handle('print:save', async () => {
   if (canceled || !filePath) return { saved: false };
   fs.writeFileSync(filePath, await makePdf());
   return { saved: true, filePath };
+});
+
+// The app and Windows versions, for the feedback dialog.
+ipcMain.handle('app:info', () => {
+  const [major, , build] = os.release().split('.').map(Number);
+  const windows = process.platform !== 'win32' ? os.type() : major === 10 && build >= 22000 ? 'Windows 11' : major === 10 ? 'Windows 10' : 'Windows';
+  return { version: app.getVersion(), windows: `${windows} (build ${build || os.release()})` };
 });
 
 ipcMain.handle('open-external', (_e, url) => {
