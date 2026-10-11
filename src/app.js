@@ -183,7 +183,7 @@
 
     const canvas = h('div', { class: 'home-canvas' },
       art,
-      h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '20', h('b', {}, '00')), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
+      h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '2000'), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
       dial,
       h('div', { class: 'dialcap' }, h('b', {}, 'PICTURE OF THE DAY'), h('br'), dialCap),
       h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),
