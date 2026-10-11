@@ -808,18 +808,47 @@
     updateToolbar();
   }
 
+  // ---------- Favorites pane ----------
+  // Opens over any screen from the toolbar's Favorites button, the Favorites menu, or Ctrl+I.
+  const fpane = $('#fpane');
+  let favsExpanded = false;
+  const FAVS_SHOWN = 8;
+  function drawFavPane() {
+    if (fpane.hidden) return;
+    const list = favs();
+    const recent = store.get('recent', []);
+    const here = current?.title;
+    const fav = isFav();
+    const shown = favsExpanded ? list : list.slice(0, FAVS_SHOWN);
+    const lnk = (t, starred) => h('button', { class: 'lnk' + (starred ? '' : ' plain') + (t === here ? ' here' : ''), title: t, onclick: () => openArticle(t) },
+      starred ? icon('star') : null, t);
+    fpane.replaceChildren(
+      h('div', { class: 'fh' }, icon('favs'), h('span', {}, 'Favorites'), h('button', { title: 'Close (Esc)', onclick: () => toggleFavPane(false) }, '\uE8BB')),
+      h('div', { class: 'fb' },
+        here ? h('button', { class: 'add', title: fav ? 'Remove from Favorites' : 'Add to Favorites', onclick: () => toggleFav() }, icon('star'), h('span', {}, fav ? `Remove “${here}” from Favorites` : `Add “${here}” to Favorites`)) : null,
+        h('h4', {}, 'Favorites'),
+        list.length ? shown.map((f) => lnk(f.title, true)) : h('div', { class: 'note' }, 'Open an article and click “Add to Favorites” to save it here.'),
+        list.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { favsExpanded = !favsExpanded; drawFavPane(); } }, favsExpanded ? 'Show fewer' : `Show all (${list.length})`) : null,
+        ...(recent.length ? [h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => lnk(t, false))] : [])),
+      h('div', { class: 'ff' }, 'Ctrl+I opens and closes this pane'));
+  }
+  function toggleFavPane(open = fpane.hidden) {
+    fpane.hidden = !open;
+    if (!open) favsExpanded = false;
+    updateToolbar();
+  }
+
   // ---------- toolbar ----------
   function updateToolbar() {
     const btn = (c) => $(`.tbtn[data-cmd="${c}"]`);
     btn('back').disabled = nav.idx <= 0;
     btn('fwd').disabled = nav.idx >= nav.stack.length - 1;
-    btn('fav').disabled = !current;
     btn('speak').disabled = !current;
     const fav = isFav();
-    btn('fav').classList.toggle('on', fav);
-    btn('fav').title = fav ? 'Remove from Favorites' : 'Add to Favorites';
     btn('speak').classList.toggle('on', speaking);
     btn('speak').title = speaking ? 'Stop reading' : 'Read Aloud';
+    btn('favpane').classList.toggle('on', !fpane.hidden);
+    drawFavPane();
     if (current?.favBtn) {
       current.favBtn.lastChild.textContent = fav ? 'In Favorites' : 'Add to Favorites';
       current.favBtn.classList.toggle('on', fav);
@@ -837,6 +866,7 @@
     random: () => go('random'),
     featured: () => todayFeed().then((d) => d.tfa && openArticle(d.tfa.titles?.normalized || d.tfa.title)).catch(() => setIdle('Couldn’t load today’s featured article')),
     fav: toggleFav,
+    favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
     print: () => (printable() ? window.e2k.printPreview() : nothingToPrint()),
@@ -872,7 +902,7 @@
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
-      ['Favorites', [[isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
+      ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Atlas', 'atlas'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Options…', 'options', 'Ctrl+,']]],
@@ -1040,13 +1070,13 @@
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); return; }
+    if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
     else if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'p') { e.preventDefault(); runCmd('printNow'); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { p: 'print', f: 'find', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { i: 'favpane', p: 'print', f: 'find', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }

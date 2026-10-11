@@ -115,6 +115,38 @@ button { font-family: inherit; cursor: default; }
 .crumbs .sep { flex: none; margin: 0 4px; color: #5d6474; }
 .crumbs .here { flex: 0 1 auto; color: #fff; font-weight: 600; }
 
+/* ---------- Favorites pane: slides in over the page from the left, on any screen ---------- */
+.stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
+.fpane { position: absolute; left: 0; top: 0; bottom: 0; width: 250px; z-index: 25; display: flex; flex-direction: column; color: #fff;
+         background: linear-gradient(#25458a, #0f2250); border-right: 1px solid var(--ink-3); box-shadow: 6px 0 18px rgba(0, 0, 0, .45); animation: fpane-in .18s ease-out; }
+.fpane[hidden] { display: none; }
+@keyframes fpane-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.fpane .fh { height: 26px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 4px 0 10px;
+             background: linear-gradient(#2a2a2a, #0d0d0d); font: 600 12px "Segoe UI"; color: #ddd; }
+.fpane .fh .ic { width: 13px; height: 13px; fill: var(--orange); }
+.fpane .fh span { flex: 1; }
+.fpane .fh button { width: 22px; height: 20px; padding: 0; background: none; border: 1px solid transparent; color: #aaa; font: 10px "Segoe MDL2 Assets"; }
+.fpane .fh button:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
+.fpane .fb { flex: 1; overflow: auto; padding: 12px 14px; }
+.fpane .add { display: flex; align-items: center; gap: 7px; width: 100%; margin-bottom: 12px; padding: 5px 8px; text-align: left;
+              background: rgba(5, 12, 30, .35); border: 1px solid rgba(160, 190, 255, .3); color: var(--gold); font: 600 12px "Segoe UI"; }
+.fpane .add .ic { width: 12px; height: 12px; fill: var(--orange); flex: none; }
+.fpane .add span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fpane .add:hover { border-color: var(--orange); }
+.fpane h4 { margin: 0 0 6px; font: 600 15px "Segoe UI"; color: var(--orange); }
+.fpane hr { margin: 12px 0; border: 0; border-top: 1px solid rgba(255, 255, 255, .3); }
+.fpane .lnk { position: relative; display: block; width: 100%; padding: 2px 0 2px 26px; background: none; border: 0; text-align: left;
+              font: 13px/1.5 "Segoe UI"; color: var(--sky); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fpane .lnk.plain { padding-left: 10px; }
+.fpane .lnk .ic { position: absolute; left: 9px; top: 6px; width: 11px; height: 11px; fill: var(--orange); }
+.fpane .lnk:hover { color: var(--gold); }
+.fpane .lnk.here { color: #fff; font-weight: 600; }
+.fpane .more { display: block; margin: 4px 0 0 26px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff;
+               text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .4); }
+.fpane .more:hover { color: var(--gold); }
+.fpane .note { font: 11.5px/1.45 "Segoe UI"; color: var(--sky); }
+.fpane .ff { flex: none; padding: 6px 14px; font: 11px "Segoe UI"; color: var(--sky); border-top: 1px solid rgba(255, 255, 255, .15); }
+
 #view { flex: 1; position: relative; overflow: hidden; background: radial-gradient(ellipse at 55% 40%, #4f78c4, #25458a 45%, #0f2250); }
 .fade-in { animation: viewin .25s ease-out both; }
 @keyframes viewin { from { opacity: 0; } to { opacity: 1; } }
@@ -316,8 +348,8 @@ button { font-family: inherit; cursor: default; }
 
 /* ---------- print ---------- */
 @media print {
-  html, body, #app, #view { height: auto; overflow: visible; background: #fff; }
-  .titlebar, .menubar, .toolbar, .crumbs, .statusbar, .rail, .band .tools, .band > svg, .overlay, .strip, .bbtn { display: none !important; }
+  html, body, #app, .stage, #view { height: auto; overflow: visible; background: #fff; }
+  .titlebar, .menubar, .toolbar, .crumbs, .fpane, .statusbar, .rail, .band .tools, .band > svg, .overlay, .strip, .bbtn { display: none !important; }
   .page, .content { position: static; display: block; overflow: visible; padding: 0; background: #fff; }
   .band { height: auto; margin-bottom: 14px; padding-bottom: 8px; background: none; color: #000; border-bottom: 2px solid #25458a; }
   .band .t { position: static; }
