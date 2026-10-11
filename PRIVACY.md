@@ -39,6 +39,10 @@ Some buttons open web pages in your own browser instead of inside the app, such 
 
 - **Send Feedback** offers our **Discord server** and a **Google Form**. The form is anonymous unless you choose to enter an email address for a reply. It fills in your app version and Windows version for you; nothing is sent until you press Submit. Google's and Discord's privacy policies apply to what you share there.
 
+## This website
+
+encyclopedia2000.com uses no cookies and no advertising or cross-site trackers. It uses **Cloudflare Web Analytics** to count visits: which pages are viewed, which site you came from, and your general country and type of device. It doesn't use cookies, doesn't follow you across other sites, and doesn't collect personal information. The site is hosted on GitHub Pages and served through Cloudflare. These analytics apply only to the website; the Encyclopedia 2000 app itself has none.
+
 ## Children
 
 Encyclopedia 2000 doesn't collect personal information from anyone, including children.
