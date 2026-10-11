@@ -1,5 +1,8 @@
 # Encyclopedia 2000
 
+[![Download for Windows](https://img.shields.io/badge/Download-Windows-f5a623?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/sburton0/encyclopedia-2000/releases/latest)
+[![Join the Discord](https://img.shields.io/badge/Join%20the-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.encyclopedia2000.com)
+
 A free desktop encyclopedia for Windows, inspired by the CD-ROM reference software of the early 2000s and powered by today's Wikipedia. Articles, pictures, and history come live from Wikipedia.
 
 **Version 0.1 is a public beta.** Your feedback shapes what comes next.
@@ -10,7 +13,7 @@ Get the newest version from the [Releases page](https://github.com/sburton0/ency
 
 | File | Choose this if… |
 | --- | --- |
-| **Encyclopedia-2000-Setup-….exe** | You want it installed like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
+| **Encyclopedia-2000-Installer-….exe** | You want it installed like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
 | **Encyclopedia-2000-Portable-….exe** | You'd rather not install anything. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, but you download it yourself. |
 
 Requires Windows 10 or 11 (64-bit) and an internet connection.

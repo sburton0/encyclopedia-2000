@@ -73,7 +73,7 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Encyclopedia 2000",
       "uninstallDisplayName": "Encyclopedia 2000",
-      "artifactName": "Encyclopedia-2000-Setup-${version}.${ext}",
+      "artifactName": "Encyclopedia-2000-Installer-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
     },

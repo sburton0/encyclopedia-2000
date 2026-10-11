@@ -8,7 +8,7 @@ if (!releases.length) console.log('No releases yet.');
 for (const r of releases) {
   console.log(`\n${r.tag_name}${r.prerelease ? ' (pre-release)' : ''}${r.draft ? ' (draft)' : ''}, published ${(r.published_at || '').slice(0, 10) || 'not yet'}`);
   for (const a of r.assets) {
-    const label = /Setup.*\.exe$/.test(a.name) ? 'installer downloads' : /Portable.*\.exe$/.test(a.name) ? 'portable downloads' : a.name === 'latest.yml' ? 'update checks' : null;
+    const label = /(Setup|Installer).*\.exe$/.test(a.name) ? 'installer downloads' : /Portable.*\.exe$/.test(a.name) ? 'portable downloads' : a.name === 'latest.yml' ? 'update checks' : null;
     if (label) console.log(`  ${String(a.download_count).padStart(7)}  ${label}  (${a.name})`);
   }
 }
