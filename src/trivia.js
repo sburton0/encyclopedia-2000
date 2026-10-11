@@ -154,8 +154,14 @@ window.E2KTrivia = (() => {
     const wrong = shuffle(topic.titles.filter((t) => t !== title)).slice(0, 4).map(display);
 
     if (kind === 'picture' && s.thumbnail?.source) {
-      return withChoices({ ...base, type: 'picture', kicker: 'Picture puzzle', prompt: 'What does this picture show?', image: s.thumbnail.source },
-        display(name), wrong);
+      // Only offer wrong answers that have pictures too, so none can be ruled out as "not something you can photograph".
+      const others = await Promise.allSettled(shuffle(topic.titles.filter((t) => t !== title)).slice(0, 7).map(summary));
+      const pictured = others.filter((r) => r.status === 'fulfilled' && r.value.thumbnail?.source && r.value.type !== 'disambiguation')
+        .map((r) => display(r.value.titles?.normalized || r.value.title));
+      if (pictured.length >= 3) {
+        return withChoices({ ...base, type: 'picture', kicker: 'Picture puzzle', prompt: 'What does this picture show?', image: s.thumbnail.source },
+          display(name), pictured);
+      }
     }
     if (kind === 'describe' && s.description) {
       const others = await Promise.allSettled(shuffle(topic.titles.filter((t) => t !== title)).slice(0, 5).map(summary));
