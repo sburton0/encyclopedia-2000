@@ -1,6 +1,6 @@
 {
   "name": "encyclopedia-2000",
-  "version": "0.1.0-beta.1",
+  "version": "0.1.0-beta.2",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
   "author": "Scott Burton",
@@ -63,7 +63,16 @@
           ]
         }
       ],
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "signtoolOptions": {
+        "sign": "./tools/sign.js",
+        "signingHashAlgorithms": [
+          "sha256"
+        ],
+        "publisherName": [
+          "Scott Burton"
+        ]
+      }
     },
     "nsis": {
       "oneClick": true,
