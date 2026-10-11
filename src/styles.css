@@ -178,8 +178,10 @@ button { font-family: inherit; cursor: default; }
 .home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden;
                border: 2px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 22px rgba(140, 180, 255, .45);
                transition: transform .15s, box-shadow .15s; }
-.home .orb i::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(ellipse at 40% 15%, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 50%); }
-.home .orb i svg { width: 22px; height: 22px; fill: #fff; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+/* A glassy shine along the top edge, kept clear of the icon so the white icons stand out. */
+.home .orb i::after { content: ""; position: absolute; left: 10%; right: 10%; top: 3%; height: 34%; border-radius: 50% 50% 45% 45% / 70% 70% 30% 30%;
+                      background: linear-gradient(rgba(255, 255, 255, .6), rgba(255, 255, 255, .04)); }
+.home .orb i svg { position: relative; z-index: 1; width: 24px; height: 24px; fill: #fff; filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .75)) drop-shadow(0 0 3px rgba(0, 0, 0, .35)); }
 .home .orb:hover { color: var(--gold); }
 .home .orb:hover i { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 30px rgba(255, 220, 160, .7); }
 .home .orb:active i { transform: scale(.97); }
