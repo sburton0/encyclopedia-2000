@@ -236,7 +236,7 @@ button { font-family: inherit; cursor: default; }
 .bbtn.on { color: var(--orange); border-color: var(--orange); }
 .content { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; gap: 22px; padding: 18px 24px 30px; background: #fbfcfe; }
 .content.wide { display: block; }
-.media { position: sticky; top: 0; width: 260px; flex: none; }
+.media { width: 260px; flex: none; }
 .media:empty { display: none; }
 .media .frame { padding: 4px; background: #fff; border: 1px solid #9fb0d0; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
 .media .frame img { display: block; width: 100%; max-height: 320px; object-fit: cover; cursor: zoom-in; }
