@@ -132,11 +132,11 @@ button { font-family: inherit; cursor: default; }
          background: linear-gradient(rgba(10, 24, 60, .72), rgba(10, 24, 60, .55)); border: 1px solid rgba(160, 190, 255, .25); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
 .panel h3 { margin: 0 0 8px; padding-bottom: 4px; font: 600 15px "Segoe UI"; color: var(--orange); border-bottom: 1px solid rgba(255, 255, 255, .3); }
 .home .disc { left: 34px; top: 176px; width: 300px; }
-.home .shelf { position: absolute; left: 34px; top: 474px; width: 740px; height: 118px; padding: 10px 14px 0; border-radius: 8px;
+.home .shelf { position: absolute; left: 34px; top: 464px; width: 740px; height: 128px; padding: 14px 20px 0; border-radius: 8px;
                background: linear-gradient(rgba(10, 24, 60, .55), rgba(10, 24, 60, .75)); border: 1px solid rgba(160, 190, 255, .25);
                box-shadow: 0 6px 20px rgba(0, 0, 0, .35), inset 0 1px rgba(255, 255, 255, .12); }
 .home .shelf small { display: block; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
-.home .shelf .row { display: flex; justify-content: space-around; margin-top: 8px; }
+.home .shelf .row { display: flex; justify-content: space-around; margin-top: 12px; }
 .home .disc .row { display: flex; gap: 10px; }
 .home .disc .thumb { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #3a5f99 center/cover; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 0 14px rgba(140, 180, 255, .5); }
 .home .disc b { display: block; font: 600 italic 14px "Segoe UI"; color: var(--gold); }
