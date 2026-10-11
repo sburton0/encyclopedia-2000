@@ -774,7 +774,7 @@
     (ov.querySelector('.df .go.default') || ov.querySelector('.df .go')).focus();
   }
   const about = () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
-    'Version 0.1 (demo edition).',
+    'Version 0.1 Beta.',
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),

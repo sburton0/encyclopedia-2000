@@ -1,6 +1,6 @@
 {
   "name": "encyclopedia-2000",
-  "version": "0.1.0",
+  "version": "0.1.0-beta.1",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
   "author": "Scott Burton",

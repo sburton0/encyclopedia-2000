@@ -4,7 +4,7 @@ const fs = require('fs');
 const { pathToFileURL } = require('url');
 
 // Wikimedia asks API clients to identify themselves with a descriptive User-Agent.
-app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (desktop encyclopedia demo; Electron)`;
+app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (https://encyclopedia2000.com; Windows desktop encyclopedia; Electron)`;
 
 // A fixed app ID lets Windows match the running window to its Start menu shortcut and taskbar pin.
 // Keep it in sync with tools/make-shortcut.ps1.

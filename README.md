@@ -19,7 +19,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 
 The World Explorer map lives in `src/world/map-data.js`, generated from Natural Earth country shapes (public domain) and Wikidata (CC0). Run `npm run map` to rebuild it; it needs an internet connection.
 
-## What's in the demo
+## Features
 
 - **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip.
 - **Home screen**: Picture of the Day at the center, sections orbiting it, today's featured article, and an almanac of events from this date.
