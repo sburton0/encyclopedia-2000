@@ -1,11 +1,8 @@
 node_modules/
 
-# Mockups for separate projects (kept locally, not part of this app)
-mockups/svid/
-mockups/jukebox/
-mockups/publisher/
+# Design mockups and other projects' drafts (kept locally, not part of this app)
+mockups/
 
-# Personal planning notes
+# Personal planning notes and promotional screenshots
 AGENDA.md
 screenshots/
-mockups/website/
