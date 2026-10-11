@@ -88,7 +88,7 @@
       year = null;
       save();
       draw();
-      api.setIdle(list.length ? `${list.length} people` : 'Ready');
+      api.setIdle(list.length ? `${list.length} ${list.length === 1 ? 'person' : 'people'} on the chart` : 'Ready');
     }
     const loadSet = (name) => loadTitles(SETS.find(([n]) => n === name)[1], name);
 

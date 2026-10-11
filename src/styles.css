@@ -92,7 +92,9 @@ button { font-family: inherit; cursor: default; }
 
 /* ---------- status bar ---------- */
 .statusbar { height: 22px; flex: none; display: flex; align-items: stretch; background: #000; border-top: 1px solid #23262d; color: #9aa3b5; font-size: 11px; }
-.statusbar .sb { display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid #1d2027; white-space: nowrap; }
+.statusbar .sb { display: flex; align-items: center; gap: 6px; padding: 0 10px 2px; line-height: 1; border-right: 1px solid #1d2027; white-space: nowrap; }
+/* Segoe UI's letters sit high in their line box; nudge the dot down to line up with the middle of the text. */
+.statusbar .dot { margin-top: 2px; }
 .statusbar .sb.grow { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .statusbar .sb:last-child { border-right: 0; }
 .statusbar .sup { color: #c9d2e3; text-decoration: underline; text-decoration-color: rgba(201, 210, 227, .35); }
