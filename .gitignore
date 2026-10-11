@@ -9,3 +9,6 @@ screenshots/
 
 # Installer builds
 dist/
+
+# Local test launcher for Windows Sandbox
+Test in Sandbox.wsb
