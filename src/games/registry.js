@@ -11,10 +11,6 @@
 // `api` is window.E2K (see app.js): helpers for building DOM, saving progress, sounds, and opening articles.
 window.E2KGames = {
   list: [],
-  upcoming: [
-    { name: 'Time Traveler', icon: 'clock', blurb: 'Put history in order: place events on a timeline and guess the year they happened.' },
-    { name: 'Mystery Subject', icon: 'q', blurb: 'Clues appear one at a time. Name the subject in as few clues as you can.' },
-  ],
   register(game) { this.list.push(game); },
   get(id) { return this.list.find((g) => g.id === id); },
 };

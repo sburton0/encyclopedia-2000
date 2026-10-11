@@ -604,10 +604,7 @@
       games.map((g) => h('button', { class: 'gcard', onclick: () => go(route('game', g.id)) },
         h('div', { class: 'gart' }, g.art ? g.art(E2K) : null),
         h('div', { class: 'gb' }, h('b', {}, g.name), h('p', {}, g.blurb),
-          h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, g.progress ? g.progress(E2K) : ''), h('span', { class: 'gplay' }, 'Play ›'))))),
-      E2KGames.upcoming.map((u) => h('div', { class: 'gcard soon' },
-        h('div', { class: 'gart' }, u.icon ? svg('svg', { class: 'gicon' }, svg('use', { href: '#i-' + u.icon })) : null),
-        h('div', { class: 'gb' }, h('b', {}, u.name), h('p', {}, u.blurb), h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, 'Coming soon')))))));
+          h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, g.progress ? g.progress(E2K) : ''), h('span', { class: 'gplay' }, 'Play ›')))))));
     mount(pg.root, token);
     setIdle();
   }

@@ -45,7 +45,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 | `src/wiki.js` | Wikipedia REST API client |
 | `src/bloom.js` | Draws the bloom artwork |
 | `src/trivia.js` | Question engine shared by all games: topics, subject lists, question types |
-| `src/games/registry.js` | Where games register themselves; also lists "coming soon" games |
+| `src/games/registry.js` | Where games register themselves |
 | `src/games/starchart.js`, `src/games/games.css` | The Star Chart game and the games styles |
 | `mockups/` | Design mockups from each round (`all-options.html` shows them all) |
 

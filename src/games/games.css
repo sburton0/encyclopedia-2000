@@ -2,7 +2,7 @@
 .gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; max-width: 1000px; }
 .gcard { display: flex; flex-direction: column; padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea;
          box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
-.gcard:not(.soon):hover { transform: translateY(-2px); border-color: var(--orange); }
+.gcard:hover { transform: translateY(-2px); border-color: var(--orange); }
 .gcard .gart { height: 150px; background: radial-gradient(ellipse at 50% 60%, #2a4f96, #0b1a40 70%); }
 .gcard .gart svg { display: block; width: 100%; height: 100%; }
 .gcard .gb { flex: 1; display: flex; flex-direction: column; padding: 12px 14px 12px; }
@@ -11,9 +11,6 @@
 .gcard .gfoot { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .gcard .gprog { font: 11.5px "Segoe UI"; color: #777; }
 .gcard .gplay { padding: 3px 12px; font: 700 12px "Segoe UI"; color: var(--orange); background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262; }
-.gcard.soon { opacity: .65; }
-.gcard.soon .gart { display: grid; place-items: center; background: repeating-linear-gradient(135deg, #1c2f5e 0 10px, #182a55 10px 20px); }
-.gcard .gart svg.gicon { width: 56px; height: 56px; fill: rgba(200, 215, 245, .55); }
 
 /* ---------- Star Chart ---------- */
 .game-root { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 50%, #1d3a7a, #0b1a40 55%, #050c22); }
