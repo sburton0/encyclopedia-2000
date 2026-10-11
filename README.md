@@ -19,13 +19,14 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 
 ## What's in the demo
 
-- **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip. Turn sounds off under **View → Sound Effects**.
+- **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip.
 - **Home screen**: Picture of the Day at the center, sections orbiting it, today's featured article, and an almanac of events from this date.
 - **Articles**: full Wikipedia articles restyled with a contents rail, related articles, lead picture, and quick facts from the infobox. Links open inside the app; external links open in your browser.
 - **Find**: suggestions as you type, full-text search results, and a dropdown of recently viewed articles.
 - **Media**: the Picture of the Day for the past week.
 - **Timeline**: highlights, events, births, deaths, and holidays for today's date.
 - **Articles (Explore)**: eight random articles; shuffle for more.
+- **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Favorites**, **Read Aloud** (Windows text-to-speech), **Print**, text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
 - **Atlas** and **Activities** show "coming soon" for now.

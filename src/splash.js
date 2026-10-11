@@ -1,7 +1,5 @@
 (() => {
-  const muted = new URLSearchParams(location.search).get('mute') === '1' || (() => {
-    try { return localStorage.getItem('e2k.sound') === 'false'; } catch { return false; }
-  })();
+  const muted = new URLSearchParams(location.search).get('mute') === '1' || E2KAudio.isMuted();
 
   makeBloom(document.getElementById('petals'), 0.56, { animate: true });
   if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55 }); } catch {} }, 150);

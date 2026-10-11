@@ -5,6 +5,22 @@ window.E2KAudio = (() => {
   let master = null;
   const ac = () => (ctx ||= new AudioContext());
 
+  // ---------- volume and mute (saved, and shared by the splash screen and the main window) ----------
+  const read = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
+  const write = (k, v) => { try { localStorage.setItem('e2k.' + k, JSON.stringify(v)); } catch {} };
+  const clamp = (v) => (Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 1);
+  let volume = clamp(Number(read('volume', 1)));
+  let muted = read('muted', read('sound', true) === false); // carries over the old "Sound Effects: off" setting
+  // A squared curve makes the slider feel even; at 100% every sound plays at its designed level.
+  const level = () => (muted ? 0 : volume * volume);
+  const settings = {
+    getVolume: () => volume,
+    setVolume(v) { volume = clamp(v); write('volume', volume); if (volume > 0 && muted) settings.setMuted(false); },
+    isMuted: () => muted || volume === 0,
+    setMuted(m) { muted = !!m; write('muted', muted); },
+    level,
+  };
+
   // Rising D-major melody: [frequency, start time], then a final two-note flourish.
   const MELODY = [[440.0, 0.55], [587.33, 0.8], [659.25, 1.05], [739.99, 1.3], [880.0, 1.55]];
   const FINALE = [[1174.66, 2.15], [1479.98, 2.17]];
@@ -131,8 +147,9 @@ window.E2KAudio = (() => {
     if (!context) fadeOut(0.15);
     const t0 = c.currentTime + 0.05;
 
+    if (!context && level() === 0) return;
     const out = c.createGain();
-    out.gain.value = volume;
+    out.gain.value = context ? volume : volume * level();
     if (!context) master = out;
     const comp = c.createDynamicsCompressor();
     out.connect(comp).connect(c.destination);
@@ -209,6 +226,7 @@ window.E2KAudio = (() => {
 
   // Soft "tick" for toolbar and menu clicks.
   function click() {
+    if (!level()) return;
     const c = ac();
     if (c.state === 'suspended') c.resume();
     const t = c.currentTime;
@@ -217,7 +235,7 @@ window.E2KAudio = (() => {
     o.type = 'triangle';
     o.frequency.setValueAtTime(1500, t);
     o.frequency.exponentialRampToValueAtTime(700, t + 0.05);
-    g.gain.setValueAtTime(0.06, t);
+    g.gain.setValueAtTime(0.06 * level(), t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.07);
     o.connect(g).connect(c.destination);
     o.start(t);
@@ -227,11 +245,12 @@ window.E2KAudio = (() => {
   // Short game sounds: 'correct', 'wrong', 'medal'. They share one cached reverb.
   let sfxVerb = null;
   function sfx(kind) {
+    if (!level()) return;
     const c = ac();
     if (c.state === 'suspended') c.resume();
     const t = c.currentTime + 0.02;
     const out = c.createGain();
-    out.gain.value = 0.6;
+    out.gain.value = 0.6 * level();
     out.connect(c.destination);
     if (!sfxVerb) sfxVerb = makeReverb(c, 2.4, 2.4).buffer;
     const verb = c.createConvolver();
@@ -266,5 +285,5 @@ window.E2KAudio = (() => {
     }
   }
 
-  return { jingle, fadeOut, click, sfx };
+  return { jingle, fadeOut, click, sfx, ...settings };
 })();

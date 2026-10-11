@@ -69,7 +69,7 @@
   setInterval(tick, 15000);
 
   // ---------- sound ----------
-  const soundOn = () => store.get('sound', true);
+  const soundOn = () => !E2KAudio.isMuted();
   document.addEventListener('click', (e) => {
     if (soundOn() && e.target.closest('.tbtn:not(:disabled), .go, .orb, .bbtn, .mi:not(.disabled), .card, .dial')) {
       try { E2KAudio.click(); } catch {}
@@ -351,7 +351,7 @@
 
   async function viewArticle(title, token) {
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
-    const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'speak');
+    const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
     const pg = shell({ kicker: 'ARTICLE', title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn] });
     pg.text.append(loading('Retrieving article…'));
@@ -674,6 +674,7 @@
     if (speaking) return speechStop();
     const text = $('.page .text');
     if (!current || !text || !('speechSynthesis' in window)) return;
+    if (E2KAudio.isMuted()) { setIdle('Sound is muted. Turn up the volume to hear Read Aloud.'); return; }
     const parts = [current.title + '.']
       .concat($$('p, h2, h3, li', text).filter((el) => !el.closest('table, figure, .attrib')).map((el) => el.textContent.replace(/\s+/g, ' ').trim()))
       .filter(Boolean).slice(0, 150);
@@ -681,6 +682,7 @@
     speaking = true;
     parts.forEach((p, i) => {
       const u = new SpeechSynthesisUtterance(p);
+      u.volume = Math.sqrt(E2KAudio.level()); // speech volume is already perceptual, so use the slider position
       if (i === parts.length - 1) u.onend = () => { speaking = false; updateToolbar(); };
       speechSynthesis.speak(u);
     });
@@ -729,7 +731,7 @@
     bigger: () => setFontScale(store.get('fontScale', 1) + 0.1),
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
     normal: () => setFontScale(1),
-    sound: () => { store.set('sound', !soundOn()); setIdle(soundOn() ? 'Sound effects on' : 'Sound effects off'); },
+    mute: () => toggleMute(),
     atlas: () => ORBS[1].run(),
     games: () => go('games'),
     activities: () => ORBS[5].run(),
@@ -749,7 +751,7 @@
       ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print…', 'print', 'Ctrl+P'], '-', ['Exit', 'exit', 'Alt+F4']]],
       ['Edit', [['Copy', 'copy', 'Ctrl+C'], ['Find an Article', 'find', 'Ctrl+F']]],
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
-        ['Refresh', 'reload', 'F5'], '-', ['Sound Effects', 'sound', '', soundOn()]]],
+        ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
       ['Favorites', [[isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
@@ -859,6 +861,54 @@
     showSuggest(store.get('recent', []).map((t) => ({ title: t, desc: 'Recently viewed' })), 'No recently viewed articles');
   });
 
+  // ---------- volume ----------
+  const volBtn = $('#volbtn');
+  const volPop = $('#volpop');
+  const volRange = $('#volrange');
+  const volMute = $('#volmute');
+  function updateVolume() {
+    const pct = Math.round(E2KAudio.getVolume() * 100);
+    const muted = E2KAudio.isMuted();
+    const ic = muted ? 'mute' : pct < 50 ? 'vol-low' : 'vol';
+    [volBtn, volMute].forEach((b) => b.querySelector('use').setAttribute('href', '#i-' + ic));
+    volRange.value = pct;
+    volRange.style.setProperty('--p', pct + '%');
+    $('#volpct').textContent = muted ? 'Muted' : pct + '%';
+    volBtn.title = muted ? 'Volume: muted' : `Volume: ${pct}%`;
+    volMute.title = muted ? 'Unmute' : 'Mute (Ctrl+M)';
+    volBtn.classList.toggle('on', !volPop.hidden);
+    volPop.classList.toggle('muted', muted);
+  }
+  function toggleMute() {
+    if (E2KAudio.isMuted()) {
+      if (E2KAudio.getVolume() === 0) E2KAudio.setVolume(0.5);
+      E2KAudio.setMuted(false);
+    } else {
+      E2KAudio.setMuted(true);
+      speechStop();
+    }
+    updateVolume();
+    setIdle(E2KAudio.isMuted() ? 'Sound muted' : `Volume ${Math.round(E2KAudio.getVolume() * 100)}%`);
+  }
+  function closeVolume() { volPop.hidden = true; updateVolume(); }
+  volBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); closeMenus(); volPop.hidden = !volPop.hidden; updateVolume(); });
+  volPop.addEventListener('mousedown', (e) => e.stopPropagation());
+  document.addEventListener('mousedown', () => { if (!volPop.hidden) closeVolume(); });
+  volRange.addEventListener('input', () => {
+    E2KAudio.setVolume(volRange.value / 100);
+    if (Number(volRange.value) === 0) speechStop();
+    updateVolume();
+  });
+  volRange.addEventListener('change', () => { try { E2KAudio.click(); } catch {} });
+  volMute.addEventListener('click', toggleMute);
+  volBtn.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    E2KAudio.setVolume(Math.round((E2KAudio.getVolume() + (e.deltaY < 0 ? 0.05 : -0.05)) * 20) / 20);
+    updateVolume();
+    setIdle(E2KAudio.isMuted() ? 'Sound muted' : `Volume ${Math.round(E2KAudio.getVolume() * 100)}%`);
+  }, { passive: false });
+  updateVolume();
+
   // ---------- window controls ----------
   $$('[data-win]').forEach((b) => b.addEventListener('click', () => window.e2k.win(b.dataset.win)));
   window.e2k.onMaximized((max) => {
@@ -871,12 +921,12 @@
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); return; }
+    if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); return; }
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { p: 'print', f: 'find', h: 'home', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { p: 'print', f: 'find', h: 'home', m: 'mute', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }

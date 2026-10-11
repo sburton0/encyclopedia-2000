@@ -57,6 +57,21 @@ button { font-family: inherit; cursor: default; }
 .tbtn:active { background: #0c0e12; border-color: var(--bar-line); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .7); }
 .tbtn.on { color: var(--orange); background: #1b1f28; border-color: #4a3a1a; }
 .tbtn:disabled { color: #454b59; background: transparent; border-color: transparent; box-shadow: none; }
+.vol { position: relative; margin-left: auto; }
+.volpop { position: absolute; right: 0; top: 31px; width: 250px; padding: 8px 10px 9px; z-index: 60;
+          background: #16181d; border: 1px solid var(--bar-edge); box-shadow: 3px 5px 14px rgba(0, 0, 0, .65); }
+.volpop .vh { margin-bottom: 4px; font: 600 11px "Segoe UI"; letter-spacing: 2px; text-transform: uppercase; color: var(--orange); }
+.volpop .vrow { display: flex; align-items: center; gap: 8px; }
+.volpop .vnote { margin-top: 5px; font: 11px "Segoe UI"; color: #6f7890; }
+#volpct { width: 44px; text-align: right; font: 11px Consolas, monospace; color: #cfd6e2; }
+#volrange { flex: 1; height: 16px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; }
+#volrange::-webkit-slider-runnable-track { height: 4px; border: 1px solid var(--bar-edge);
+  background: linear-gradient(90deg, var(--orange) var(--p, 100%), #0a0c10 var(--p, 100%)); }
+#volrange::-webkit-slider-thumb { -webkit-appearance: none; width: 9px; height: 16px; margin-top: -7px;
+  background: linear-gradient(#e8ecf2, #9aa3b5); border: 1px solid #000; }
+#volrange:focus { outline: none; }
+#volrange:focus-visible::-webkit-slider-thumb { outline: 1px solid var(--orange); }
+.volpop.muted #volrange::-webkit-slider-runnable-track { background: linear-gradient(90deg, #4a5262 var(--p, 100%), #0a0c10 var(--p, 100%)); }
 .tsep { width: 1px; height: 22px; margin: 0 6px; background: var(--bar-line); box-shadow: 1px 0 #000; }
 
 .suggest { position: absolute; top: 24px; left: -1px; width: 380px; max-height: 420px; overflow: auto; z-index: 60;
