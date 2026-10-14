@@ -33,6 +33,9 @@
     set(k, v) { try { localStorage.setItem('e2k.' + k, JSON.stringify(v)); } catch {} syncMenu(); },
   };
 
+  // A brand-new install has nothing saved yet. Checked before anything is saved, for What's New below.
+  const firstRun = (() => { try { return !Object.keys(localStorage).some((k) => k.startsWith('e2k.')); } catch { return false; } })();
+
   // ---------- platform ----------
   // Menus and tooltips name Windows shortcuts. macOS uses Command instead, and avoids the shortcuts it reserves
   // (Command-H hides the app and Command-M minimizes it).
@@ -849,6 +852,35 @@
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
   ], [['Support Wikipedia…', () => supportWikipedia()], ['OK', null, true]]);
+  // ---------- what's new ----------
+  // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
+  // New installs skip it, and bug-fix releases don't change it.
+  const WHATS_NEW = {
+    version: '0.2',
+    name: '0.2 Beta',
+    items: [
+      ['Themes', 'Give Encyclopedia 2000 a new look, from Aurora and Ocean to Library and Classic Gray. Find them under Tools › Themes.'],
+      ['Now on Mac and Linux', 'Share Encyclopedia 2000 with friends on any computer. Downloads are at encyclopedia2000.com.'],
+      ['Fixes and improvements', 'Drag any dialog by its title bar, plus smaller fixes throughout.'],
+    ],
+  };
+  const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
+  const featureVersion = (v) => (v || '').split(/[.-]/).slice(0, 2).join('.');
+  function whatsNew() {
+    if (document.querySelector('.dialog.whatsnew')) return;
+    dialog('What’s New', `What’s new in version ${WHATS_NEW.name}`, [
+      'Thanks for updating. Here’s what’s new:',
+      h('ul', { class: 'wn' }, WHATS_NEW.items.map(([b, t]) => h('li', {}, h('b', {}, b), t))),
+    ], [['See All Changes…', () => { window.e2k.openExternal(RELEASES_URL); setIdle('Opened in your web browser'); }], ['Close', null, true]]);
+    document.querySelector('.overlay:last-child .dialog').classList.add('whatsnew');
+  }
+  async function maybeWhatsNew() {
+    const { version } = await window.e2k.appInfo().catch(() => ({}));
+    if (featureVersion(version) !== WHATS_NEW.version || store.get('whatsNewSeen', '') === WHATS_NEW.version) return;
+    store.set('whatsNewSeen', WHATS_NEW.version);
+    if (!firstRun) setTimeout(whatsNew, 1200);
+  }
+
   // ---------- feedback ----------
   // Both choices open in the web browser; the app itself sends nothing.
   // The Discord address forwards to the server's invite (a Cloudflare redirect rule), so the invite can change without an app update.
@@ -1040,6 +1072,7 @@
     feedback: () => feedback(),
     privacy: () => window.e2k.openExternal('https://github.com/sburton0/encyclopedia-2000/blob/main/PRIVACY.md'),
     updates: () => checkForUpdates(),
+    whatsnew: () => whatsNew(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
@@ -1087,7 +1120,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');
@@ -1291,4 +1324,5 @@
   else if (startOn === 'random') go('random');
   else if (startOn === 'featured') { go('home'); runCmd('featured'); }
   else go('home');
+  maybeWhatsNew();
 })();

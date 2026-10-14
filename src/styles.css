@@ -413,6 +413,11 @@ button { font-family: inherit; cursor: default; }
 
 /* ---------- Options dialog ---------- */
 .dialog.options { width: 540px; }
+.dialog.whatsnew { width: 440px; }
+.wn { margin: 4px 0 6px; padding: 0; list-style: none; }
+.wn li { position: relative; margin: 0 0 9px; padding-left: 16px; }
+.wn li::before { content: "\25C6"; position: absolute; left: 0; color: var(--orange); }
+.wn b { display: block; color: #fff; }
 .options .otabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--ink-3); }
 .options .otab { padding: 6px 16px; margin-bottom: -1px; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--sky); font: 600 12px "Segoe UI"; }
 .options .otab:hover { color: #fff; }
