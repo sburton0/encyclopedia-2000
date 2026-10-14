@@ -2,7 +2,7 @@
 
 **Effective October 11, 2026**
 
-Encyclopedia 2000 is a free desktop encyclopedia for Windows. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
+Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
 ## What stays on your computer
 
@@ -14,7 +14,7 @@ The app saves a few things so it works the way you left it. They're stored only 
 - What you enter in activities, such as the birthday in The Day You Were Born and the people in Lifelines
 - The window's size and position
 
-The installed version keeps these in your Windows user profile. The portable version keeps them in an "Encyclopedia 2000 Data" folder next to the program.
+The installed version keeps these in your user profile on your computer. The portable version keeps them in an "Encyclopedia 2000 Data" folder next to the program.
 
 To remove them, use **Tools → Options → Privacy → Clear Recently Viewed** or **Reset All Settings**, uninstall the app, or (for the portable version) delete the "Encyclopedia 2000 Data" folder. Uninstalling may leave your settings folder behind; you can delete it from `%APPDATA%\encyclopedia-2000`.
 
