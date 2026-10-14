@@ -16,6 +16,7 @@ contextBridge.exposeInMainWorld('e2k', {
   win: (cmd) => ipcRenderer.send('win', cmd),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   onMaximized: (cb) => ipcRenderer.on('maximized', (_e, v) => cb(v)),
+  onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
   appInfo: () => ipcRenderer.invoke('app:info'),
   update: {

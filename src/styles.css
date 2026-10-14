@@ -33,6 +33,7 @@ button { font-family: inherit; cursor: default; }
 [data-platform="darwin"] .titlebar { padding-left: 78px; padding-right: 78px; }
 [data-platform="darwin"] .titlebar .emb, [data-platform="darwin"] .titlebar .wc, [data-platform="darwin"] .menubar { display: none; }
 [data-platform="darwin"] .titlebar > span { flex: 1; text-align: center; }
+[data-platform="darwin"].fullscreen .titlebar { padding-left: 8px; padding-right: 8px; }
 .titlebar .wc button:hover { background: #2c2c2c; color: #fff; }
 .titlebar .wc button.close:hover { background: #c42b1c; }
 

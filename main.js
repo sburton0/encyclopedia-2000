@@ -87,6 +87,9 @@ function createMain(route) {
   win.loadFile(path.join(SRC, 'index.html'), route ? { hash: route } : {});
   win.on('maximize', () => win.webContents.send('maximized', true));
   win.on('unmaximize', () => win.webContents.send('maximized', false));
+  // macOS hides the window buttons in full screen, so the title bar drops the space it keeps for them.
+  win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
+  win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
   win.on('close', () => {
     if (settings.windowMode !== 'remember') return;
     // Display scaling can round the size by a pixel or two each launch; ignore that so the window doesn't creep.

@@ -1318,6 +1318,7 @@
     b.replaceChildren(winIcon(max ? 'restore' : 'max'));
     b.title = max ? 'Restore Down' : 'Maximize';
   });
+  window.e2k.onFullscreen((on) => document.documentElement.classList.toggle('fullscreen', on));
   // Tooltips name shortcuts the Windows way; show the macOS ones there instead.
   if (MAC) $$('[title]').forEach((el) => { el.title = el.title.replace(/\(((?:Ctrl|Alt)\+[^)]+)\)$/, (_, k) => `(${keyText(k)})`); });
   $('.titlebar').addEventListener('dblclick', (e) => { if (!e.target.closest('.wc')) window.e2k.win('max'); });
