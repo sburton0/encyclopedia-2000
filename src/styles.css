@@ -201,9 +201,10 @@ button { font-family: inherit; cursor: default; }
                      background: radial-gradient(ellipse at 40% 16%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 44%), radial-gradient(circle, transparent 62%, rgba(0, 0, 0, .35)); }
 .home .dial:hover { box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 70px rgba(255, 220, 160, .7); }
 .home .dialcap { position: absolute; left: 398px; top: 312px; width: 330px; padding: 4px 10px; border-radius: 6px; background: rgba(var(--glass), .6);
-                 text-align: center; color: #e6eefc; font: 12px/1.4 "Segoe UI"; text-shadow: 0 1px 3px #000;
-                 display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+                 text-align: center; color: #e6eefc; font: 12px/1.4 "Segoe UI"; text-shadow: 0 1px 3px #000; }
 .home .dialcap b { font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+/* Clamp the caption itself, so a third line can't peek out through the box's bottom padding. */
+.home .dialcap span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .home .orb { min-width: 74px; padding: 0; white-space: nowrap; background: none; border: 0; text-align: center; color: #fff;
              font: 600 12px "Segoe UI"; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
 .home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden; background: var(--orb-bg);

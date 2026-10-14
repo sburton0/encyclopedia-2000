@@ -3,6 +3,7 @@
   "version": "0.1.1-beta",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
+  "homepage": "https://encyclopedia2000.com",
   "author": "Scott Burton",
   "license": "MIT",
   "main": "main.js",

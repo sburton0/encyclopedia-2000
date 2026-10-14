@@ -16,6 +16,9 @@ if (process.platform === 'win32') app.setAppUserModelId('com.svid.encyclopedia20
 const PORTABLE_DIR = process.env.PORTABLE_EXECUTABLE_DIR;
 if (PORTABLE_DIR) app.setPath('userData', path.join(PORTABLE_DIR, 'Encyclopedia 2000 Data'));
 
+// On Linux, Chromium only uses the system's text-to-speech service (speech-dispatcher) for Read Aloud when asked to.
+if (process.platform === 'linux') app.commandLine.appendSwitch('enable-speech-dispatcher');
+
 // Development aid: E2K_PROFILE points test runs at a separate profile so they don't touch real saved data.
 if (process.env.E2K_PROFILE) app.setPath('userData', process.env.E2K_PROFILE);
 

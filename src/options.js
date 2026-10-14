@@ -88,9 +88,10 @@ window.E2KOptions = (() => {
 
     const voiceSel = h('select', { class: 'oselect', onchange: () => set('voice', voiceSel.value) });
     function fillVoices() {
-      const voices = 'speechSynthesis' in window ? speechSynthesis.getVoices() : [];
+      // Linux's espeak-ng lists every language again with each of its voice variants ("English+Adam"), thousands in all; keep one per language.
+      const voices = ('speechSynthesis' in window ? speechSynthesis.getVoices() : []).filter((v) => !(/espeak/i.test(v.name) && v.name.includes('+')));
       voiceSel.replaceChildren(h('option', { value: '' }, window.e2k.platform === 'win32' ? 'Windows default voice' : 'System default voice'),
-        ...voices.map((v) => h('option', { value: v.voiceURI }, `${v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '')} (${v.lang})`)));
+        ...voices.map((v) => h('option', { value: v.voiceURI }, `${v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '').replace(/ espeak-ng$/, '')} (${v.lang})`)));
       voiceSel.value = draft.voice;
     }
     fillVoices();

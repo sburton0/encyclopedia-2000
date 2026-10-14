@@ -5,7 +5,9 @@
 const { app, ipcMain, shell } = require('electron');
 
 // The portable version can't replace itself, so it only tells people a new version exists and links to the download page.
-const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR;
+// The same goes for Linux's .deb package, which needs an administrator password to update; the AppImage updates itself.
+const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR || (process.platform === 'linux' && !process.env.APPIMAGE);
+const KIND = process.platform === 'linux' ? 'deb' : 'portable';
 const DOWNLOADS = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
 
 const FIRST_CHECK = 8 * 1000;
@@ -43,7 +45,7 @@ function setup({ getWindow, isEnabled }) {
 
   autoUpdater.on('checking-for-update', () => send({ state: 'checking' }));
   autoUpdater.on('update-not-available', () => send({ state: 'none' }));
-  autoUpdater.on('update-available', (i) => send(PORTABLE ? { state: 'available', version: i.version } : { state: 'downloading', version: i.version, percent: 0 }));
+  autoUpdater.on('update-available', (i) => send(PORTABLE ? { state: 'available', version: i.version, kind: KIND } : { state: 'downloading', version: i.version, percent: 0 }));
   autoUpdater.on('download-progress', (p) => send({ ...state, state: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
   autoUpdater.on('error', (err) => {
