@@ -858,7 +858,7 @@
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
-  ], [['Support Wikipedia…', () => supportWikipedia()], ['OK', null, true]]);
+  ], [['Donate…', () => donate()], ['OK', null, true]]);
   // ---------- what's new ----------
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
@@ -961,9 +961,31 @@
     else dialog(title, 'Couldn’t check for updates', [navigator.onLine ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.']);
   }
 
-  // Wikipedia's own donation page, opened in the user's web browser.
-  const DONATE_URL = 'https://donate.wikimedia.org/';
-  const supportWikipedia = () => window.e2k.openExternal(DONATE_URL);
+  // ---------- donate ----------
+  // One dialog for both kinds of donation, opened from the status bar, Help › Donate, and About. Both open in the browser.
+  // The tip address forwards to the developer's Ko-fi page (a Cloudflare redirect rule), so it can change without an app update.
+  const WIKIPEDIA_DONATE_URL = 'https://donate.wikimedia.org/';
+  const TIP_URL = 'https://donate.encyclopedia2000.com';
+  function donate() {
+    if (document.querySelector('.dialog.donate')) return;
+    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
+    const go = (url) => { window.e2k.openExternal(url); ov.remove(); setIdle('Opened in your web browser'); };
+    ov.append(h('div', { class: 'dialog feedback donate', role: 'dialog', 'aria-label': 'Donate' },
+      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Donate'),
+      h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
+        h('div', {},
+          h('h2', {}, 'Keep the encyclopedia going'),
+          h('p', {}, 'Encyclopedia 2000 is free, with no ads. If you enjoy it, you can help in two ways. Both open in your web browser.'),
+          h('div', { class: 'fbopts' },
+            h('button', { class: 'fbopt', onclick: () => go(WIKIPEDIA_DONATE_URL) }, h('i', { class: 'wp' }, 'W'),
+              h('div', {}, h('b', {}, 'Donate to Wikipedia'), h('span', {}, 'Volunteers write every article, and the nonprofit Wikimedia Foundation keeps Wikipedia running.'))),
+            h('button', { class: 'fbopt', onclick: () => go(TIP_URL) }, h('i', { class: 'tip' }, '♥'),
+              h('div', {}, h('b', {}, 'Tip the developer'), h('span', {}, 'Encyclopedia 2000 is made by one independent developer. Tips help pay for new features, code signing, and the website.')))),
+          h('p', { class: 'fine' }, 'Tips go to the developer through Ko-fi, not to Wikipedia.'))),
+      h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
+    document.body.append(ov);
+    ov.querySelector('.fbopt').focus();
+  }
 
   function lightbox(src, caption) {
     if (!src) return;
@@ -1084,7 +1106,7 @@
     random: () => go('random'),
     featured: () => todayFeed().then((d) => d.tfa && openArticle(d.tfa.titles?.normalized || d.tfa.title)).catch(() => setIdle('Couldn’t load today’s featured article')),
     fav: toggleFav,
-    support: () => supportWikipedia(),
+    donate: () => donate(),
     feedback: () => feedback(),
     privacy: () => window.e2k.openExternal('https://github.com/sburton0/encyclopedia-2000/blob/main/PRIVACY.md'),
     updates: () => checkForUpdates(),
@@ -1113,8 +1135,8 @@
   const runCmd = (c) => { syncMenu(); return typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c](); };
   $('#feedback-link').addEventListener('click', (e) => { e.preventDefault(); feedback(); });
   const supportLink = $('#support');
-  supportLink.addEventListener('click', (e) => { e.preventDefault(); supportWikipedia(); });
-  supportLink.addEventListener('mouseover', () => setStatus('Opens in your web browser: donate.wikimedia.org'));
+  supportLink.addEventListener('click', (e) => { e.preventDefault(); donate(); });
+  supportLink.addEventListener('mouseover', () => setStatus('Donate to Wikipedia, or tip the developer'));
   supportLink.addEventListener('mouseout', () => setStatus(statusIdle));
 
   $('#toolbar').addEventListener('click', (e) => {
@@ -1136,7 +1158,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');

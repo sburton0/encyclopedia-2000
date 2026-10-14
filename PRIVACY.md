@@ -35,9 +35,10 @@ You can turn off automatic update checks in **Tools → Options → Privacy**. T
 
 ## Links that open in your web browser
 
-Some buttons open web pages in your own browser instead of inside the app, such as **View on Wikipedia**, **Support Wikipedia**, and **Send Feedback**. Once you're on those sites, their own privacy policies apply. In particular:
+Some buttons open web pages in your own browser instead of inside the app, such as **View on Wikipedia**, **Donate**, and **Send Feedback**. Once you're on those sites, their own privacy policies apply. In particular:
 
-- **Send Feedback** offers our **Discord server** and a **Google Form**. The form is anonymous unless you choose to enter an email address for a reply. It fills in your app version and Windows version for you; nothing is sent until you press Submit. Google's and Discord's privacy policies apply to what you share there.
+- **Send Feedback** offers our **Discord server** and a **Google Form**. The form is anonymous unless you choose to enter an email address for a reply. It fills in your app version and operating system version for you; nothing is sent until you press Submit. Google's and Discord's privacy policies apply to what you share there.
+- **Donate** offers Wikipedia's donation page (run by the Wikimedia Foundation) and a tip page for the developer on **Ko-fi**. The app doesn't know whether you donate, and nothing about you is sent. The Wikimedia Foundation's and Ko-fi's privacy policies apply to any donation.
 
 ## This website
 
