@@ -54,3 +54,20 @@ svg.bg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .go { min-width: 80px; height: 24px; padding: 0 14px; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262; color: #f5a623; font: 700 12px "Segoe UI"; }
 .go:hover, .go:focus-visible { background: #333a48; border-color: #f5a623; outline: none; }
 .go:active { background: #0c0e12; }
+
+/* Themes other than Bloom draw their own scene (themes.js) in place of the bloom. */
+[data-theme]:not([data-theme="bloom"]) .spin, [data-theme]:not([data-theme="bloom"]) .core,
+[data-theme]:not([data-theme="bloom"]) .arcs, [data-theme]:not([data-theme="bloom"]) .spark { display: none; }
+.theme-art { animation: fade 1.6s ease-out .2s both; }
+.cd-spin { animation: spin-cd 6s linear infinite; }
+@keyframes spin-cd { to { transform: rotate(360deg); } }
+.bubble { animation: bubble-rise 6s linear infinite; }
+@keyframes bubble-rise { from { transform: translateY(40px); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-260px); opacity: 0; } }
+[data-theme="classic"] svg.bg rect:first-of-type { fill: #008080; }
+[data-theme="classic"] .bar { background: #fff; border: 2px solid; border-color: #808080 #fff #fff #808080; height: 8px; }
+[data-theme="classic"] .bar i { background: repeating-linear-gradient(90deg, #000080 0 10px, transparent 10px 12px); box-shadow: none; }
+[data-theme="classic"] .frame { border-color: #c0c0c0; }
+[data-theme="classic"] #shade stop { stop-opacity: 0; }
+[data-theme="classic"] .load { bottom: 30px; }
+[data-theme="classic"] .foot { color: #d8f0f0; }
+[data-theme="classic"] .status { margin-bottom: 4px; }

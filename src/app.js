@@ -86,6 +86,10 @@
 
   // Article font and animations, from Options.
   function applyPrefs() {
+    const before = E2KThemes.current();
+    E2KThemes.apply(store.get('theme', 'bloom'));
+    // A new theme redraws the screen you're on, since its artwork is drawn when a screen opens.
+    if (E2KThemes.current() !== before && nav.idx >= 0) setTimeout(() => reload(), 0);
     document.documentElement.dataset.font = store.get('articleFont', 'serif');
     document.documentElement.classList.toggle('no-anim', !store.get('animations', true));
   }
@@ -251,14 +255,7 @@
 
   function viewHome(token) {
     const art = svg('svg', { viewBox: '0 0 1024 610' });
-    const bloom = svg('g', { transform: 'translate(563 158)', filter: 'url(#soft)' });
-    makeBloom(bloom, 1);
-    art.append(
-      bloom,
-      svg('circle', { cx: 563, cy: 158, r: 150, fill: 'url(#core)', filter: 'url(#softer)' }),
-      svg('path', { d: 'M 360 -40 C 200 150 220 450 420 700', fill: 'none', stroke: 'url(#arcfade)', 'stroke-opacity': '.22', 'stroke-width': '1.5' }),
-      svg('path', { d: 'M 770 -40 C 930 150 910 450 710 700', fill: 'none', stroke: 'url(#arcfade)', 'stroke-opacity': '.18', 'stroke-width': '1.5' }),
-    );
+    E2KThemes.homeArt(art);
 
     const dial = h('button', { class: 'dial', title: 'Picture of the Day', onclick: () => go('gallery') });
     const dialCap = h('span', {}, 'Loading…');
@@ -274,8 +271,8 @@
       dial,
       h('div', { class: 'dialcap' }, h('b', {}, 'PICTURE OF THE DAY'), h('br'), dialCap),
       h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),
-        h('div', { class: 'row' }, ORBS.map((o) => h('button', { class: 'orb', onclick: o.run },
-          h('i', { style: `background:radial-gradient(circle at 40% 30%,${o.bg})` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)))),
+        h('div', { class: 'row' }, ORBS.map((o, i) => h('button', { class: 'orb', onclick: o.run },
+          h('i', { style: `--orb-bg:radial-gradient(circle at 40% 30%,${o.bg});${E2KThemes.orbStyle(i)}` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)))),
       h('div', { class: 'panel disc' }, h('h3', {}, 'Today’s discovery'),
         h('div', { class: 'row' }, discThumb, h('div', {}, discTitle, discText)), discMore),
       h('div', { class: 'panel alm' }, h('h3', {}, 'Almanac'), h('div', { class: 'd' }, longDate().toUpperCase()), almList,
@@ -327,15 +324,11 @@
   // ---------- page shell ----------
   function shell({ kicker, title = '', desc = '', railTitle = '', wide = false, tools = [] }) {
     const railArt = svg('svg', { viewBox: '0 0 230 600', preserveAspectRatio: 'xMidYMax slice' });
-    const rb = svg('g', { transform: 'translate(205 565)', filter: 'url(#soft)', opacity: '.55' });
-    makeBloom(rb, 0.6);
-    railArt.append(rb);
+    E2KThemes.railArt(railArt);
 
     const bandArt = svg('svg', { viewBox: '0 0 800 96', preserveAspectRatio: 'xMaxYMid slice' });
-    const bb = svg('g', { transform: 'translate(720 64)', filter: 'url(#soft)' });
-    makeBloom(bb, 0.3);
-    bandArt.append(svg('rect', { width: 800, height: 96, fill: 'url(#b0)' }), bb,
-      svg('circle', { cx: 720, cy: 64, r: 55, fill: 'url(#core)', filter: 'url(#softer)', opacity: '.8' }));
+    bandArt.append(svg('rect', { width: 800, height: 96, fill: 'url(#b0)' }));
+    E2KThemes.bandArt(bandArt, 720, 64, 0.3);
 
     const railIn = h('div', { class: 'in' }, railTitle ? h('h4', {}, railTitle) : null);
     const h1 = h('h1', {}, title);

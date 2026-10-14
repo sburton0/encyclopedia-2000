@@ -1,5 +1,9 @@
 :root {
   --ink-0: #0f2250; --ink-1: #1c3566; --ink-2: #25458a; --ink-3: #4f78c4;
+  /* Theme colors (see themes.css): glass panels, deep insets, and edges as "r, g, b"; the full-screen scene behind views. */
+  --glass: 10, 24, 60; --deep: 5, 12, 30; --edge: 160, 190, 255;
+  --scene: radial-gradient(ellipse at 50% 40%, #2a4f96, #0f2250 62%, #071330);
+  --home-bg: radial-gradient(ellipse at 55% 40%, #4f78c4, #25458a 45%, #0f2250);
   --orange: #f5a623; --gold: #ffd27a; --sky: #aac0e6;
   --bar-line: #2b2f38; --bar-edge: #3a4050;
   --fs: 1;
@@ -99,7 +103,7 @@ button { font-family: inherit; cursor: default; }
 .statusbar .sb:last-child { border-right: 0; }
 .statusbar .sup { color: #c9d2e3; text-decoration: underline; text-decoration-color: rgba(201, 210, 227, .35); }
 .statusbar .sup:hover { color: var(--gold); text-decoration-color: var(--gold); }
-.statusbar .upd { color: #fff; background: linear-gradient(#25458a, #1c3566); }
+.statusbar .upd { color: #fff; background: linear-gradient(var(--ink-2), var(--ink-1)); }
 .statusbar .upd[hidden] { display: none; }
 .statusbar .upd button { margin: 0 0 0 4px; padding: 1px 8px 2px; background: var(--orange); border: 0; color: #1a1406; font: 600 11.5px "Segoe UI"; }
 .statusbar .upd button:hover { background: var(--gold); }
@@ -108,13 +112,13 @@ button { font-family: inherit; cursor: default; }
 /* ---------- Send Feedback dialog ---------- */
 .dialog.feedback { width: 470px; }
 .fbopts { display: grid; gap: 8px; margin: 12px 0 10px; }
-.fbopt { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; text-align: left; background: rgba(5, 12, 30, .45);
-         border: 1px solid rgba(160, 190, 255, .3); color: #fff; font: 13px/1.35 "Segoe UI"; }
+.fbopt { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; text-align: left; background: rgba(var(--deep), .45);
+         border: 1px solid rgba(var(--edge), .3); color: #fff; font: 13px/1.35 "Segoe UI"; }
 .fbopt:hover, .fbopt:focus-visible { border-color: var(--orange); background: rgba(245, 166, 35, .12); outline: none; }
 .fbopt i { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; font: 700 16px "Segoe UI"; font-style: normal; color: #fff; }
 .fbopt b { display: block; font-weight: 600; color: var(--gold); }
 .fbopt span { display: block; color: var(--sky); font-size: 12px; }
-.fbver { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 7px 10px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(160, 190, 255, .18);
+.fbver { display: flex; align-items: center; gap: 10px; margin-top: 4px; padding: 7px 10px; background: rgba(0, 0, 0, .3); border: 1px solid rgba(var(--edge), .18);
          font: 12px "Segoe UI"; color: var(--sky); }
 .fbver code { flex: 1; font: 12px Consolas, monospace; color: #e6eefc; }
 .fbver button { padding: 2px 10px; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262; color: var(--orange); font: 600 11.5px "Segoe UI"; }
@@ -141,7 +145,7 @@ button { font-family: inherit; cursor: default; }
 /* ---------- Favorites pane: slides in over the page from the left, on any screen ---------- */
 .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
 .fpane { position: absolute; left: 0; top: 0; bottom: 0; width: 250px; z-index: 25; display: flex; flex-direction: column; color: #fff;
-         background: linear-gradient(#25458a, #0f2250); border-right: 1px solid var(--ink-3); box-shadow: 6px 0 18px rgba(0, 0, 0, .45); animation: fpane-in .18s ease-out; }
+         background: linear-gradient(var(--ink-2), var(--ink-0)); border-right: 1px solid var(--ink-3); box-shadow: 6px 0 18px rgba(0, 0, 0, .45); animation: fpane-in .18s ease-out; }
 .fpane[hidden] { display: none; }
 @keyframes fpane-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
 .fpane .fh { height: 26px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 4px 0 10px;
@@ -152,7 +156,7 @@ button { font-family: inherit; cursor: default; }
 .fpane .fh button:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
 .fpane .fb { flex: 1; overflow: auto; padding: 12px 14px; }
 .fpane .add { display: flex; align-items: center; gap: 7px; width: 100%; margin-bottom: 12px; padding: 5px 8px; text-align: left;
-              background: rgba(5, 12, 30, .35); border: 1px solid rgba(160, 190, 255, .3); color: var(--gold); font: 600 12px "Segoe UI"; }
+              background: rgba(var(--deep), .35); border: 1px solid rgba(var(--edge), .3); color: var(--gold); font: 600 12px "Segoe UI"; }
 .fpane .add .ic { width: 12px; height: 12px; fill: var(--orange); flex: none; }
 .fpane .add span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fpane .add:hover { border-color: var(--orange); }
@@ -170,7 +174,7 @@ button { font-family: inherit; cursor: default; }
 .fpane .note { font: 11.5px/1.45 "Segoe UI"; color: var(--sky); }
 .fpane .ff { flex: none; padding: 6px 14px; font: 11px "Segoe UI"; color: var(--sky); border-top: 1px solid rgba(255, 255, 255, .15); }
 
-#view { flex: 1; position: relative; overflow: hidden; background: radial-gradient(ellipse at 55% 40%, #4f78c4, #25458a 45%, #0f2250); }
+#view { flex: 1; position: relative; overflow: hidden; background: var(--home-bg); }
 .fade-in { animation: viewin .25s ease-out both; }
 @keyframes viewin { from { opacity: 0; } to { opacity: 1; } }
 
@@ -188,13 +192,13 @@ button { font-family: inherit; cursor: default; }
 .home .dial::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
                      background: radial-gradient(ellipse at 40% 16%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 44%), radial-gradient(circle, transparent 62%, rgba(0, 0, 0, .35)); }
 .home .dial:hover { box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 6px 24px rgba(0, 0, 0, .55), 0 0 70px rgba(255, 220, 160, .7); }
-.home .dialcap { position: absolute; left: 398px; top: 312px; width: 330px; padding: 4px 10px; border-radius: 6px; background: rgba(10, 24, 60, .6);
+.home .dialcap { position: absolute; left: 398px; top: 312px; width: 330px; padding: 4px 10px; border-radius: 6px; background: rgba(var(--glass), .6);
                  text-align: center; color: #e6eefc; font: 12px/1.4 "Segoe UI"; text-shadow: 0 1px 3px #000;
                  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .home .dialcap b { font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .home .orb { min-width: 74px; padding: 0; white-space: nowrap; background: none; border: 0; text-align: center; color: #fff;
              font: 600 12px "Segoe UI"; text-shadow: 0 1px 3px #000, 0 0 6px #000; }
-.home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden;
+.home .orb i { position: relative; display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 4px; border-radius: 50%; overflow: hidden; background: var(--orb-bg);
                border: 2px solid rgba(255, 255, 255, .75); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 22px rgba(140, 180, 255, .45);
                transition: transform .15s, box-shadow .15s; }
 /* A glassy shine along the top edge, kept clear of the icon so the white icons stand out. */
@@ -205,11 +209,11 @@ button { font-family: inherit; cursor: default; }
 .home .orb:hover i { transform: scale(1.08); box-shadow: 0 0 0 1px rgba(0, 0, 0, .35), 0 4px 14px rgba(0, 0, 0, .55), 0 0 30px rgba(255, 220, 160, .7); }
 .home .orb:active i { transform: scale(.97); }
 .panel { position: absolute; padding: 12px 14px 14px; border-radius: 6px; color: #fff;
-         background: linear-gradient(rgba(10, 24, 60, .72), rgba(10, 24, 60, .55)); border: 1px solid rgba(160, 190, 255, .25); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+         background: linear-gradient(rgba(var(--glass), .72), rgba(var(--glass), .55)); border: 1px solid rgba(var(--edge), .25); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
 .panel h3 { margin: 0 0 8px; padding-bottom: 4px; font: 600 15px "Segoe UI"; color: var(--orange); border-bottom: 1px solid rgba(255, 255, 255, .3); }
 .home .disc { left: 34px; top: 176px; width: 300px; }
 .home .shelf { position: absolute; left: 34px; top: 458px; width: 740px; height: 134px; padding: 14px 20px 0; border-radius: 8px;
-               background: linear-gradient(rgba(10, 24, 60, .55), rgba(10, 24, 60, .75)); border: 1px solid rgba(160, 190, 255, .25);
+               background: linear-gradient(rgba(var(--glass), .55), rgba(var(--glass), .75)); border: 1px solid rgba(var(--edge), .25);
                box-shadow: 0 6px 20px rgba(0, 0, 0, .35), inset 0 1px rgba(255, 255, 255, .12); }
 .home .shelf small { display: block; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .home .shelf .row { display: flex; justify-content: space-around; margin-top: 18px; }
@@ -231,7 +235,7 @@ button { font-family: inherit; cursor: default; }
 
 /* ---------- page shell (articles and feature pages) ---------- */
 .page { position: absolute; inset: 0; display: flex; background: #e9eef5; }
-.rail { width: 230px; flex: none; position: relative; overflow: hidden; color: #fff; background: linear-gradient(#25458a, #0f2250); }
+.rail { width: 230px; flex: none; position: relative; overflow: hidden; color: #fff; background: linear-gradient(var(--ink-2), var(--ink-0)); }
 .rail > svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .rail .in { position: absolute; inset: 0; overflow: auto; padding: 14px; }
 .rail h4 { margin: 0 0 6px; font: 600 15px "Segoe UI"; color: var(--orange); }
@@ -252,10 +256,10 @@ button { font-family: inherit; cursor: default; }
 .band h1 { margin: 0; font: 300 34px/1.15 "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
 .band .desc { font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band .tools { position: absolute; right: 14px; top: 12px; display: flex; gap: 6px; }
-.bbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; background: rgba(5, 12, 30, .45); border: 1px solid rgba(255, 255, 255, .35);
+.bbtn { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; background: rgba(var(--deep), .45); border: 1px solid rgba(255, 255, 255, .35);
         color: #fff; font: 600 11px "Segoe UI"; }
 .bbtn .ic { width: 13px; height: 13px; fill: currentColor; }
-.bbtn:hover { background: rgba(5, 12, 30, .7); border-color: var(--orange); color: var(--gold); }
+.bbtn:hover { background: rgba(var(--deep), .7); border-color: var(--orange); color: var(--gold); }
 .bbtn.on { color: var(--orange); border-color: var(--orange); }
 .content { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; gap: 22px; padding: 18px 24px 30px; background: #fbfcfe; }
 .content.wide { display: block; }
@@ -267,7 +271,7 @@ button { font-family: inherit; cursor: default; }
 .media .frame img { display: block; width: 100%; max-height: 320px; object-fit: cover; cursor: zoom-in; }
 .media .cap { padding: 6px 2px 0; font: 11.5px/1.4 "Segoe UI"; color: #333; user-select: text; }
 .facts { margin-top: 12px; background: #fff; border: 1px solid #9fb0d0; font: 11.5px "Segoe UI"; color: #222; }
-.facts h6 { margin: 0; padding: 4px 8px; font: 600 12px "Segoe UI"; color: #fff; background: linear-gradient(#35599e, #1c3566); }
+.facts h6 { margin: 0; padding: 4px 8px; font: 600 12px "Segoe UI"; color: #fff; background: linear-gradient(var(--ink-2), var(--ink-1)); }
 .facts .r { display: flex; justify-content: space-between; gap: 10px; padding: 4px 8px; border-top: 1px solid #e3e8f3; user-select: text; }
 .facts .r span:first-child { flex: none; max-width: 45%; color: #555; }
 .facts .r span:last-child { text-align: right; }
@@ -275,7 +279,7 @@ button { font-family: inherit; cursor: default; }
 /* scrollbars in the period style */
 .content::-webkit-scrollbar, .rail .in::-webkit-scrollbar, .suggest::-webkit-scrollbar, .wx-cb::-webkit-scrollbar { width: 15px; }
 .content::-webkit-scrollbar-track { background: #e3e8f3; border-left: 1px solid #c9d3ea; }
-.content::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #4f78c4, #25458a); border: 2px solid #e3e8f3; }
+.content::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--ink-3), var(--ink-2)); border: 2px solid #e3e8f3; }
 .rail .in::-webkit-scrollbar-track, .suggest::-webkit-scrollbar-track, .wx-cb::-webkit-scrollbar-track { background: transparent; }
 .rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb, .wx-cb::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
 
@@ -318,7 +322,7 @@ button { font-family: inherit; cursor: default; }
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
 .card { padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
 .card:hover { transform: translateY(-2px); border-color: var(--orange); }
-.card .ph { height: 120px; background: linear-gradient(135deg, #4f78c4, #1c3566) center/cover; }
+.card .ph { height: 120px; background: linear-gradient(135deg, var(--ink-3), var(--ink-1)) center/cover; }
 .card .b { padding: 9px 11px 12px; }
 .card .b b { display: block; font: 600 14px "Segoe UI"; color: var(--ink-2); }
 .card .b span { display: block; margin-bottom: 4px; font: 11.5px "Segoe UI"; color: #777; }
@@ -360,7 +364,7 @@ button { font-family: inherit; cursor: default; }
 
 /* ---------- overlays ---------- */
 .overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); animation: viewin .15s ease-out; }
-.dialog { width: 400px; background: linear-gradient(#25458a, #0f2250); border: 1px solid var(--ink-3); box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+.dialog { width: 400px; background: linear-gradient(var(--ink-2), var(--ink-0)); border: 1px solid var(--ink-3); box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
 .dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; }
 .dialog .dt img { width: 16px; height: 16px; }
 .dialog .db { display: flex; gap: 14px; padding: 18px 18px 8px; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
@@ -404,10 +408,10 @@ button { font-family: inherit; cursor: default; }
 .options .otabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--ink-3); }
 .options .otab { padding: 6px 16px; margin-bottom: -1px; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--sky); font: 600 12px "Segoe UI"; }
 .options .otab:hover { color: #fff; }
-.options .otab.on { color: #fff; background: rgba(5, 12, 30, .45); border-color: var(--ink-3); border-top: 2px solid var(--orange); }
-.options .obody { height: 380px; overflow: auto; padding: 12px 16px 4px; background: rgba(5, 12, 30, .45); }
+.options .otab.on { color: #fff; background: rgba(var(--deep), .45); border-color: var(--ink-3); border-top: 2px solid var(--orange); }
+.options .obody { height: 380px; overflow: auto; padding: 12px 16px 4px; background: rgba(var(--deep), .45); }
 .options .ocols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.options .ogroup { margin: 0 0 12px; padding: 6px 12px 10px; border: 1px solid rgba(160, 190, 255, .25); }
+.options .ogroup { margin: 0 0 12px; padding: 6px 12px 10px; border: 1px solid rgba(var(--edge), .25); }
 .options .ogroup legend { padding: 0 6px; font: 600 11px "Segoe UI"; letter-spacing: 1.5px; text-transform: uppercase; color: var(--orange); }
 .options .ocheck { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; color: #fff; font: 13px "Segoe UI"; }
 .options .ocheck input, .options .oradio input { position: absolute; opacity: 0; pointer-events: none; }

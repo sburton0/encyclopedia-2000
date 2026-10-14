@@ -4,6 +4,12 @@
   if (!pref('animations', true)) document.body.classList.add('no-anim');
 
   makeBloom(document.getElementById('petals'), 0.56, { animate: true });
+  // The chosen theme recolors the sky and, for every theme but Bloom, replaces the bloom with its own scene.
+  E2KThemes.apply(E2KThemes.read());
+  const sky = E2KThemes.palette().b0;
+  document.querySelectorAll('#sb0 stop').forEach((s, i) => s.setAttribute('stop-color', sky[i]));
+  document.querySelectorAll('#shade stop').forEach((s) => s.setAttribute('stop-color', sky[2]));
+  E2KThemes.splashArt(document.querySelector('svg.bg'));
   if (!muted) setTimeout(() => { try { E2KAudio.jingle({ volume: 0.55 }); } catch {} }, 150);
 
   if (window.e2k && window.e2k.appInfo) window.e2k.appInfo().then((i) => { document.getElementById('ver').textContent = `Version ${E2KVersion.pretty(i.version)}`; }).catch(() => {});

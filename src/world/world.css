@@ -1,5 +1,5 @@
 /* ---------- World Explorer ---------- */
-.wx { position: absolute; inset: 0; overflow: hidden; color: #fff; background: radial-gradient(ellipse at 40% 45%, #2a4f96, #0f2250 62%, #071330); }
+.wx { position: absolute; inset: 0; overflow: hidden; color: #fff; background: var(--scene); }
 .wx-head { position: absolute; left: 24px; top: 14px; right: 380px; display: flex; align-items: flex-end; gap: 18px; z-index: 3; }
 .wx-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .wx-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; white-space: nowrap; }
@@ -15,7 +15,7 @@
 .wx-si.sel { background: var(--ink-2); }
 
 .wx-regions { position: absolute; left: 24px; top: 82px; display: flex; gap: 4px; z-index: 3; }
-.wx-chip { height: 24px; padding: 0 10px 2px; line-height: 1; background: rgba(5, 12, 30, .45); border: 1px solid rgba(160, 190, 255, .28); color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
+.wx-chip { height: 24px; padding: 0 10px 2px; line-height: 1; background: rgba(var(--deep), .45); border: 1px solid rgba(var(--edge), .28); color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
 .wx-chip:hover { border-color: var(--orange); color: #fff; }
 .wx-chip.on { background: rgba(245, 166, 35, .2); border-color: var(--orange); color: #fff; font-weight: 600; }
 .wx-chip.rnd { display: flex; align-items: center; gap: 6px; margin-left: 10px; color: var(--orange); font-weight: 600; }
@@ -40,20 +40,20 @@
 .wx-dot.hov { fill: #ffd27a; }
 .wx-dot.dim { fill-opacity: .3; }
 .wx-dot.sel { fill: #f5a623; }
-.wx-tip { position: absolute; padding: 2px 7px; background: rgba(5, 12, 30, .88); border: 1px solid rgba(160, 190, 255, .35); font: 600 12px "Segoe UI";
+.wx-tip { position: absolute; padding: 2px 7px; background: rgba(var(--deep), .88); border: 1px solid rgba(var(--edge), .35); font: 600 12px "Segoe UI";
           white-space: nowrap; pointer-events: none; z-index: 4; }
 .wx-tip[hidden] { display: none; }
 
 .wx-zoom { position: absolute; left: 24px; bottom: 44px; display: flex; flex-direction: column; gap: 3px; z-index: 3; }
-.wx-zoom button { width: 26px; height: 24px; padding: 0 0 2px; background: rgba(5, 12, 30, .6); border: 1px solid rgba(160, 190, 255, .35); color: #fff; font: 600 15px/1 "Segoe UI"; }
+.wx-zoom button { width: 26px; height: 24px; padding: 0 0 2px; background: rgba(var(--deep), .6); border: 1px solid rgba(var(--edge), .35); color: #fff; font: 600 15px/1 "Segoe UI"; }
 .wx-zoom button:hover { border-color: var(--orange); }
 .wx-hint { position: absolute; left: 62px; bottom: 46px; font: 12px "Segoe UI"; color: var(--sky); z-index: 3; }
 
 .wx-card { position: absolute; right: 16px; top: 16px; bottom: 16px; width: 338px; display: flex; flex-direction: column; overflow: hidden; z-index: 3;
-           background: linear-gradient(rgba(10, 24, 60, .88), rgba(10, 24, 60, .72)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
-.wx-flag { height: 150px; flex: none; display: grid; place-items: center; background: rgba(5, 12, 30, .45); border-bottom: 1px solid rgba(160, 190, 255, .2); }
+           background: linear-gradient(rgba(var(--glass), .88), rgba(var(--glass), .72)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+.wx-flag { height: 150px; flex: none; display: grid; place-items: center; background: rgba(var(--deep), .45); border-bottom: 1px solid rgba(var(--edge), .2); }
 .wx-flag img { max-width: 210px; max-height: 120px; border: 1px solid rgba(0, 0, 0, .5); box-shadow: 0 3px 10px rgba(0, 0, 0, .5); }
-.wx-flag-ph { width: 180px; height: 110px; background: rgba(160, 190, 255, .08); border: 1px dashed rgba(160, 190, 255, .25); }
+.wx-flag-ph { width: 180px; height: 110px; background: rgba(var(--edge), .08); border: 1px dashed rgba(var(--edge), .25); }
 .wx-flag-ph.none { display: grid; place-items: center; font: 11.5px "Segoe UI"; color: var(--sky); }
 .wx-cb { flex: 1; overflow: auto; padding: 12px 16px 14px; }
 .wx-cb small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
@@ -61,7 +61,7 @@
 .wx-cb .desc { min-height: 1.3em; margin: 2px 0 10px; font: 12.5px "Segoe UI"; color: var(--sky); }
 .wx-lead { margin: 6px 0 12px; font: 12.5px/1.5 "Segoe UI"; color: #e6eefc; }
 .wx-facts { width: 100%; border-collapse: collapse; margin-bottom: 10px; font: 12.5px "Segoe UI"; }
-.wx-facts td { padding: 4px 0; border-bottom: 1px solid rgba(160, 190, 255, .16); vertical-align: top; }
+.wx-facts td { padding: 4px 0; border-bottom: 1px solid rgba(var(--edge), .16); vertical-align: top; }
 .wx-facts td:first-child { width: 92px; padding-right: 8px; color: var(--sky); }
 .wx-facts td.wx-loading { width: auto; color: var(--sky); font-style: italic; }
 .wx-sum { margin: 0 0 12px; font: 12.5px/1.5 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }

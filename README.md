@@ -38,6 +38,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 - **Timeline**: highlights, events, births, deaths, and holidays for today's date.
 - **Articles (Explore)**: eight random articles; shuffle for more.
 - **Options** (Tools → Options…, or Ctrl+,): skip the startup screen or its sound, choose which page to start on, remember the window size, set the volume, click sounds, and Read Aloud voice and speed, change the text size and article font, turn off animations, clear the recently viewed list, or reset everything.
+- **Themes** (Tools → Options → Appearance): Bloom, Aurora, Sunset, CD-ROM, Ocean, Library, and Classic Gray. Each changes the colors, the Home screen artwork and Explore buttons, and the startup screen.
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
 - **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (Windows text-to-speech), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
@@ -54,7 +55,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 Planned for future versions:
 
 - **Reading:** offline reading, more languages, a full history, notes and favorites folders, and search improvements
-- **Look and sound:** themes, pronunciations and spoken articles, and videos in Media
+- **Look and sound:** pronunciations and spoken articles, and videos in Media
 - **Content:** more games and activities, and better Star Chart questions
 - **Platforms:** accessibility improvements, macOS and Linux versions, and the Microsoft Store
 

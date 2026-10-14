@@ -4,7 +4,7 @@
             background: linear-gradient(rgba(255, 255, 255, .45), rgba(255, 255, 255, 0) 55%), var(--c); box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
 
 /* ---------- Periodic Table ---------- */
-.pt { background: radial-gradient(ellipse at 50% 45%, #2a4f96, #0f2250 60%, #071330); }
+.pt { background: var(--scene); }
 .pt-holder { position: absolute; inset: 0; overflow: hidden; }
 .pt-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); color: #fff; }
 .pt-head { position: absolute; left: 30px; top: 14px; }
@@ -23,7 +23,7 @@
          background: var(--c); opacity: .55; border: 1px dashed rgba(0, 0, 0, .45); }
 
 .pt-card { position: absolute; display: flex; gap: 14px; padding: 10px 12px; overflow: hidden;
-           background: linear-gradient(rgba(10, 24, 60, .82), rgba(10, 24, 60, .65)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+           background: linear-gradient(rgba(var(--glass), .82), rgba(var(--glass), .65)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
 .pt-intro b { display: block; font: 600 16px "Segoe UI"; color: var(--orange); margin-bottom: 4px; }
 .pt-intro p { margin: 0; font: 13px/1.5 "Segoe UI"; color: #cfdcf5; }
 .pt-big { flex: none; position: relative; width: 112px; height: 112px; border-radius: 5px; color: #141a2e; text-align: center;
@@ -43,26 +43,26 @@
 .pt-key small { margin-bottom: 4px; font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .pt-fam { display: flex; align-items: center; gap: 7px; padding: 3px 5px; text-align: left; background: none; border: 1px solid transparent; color: #e6eefc; font: 11px/1.2 "Segoe UI"; }
 .pt-fam i { flex: none; width: 13px; height: 13px; border-radius: 2px; border: 1px solid rgba(0, 0, 0, .45); }
-.pt-fam:hover { background: rgba(5, 12, 30, .5); border-color: rgba(160, 190, 255, .3); }
+.pt-fam:hover { background: rgba(var(--deep), .5); border-color: rgba(var(--edge), .3); }
 .pt-fam.on { background: rgba(245, 166, 35, .18); border-color: var(--orange); color: #fff; }
 .pt-fam.all { margin-top: 4px; color: var(--sky); }
 .pt-hint { position: absolute; margin: 0; font: 12px "Segoe UI"; color: var(--sky); }
 
 /* ---------- Shared pieces for the newer activities ---------- */
-.act { color: #fff; background: radial-gradient(ellipse at 50% 40%, #2a4f96, #0f2250 62%, #071330); }
+.act { color: #fff; background: var(--scene); }
 .act-head { position: absolute; left: 24px; top: 14px; right: 24px; display: flex; align-items: flex-end; gap: 18px; z-index: 2; }
 .act-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .act-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; white-space: nowrap; }
 .act-panel { min-height: 0; display: flex; flex-direction: column; overflow: hidden;
-             background: linear-gradient(rgba(10, 24, 60, .82), rgba(10, 24, 60, .62)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
+             background: linear-gradient(rgba(var(--glass), .82), rgba(var(--glass), .62)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }
 .act-card { position: absolute; display: flex; flex-direction: column; overflow: hidden; z-index: 2;
-            background: linear-gradient(rgba(10, 24, 60, .88), rgba(10, 24, 60, .72)); border: 1px solid rgba(160, 190, 255, .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
+            background: linear-gradient(rgba(var(--glass), .88), rgba(var(--glass), .72)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }
 .act-cb { flex: 1; overflow: auto; padding: 12px 16px 14px; }
 .act-cb small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .act-cb h2 { margin: 0; font: 300 28px/1.15 "Segoe UI"; }
 .act-cb .desc { min-height: 1.3em; margin: 2px 0 10px; font: 12.5px "Segoe UI"; color: var(--sky); }
 .act-facts { width: 100%; border-collapse: collapse; margin-bottom: 10px; font: 12.5px "Segoe UI"; }
-.act-facts td { padding: 4px 0; border-bottom: 1px solid rgba(160, 190, 255, .16); vertical-align: top; }
+.act-facts td { padding: 4px 0; border-bottom: 1px solid rgba(var(--edge), .16); vertical-align: top; }
 .act-facts td:first-child { width: 120px; padding-right: 8px; color: var(--sky); }
 .act-sum { margin: 0 0 12px; font: 12.5px/1.5 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .act-note { margin: 16px 4px; font: italic 13px "Segoe UI"; color: var(--sky); }
@@ -70,7 +70,7 @@
 .act-scroll::-webkit-scrollbar, .act-cb::-webkit-scrollbar { width: 12px; }
 .act-scroll::-webkit-scrollbar-track, .act-cb::-webkit-scrollbar-track { background: transparent; }
 .act-scroll::-webkit-scrollbar-thumb, .act-cb::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 3px solid transparent; background-clip: padding-box; }
-.act-chip { height: 24px; padding: 0 10px 2px; line-height: 1; background: rgba(5, 12, 30, .45); border: 1px solid rgba(160, 190, 255, .28); color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
+.act-chip { height: 24px; padding: 0 10px 2px; line-height: 1; background: rgba(var(--deep), .45); border: 1px solid rgba(var(--edge), .28); color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
 .act-chip:hover { border-color: var(--orange); color: #fff; }
 .act-chip.on { background: rgba(245, 166, 35, .2); border-color: var(--orange); color: #fff; font-weight: 600; }
 .act input, .act select { height: 24px; padding: 0 6px; border: 1px solid #4a5262; background: #0a0c10; color: #fff; font: 12px "Segoe UI"; outline: none; }
@@ -107,13 +107,13 @@
 .bd-tabs button:hover { color: #fff; }
 .bd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; }
 .bd-person { display: flex; gap: 12px; align-items: center; min-width: 0; padding: 6px; background: none; border: 1px solid transparent; text-align: left; color: #fff; }
-.bd-person:hover { background: rgba(5, 12, 30, .45); border-color: rgba(160, 190, 255, .3); }
+.bd-person:hover { background: rgba(var(--deep), .45); border-color: rgba(var(--edge), .3); }
 .bd-person i { flex: none; width: 48px; height: 48px; border-radius: 50%; background: #1c3566 center/cover; border: 2px solid rgba(255, 255, 255, .7); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
 .bd-person div { min-width: 0; }
 .bd-person b { display: block; font: 600 13.5px "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bd-person span { display: block; font: 12px "Segoe UI"; color: var(--sky); }
-.bd-ev { display: flex; gap: 14px; width: 100%; padding: 8px 4px; background: none; border: 0; border-bottom: 1px solid rgba(160, 190, 255, .12); text-align: left; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
-.bd-ev:not(:disabled):hover { background: rgba(5, 12, 30, .4); color: #fff; }
+.bd-ev { display: flex; gap: 14px; width: 100%; padding: 8px 4px; background: none; border: 0; border-bottom: 1px solid rgba(var(--edge), .12); text-align: left; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
+.bd-ev:not(:disabled):hover { background: rgba(var(--deep), .4); color: #fff; }
 .bd-ev em { flex: none; width: 48px; font: 600 13px "Segoe UI"; font-style: normal; color: var(--orange); }
 .bd-art { display: grid; place-content: center; height: 100%; text-align: center; color: #fff; }
 .bd-art small { font: 600 11px "Segoe UI"; letter-spacing: 4px; color: var(--sky); }
@@ -137,7 +137,7 @@
 .ss-lbl { font: 600 11.5px "Segoe UI"; fill: #cfdcf5; paint-order: stroke; stroke: #071330; stroke-width: 3px; pointer-events: none; }
 .ss-body.sel .ss-lbl { fill: #ffd27a; font-size: 13px; }
 .ss-card { right: 16px; top: 16px; bottom: 16px; width: 330px; }
-.ss-pic { height: 170px; flex: none; background: #000 center/cover no-repeat; border-bottom: 1px solid rgba(160, 190, 255, .2); }
+.ss-pic { height: 170px; flex: none; background: #000 center/cover no-repeat; border-bottom: 1px solid rgba(var(--edge), .2); }
 .ss-note { margin: 0 0 6px; font: 12px/1.45 "Segoe UI"; color: #ffd27a; }
 .ss-note + .act-sum { margin-top: 10px; }
 .ss-art { width: 100%; height: 100%; }
@@ -150,7 +150,7 @@
 .ll-sets .clr { margin-left: 10px; }
 .ll-chart { position: absolute; left: 24px; right: 24px; top: 122px; bottom: 98px; padding-top: 34px; }
 .ll-axis { position: absolute; left: 216px; right: 40px; top: 8px; bottom: 0; pointer-events: none; }
-.ll-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(160, 190, 255, .14); }
+.ll-tick { position: absolute; top: 0; bottom: 0; border-left: 1px solid rgba(var(--edge), .14); }
 .ll-tick span { position: absolute; left: 4px; top: 0; font: 600 11px "Segoe UI"; color: var(--sky); white-space: nowrap; }
 .ll-tick.end span { left: auto; right: 4px; }
 .ll-mark { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--orange); z-index: 2; }
@@ -160,7 +160,7 @@
 .ll-rows::-webkit-scrollbar { width: 12px; }
 .ll-rows::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 3px solid transparent; background-clip: padding-box; }
 .ll-row { position: relative; height: 42px; }
-.ll-row:hover { background: rgba(5, 12, 30, .3); }
+.ll-row:hover { background: rgba(var(--deep), .3); }
 .ll-row.sel { background: linear-gradient(90deg, rgba(245, 166, 35, .16), rgba(245, 166, 35, 0) 40%); }
 .ll-who { position: absolute; left: 12px; width: 194px; top: 5px; display: flex; gap: 8px; align-items: center; }
 .ll-who i { flex: none; width: 32px; height: 32px; border-radius: 50%; background: #1c3566 center/cover; border: 2px solid rgba(255, 255, 255, .7); }
@@ -177,7 +177,7 @@
 .ll-bar em { position: absolute; left: 6px; top: 2px; font: 600 11px "Segoe UI"; font-style: normal; color: #141a2e; white-space: nowrap; }
 .ll-x { position: absolute; right: 8px; top: 10px; width: 22px; height: 22px; padding: 0 0 2px; background: none; border: 1px solid transparent; color: var(--sky); font: 16px/1 "Segoe UI"; opacity: 0; }
 .ll-row:hover .ll-x { opacity: 1; }
-.ll-x:hover { color: #fff; border-color: rgba(160, 190, 255, .35); }
+.ll-x:hover { color: #fff; border-color: rgba(var(--edge), .35); }
 .ll-foot { position: absolute; left: 24px; right: 24px; bottom: 16px; height: 68px; flex-direction: row; gap: 14px; align-items: center; padding: 0 16px; font: 13px/1.45 "Segoe UI"; color: #e6eefc; }
 .ll-foot > div { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .ll-foot b { color: #ffd27a; font-weight: 600; }

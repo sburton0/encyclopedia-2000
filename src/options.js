@@ -1,7 +1,7 @@
 // Tools > Options: a tabbed settings dialog with OK, Cancel, and Apply.
 // Changes are staged in `draft` and only saved on OK or Apply. "Clear" and "Reset" act immediately.
 window.E2KOptions = (() => {
-  const RENDERER_KEYS = ['startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
+  const RENDERER_KEYS = ['theme', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
 
   async function open(api) {
     const { h, store } = api;
@@ -13,6 +13,7 @@ window.E2KOptions = (() => {
       windowMode: main.windowMode,
       hardwareAcceleration: main.hardwareAcceleration !== false,
       autoUpdate: main.autoUpdate !== false,
+      theme: store.get('theme', 'bloom'),
       startupSound: store.get('startupSound', true),
       startOn: store.get('startOn', 'home'),
       volume: Math.round(E2KAudio.getVolume() * 100),
@@ -167,7 +168,19 @@ window.E2KOptions = (() => {
         } }, 'Reset All Settings…'))));
 
     // ---------- dialog shell ----------
-    const TABS = [['Startup', startup], ['Sound', sound], ['Reading', reading], ['Privacy', privacy]];
+    // ---------- Appearance ----------
+    const picks = E2KThemes.list.map((t) => h('button', { type: 'button', class: 'theme-pick', title: t.blurb, onclick: () => set('theme', t.id) },
+      h('img', { src: `themes/${t.id}.jpg`, alt: '' }), h('b', {}, t.name)));
+    const themeNote = h('p', { class: 'onote' });
+    refreshers.push(() => {
+      picks.forEach((p, i) => p.classList.toggle('on', E2KThemes.list[i].id === draft.theme));
+      themeNote.textContent = E2KThemes.list.find((t) => t.id === draft.theme)?.blurb || '';
+    });
+    const appearance = h('div', { class: 'opane' },
+      group('Theme', h('div', { class: 'themes' }, picks), themeNote,
+        h('p', { class: 'onote' }, 'Themes change the colors, the Home screen, and the startup screen. Articles always stay easy to read.')));
+
+    const TABS = [['Startup', startup], ['Appearance', appearance], ['Sound', sound], ['Reading', reading], ['Privacy', privacy]];
     const tabBtns = TABS.map(([label], i) => h('button', { class: 'otab', role: 'tab', onclick: () => show(i) }, label));
     const body = h('div', { class: 'obody' });
     function show(i) {
@@ -182,7 +195,7 @@ window.E2KOptions = (() => {
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
       main.autoUpdate = draft.autoUpdate;
-      ['startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
+      ['theme', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);
       E2KAudio.setMuted(draft.muted);
