@@ -365,7 +365,7 @@ button { font-family: inherit; cursor: default; }
 /* ---------- overlays ---------- */
 .overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); animation: viewin .15s ease-out; }
 .dialog { width: 400px; background: linear-gradient(var(--ink-2), var(--ink-0)); border: 1px solid var(--ink-3); box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
-.dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; }
+.dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; user-select: none; }
 .dialog .dt img { width: 16px; height: 16px; }
 .dialog .db { display: flex; gap: 14px; padding: 18px 18px 8px; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
 .dialog .db > img { width: 60px; height: 60px; flex: none; filter: drop-shadow(0 0 10px rgba(190, 215, 255, .5)); }

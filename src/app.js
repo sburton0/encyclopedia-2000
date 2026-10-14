@@ -756,6 +756,27 @@
   // ---------- overlays ----------
   function closeOverlays() { $$('.overlay').forEach((o) => o.remove()); }
 
+  // Every dialog can be moved by its title bar, and always keeps the title bar on screen.
+  document.addEventListener('mousedown', (e) => {
+    const bar = e.button === 0 && e.target.closest('.dialog .dt');
+    if (!bar) return;
+    e.preventDefault();
+    const box = bar.parentElement;
+    const [x0, y0] = (box.dataset.drag || '0,0').split(',').map(Number);
+    const r = box.getBoundingClientRect();
+    const left = r.left - x0, top = r.top - y0;
+    const sx = e.clientX, sy = e.clientY;
+    const move = (m) => {
+      const x = Math.min(Math.max(x0 + m.clientX - sx, 40 - r.width - left), innerWidth - 40 - left);
+      const y = Math.min(Math.max(y0 + m.clientY - sy, -top), innerHeight - bar.offsetHeight - top);
+      box.dataset.drag = `${x},${y}`;
+      box.style.transform = `translate(${x}px, ${y}px)`;
+    };
+    const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
+    addEventListener('mousemove', move);
+    addEventListener('mouseup', up);
+  });
+
   function dialog(title, heading, paragraphs, buttons = [['OK']]) {
     const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
     ov.append(h('div', { class: 'dialog', role: 'dialog' },
@@ -978,6 +999,7 @@
     activities: () => orb('activities').run(),
     about,
     options: () => E2KOptions.open(E2K),
+    themes: () => E2KOptions.open(E2K, 'Appearance'),
     exit: () => window.e2k.win('close'),
   };
   // Articles and the other reading pages can be printed; the home screen and games can't.
@@ -1007,7 +1029,7 @@
       ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
-      ['Tools', [['Options…', 'options', 'Ctrl+,']]],
+      ['Tools', [['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Support Wikipedia…', 'support'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }

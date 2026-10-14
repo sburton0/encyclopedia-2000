@@ -3,9 +3,10 @@
 window.E2KOptions = (() => {
   const RENDERER_KEYS = ['theme', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
 
-  async function open(api) {
+  async function open(api, tab) {
     const { h, store } = api;
-    if (document.querySelector('.options')) return;
+    const openDlg = document.querySelector('.options');
+    if (openDlg) { if (tab) [...openDlg.querySelectorAll('.otab')].find((b) => b.textContent === tab)?.click(); return; }
     const main = await window.e2k.settings.get();
 
     const read = () => ({
@@ -218,7 +219,7 @@ window.E2KOptions = (() => {
         body,
         h('div', { class: 'df' }, okBtn, cancelBtn, applyBtn)));
     document.body.append(ov);
-    show(0);
+    show(Math.max(0, TABS.findIndex(([label]) => label === tab)));
     refresh();
     okBtn.focus();
   }
