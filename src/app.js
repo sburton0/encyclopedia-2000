@@ -25,10 +25,66 @@
     return el;
   }
   const icon = (id) => svg('svg', { class: 'ic' }, svg('use', { href: '#i-' + id }));
+  // Minimize, maximize, restore, and close, drawn in thin lines like the Windows caption buttons.
+  const WIN_ICONS = { min: 'M0 5.5h10', max: 'M.5.5h9v9h-9z', restore: 'M2.5 2.5V.5h7v7h-2M.5 2.5h7v7h-7z', close: 'M.5.5l9 9M9.5.5l-9 9' };
+  const winIcon = (k) => svg('svg', { class: 'wi' + (k === 'close' ? ' x' : ''), viewBox: '0 0 10 10' }, svg('path', { d: WIN_ICONS[k] }));
   const store = {
     get(k, d) { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
-    set(k, v) { try { localStorage.setItem('e2k.' + k, JSON.stringify(v)); } catch {} },
+    set(k, v) { try { localStorage.setItem('e2k.' + k, JSON.stringify(v)); } catch {} syncMenu(); },
   };
+
+  // ---------- platform ----------
+  // Menus and tooltips name Windows shortcuts. macOS uses Command instead, and avoids the shortcuts it reserves
+  // (Command-H hides the app and Command-M minimizes it).
+  const MAC = window.e2k.platform === 'darwin';
+  const MAC_KEYS = { 'Ctrl+H': 'Cmd+Shift+H', 'Ctrl+M': 'Cmd+Shift+M', 'Alt+Left': 'Cmd+[', 'Alt+Right': 'Cmd+]', F5: 'Cmd+R', 'Alt+F4': '' };
+  const macKey = (k) => (k in MAC_KEYS ? MAC_KEYS[k] : k.replace('Ctrl+', 'Cmd+'));
+  // How a shortcut is written for people: "Ctrl+H" on Windows and Linux, "⇧⌘H" on macOS.
+  const keyText = (k) => {
+    if (!MAC || !k) return k;
+    const m = macKey(k);
+    return (m.includes('Shift+') ? '⇧' : '') + (m.includes('Cmd+') ? '⌘' : '') + m.replace(/^(Cmd\+|Shift\+)+/, '');
+  };
+
+  // On macOS the menus live in the menu bar at the top of the screen. The page sends them to the main process
+  // whenever something they show changes, such as Back becoming available or a new favorite.
+  let menuIds = [];
+  let menuSent = '';
+  let menuTimer = 0;
+  function macMenus() {
+    const ids = [];
+    const item = ([label, cmd, key, checked, disabled]) => {
+      ids.push(cmd);
+      return { label, id: ids.length - 1, key: key ? macKey(key) : '', checked: checked == null ? undefined : !!checked, disabled: !!disabled || !cmd };
+    };
+    const conv = (items) => items.map((it) => (it === '-' ? '-' : item(it)));
+    const m = Object.fromEntries(menus());
+    const file = m.File.filter((it) => it[1] !== 'exit');
+    if (file[file.length - 1] === '-') file.pop();
+    const template = [
+      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Themes…', 'themes']), '-',
+        { role: 'services' }, '-', { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit' }] },
+      { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
+      { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find an Article', 'find', 'Ctrl+F'])] },
+      ...['View', 'Go', 'Favorites', 'Features'].map((label) => ({ label, items: conv(m[label]) })),
+      { role: 'windowMenu' },
+      { label: 'Help', items: conv(m.Help.filter((it) => it[1] !== 'about')) },
+    ];
+    return { ids, template };
+  }
+  function syncMenu() {
+    if (!MAC || menuTimer) return;
+    menuTimer = setTimeout(() => {
+      menuTimer = 0;
+      const { ids, template } = macMenus();
+      const sent = JSON.stringify(template);
+      if (sent === menuSent) return;
+      menuSent = sent;
+      menuIds = ids;
+      window.e2k.setMenu(template);
+    });
+  }
+  if (MAC) window.e2k.onMenu((id) => runCmd(menuIds[id]));
   const strip = (s) => (s || '').replace(/<[^>]+>/g, '');
   const decodeHtml = (s) => { const ta = document.createElement('textarea'); ta.innerHTML = s || ''; return ta.value; };
   const https = (u) => (u && u.startsWith('//') ? 'https:' + u : u);
@@ -820,7 +876,7 @@
             h('button', { class: 'fbopt', onclick: () => go(DISCORD_URL) }, h('i', { style: 'background:#5865f2' }, 'D'),
               h('div', {}, h('b', {}, 'Join the Discord'), h('span', {}, 'Report bugs, share ideas and screenshots, and see what’s coming next.'))),
             h('button', { class: 'fbopt', onclick: () => go(form) }, h('i', { style: 'background:#2a86d6' }, '✎'),
-              h('div', {}, h('b', {}, 'Send feedback without an account'), h('span', {}, 'A short form. Your app and Windows versions are filled in for you.')))),
+              h('div', {}, h('b', {}, 'Send feedback without an account'), h('span', {}, 'A short form. Your app and system versions are filled in for you.')))),
           h('div', { class: 'fbver' }, 'Your versions', h('code', {}, line), copyBtn))),
       h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
     document.body.append(ov);
@@ -935,14 +991,14 @@
     const lnk = (t, starred) => h('button', { class: 'lnk' + (starred ? '' : ' plain') + (t === here ? ' here' : ''), title: t, onclick: () => openArticle(t) },
       starred ? icon('star') : null, t);
     fpane.replaceChildren(
-      h('div', { class: 'fh' }, icon('favs'), h('span', {}, 'Favorites'), h('button', { title: 'Close (Esc)', onclick: () => toggleFavPane(false) }, '\uE8BB')),
+      h('div', { class: 'fh' }, icon('favs'), h('span', {}, 'Favorites'), h('button', { title: 'Close (Esc)', onclick: () => toggleFavPane(false) }, winIcon('close'))),
       h('div', { class: 'fb' },
         here ? h('button', { class: 'add', title: fav ? 'Remove from Favorites' : 'Add to Favorites', onclick: () => toggleFav() }, icon('star'), h('span', {}, fav ? `Remove “${here}” from Favorites` : `Add “${here}” to Favorites`)) : null,
         h('h4', {}, 'Favorites'),
         list.length ? shown.map((f) => lnk(f.title, true)) : h('div', { class: 'note' }, 'Open an article and click “Add to Favorites” to save it here.'),
         list.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { favsExpanded = !favsExpanded; drawFavPane(); } }, favsExpanded ? 'Show fewer' : `Show all (${list.length})`) : null,
         ...(recent.length ? [h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => lnk(t, false))] : [])),
-      h('div', { class: 'ff' }, 'Ctrl+I opens and closes this pane'));
+      h('div', { class: 'ff' }, `${keyText('Ctrl+I')} opens and closes this pane`));
   }
   function toggleFavPane(open = fpane.hidden) {
     fpane.hidden = !open;
@@ -952,6 +1008,7 @@
 
   // ---------- toolbar ----------
   function updateToolbar() {
+    syncMenu();
     const btn = (c) => $(`.tbtn[data-cmd="${c}"]`);
     btn('back').disabled = nav.idx <= 0;
     btn('fwd').disabled = nav.idx >= nav.stack.length - 1;
@@ -1004,7 +1061,7 @@
   };
   // Articles and the other reading pages can be printed; the home screen and games can't.
   const printable = () => !!view.querySelector('.page');
-  const runCmd = (c) => (typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c]());
+  const runCmd = (c) => { syncMenu(); return typeof c === 'function' ? c() : COMMANDS[c] && COMMANDS[c](); };
   $('#feedback-link').addEventListener('click', (e) => { e.preventDefault(); feedback(); });
   const supportLink = $('#support');
   supportLink.addEventListener('click', (e) => { e.preventDefault(); supportWikipedia(); });
@@ -1140,6 +1197,7 @@
   const volRange = $('#volrange');
   const volMute = $('#volmute');
   function updateVolume() {
+    syncMenu();
     const pct = Math.round(E2KAudio.getVolume() * 100);
     const muted = E2KAudio.isMuted();
     const ic = muted ? 'mute' : pct < 50 ? 'vol-low' : 'vol';
@@ -1148,7 +1206,7 @@
     volRange.style.setProperty('--p', pct + '%');
     $('#volpct').textContent = muted ? 'Muted' : pct + '%';
     volBtn.title = muted ? 'Volume: muted' : `Volume: ${pct}%`;
-    volMute.title = muted ? 'Unmute' : 'Mute (Ctrl+M)';
+    volMute.title = muted ? 'Unmute' : `Mute (${keyText('Ctrl+M')})`;
     volBtn.classList.toggle('on', !volPop.hidden);
     volPop.classList.toggle('muted', muted);
   }
@@ -1186,15 +1244,18 @@
   $$('[data-win]').forEach((b) => b.addEventListener('click', () => window.e2k.win(b.dataset.win)));
   window.e2k.onMaximized((max) => {
     const b = $('#maxbtn');
-    b.innerHTML = max ? '&#xE923;' : '&#xE922;';
+    b.replaceChildren(winIcon(max ? 'restore' : 'max'));
     b.title = max ? 'Restore Down' : 'Maximize';
   });
+  // Tooltips name shortcuts the Windows way; show the macOS ones there instead.
+  if (MAC) $$('[title]').forEach((el) => { el.title = el.title.replace(/\(((?:Ctrl|Alt)\+[^)]+)\)$/, (_, k) => `(${keyText(k)})`); });
   $('.titlebar').addEventListener('dblclick', (e) => { if (!e.target.closest('.wc')) window.e2k.win('max'); });
 
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
     if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
+    if (MAC) return; // macOS shortcuts come from the menu bar.
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }

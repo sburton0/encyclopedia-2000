@@ -12,9 +12,13 @@
     "icons": "electron tools/make-icons.js",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
     "map": "node tools/make-map.mjs",
-    "dist": "electron-builder --win --publish never",
-    "release": "electron-builder --win --publish always",
-    "stats": "node tools/stats.mjs"
+    "dist": "electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
+    "release": "electron-builder --win --publish always -c.electronDist=node_modules/electron/dist",
+    "stats": "node tools/stats.mjs",
+    "dist:mac": "electron-builder --mac --publish never",
+    "release:mac": "electron-builder --mac --publish always",
+    "dist:linux": "electron-builder --linux --publish never",
+    "release:linux": "electron-builder --linux --publish always"
   },
   "devDependencies": {
     "d3-geo": "^3.1.1",
@@ -30,7 +34,6 @@
     "appId": "com.svid.encyclopedia2000",
     "productName": "Encyclopedia 2000",
     "copyright": "© 2026 Scott Burton",
-    "electronDist": "node_modules/electron/dist",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -41,6 +44,7 @@
       "updater.js",
       "src/**/*",
       "build/icon.ico",
+      "build/icon.png",
       "package.json"
     ],
     "extraMetadata": {
@@ -85,6 +89,51 @@
       "artifactName": "Encyclopedia-2000-Installer-${version}.${ext}",
       "installerIcon": "build/icon.ico",
       "uninstallerIcon": "build/icon.ico"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "public.app-category.education",
+      "hardenedRuntime": true,
+      "artifactName": "Encyclopedia-2000-${version}-mac.${ext}"
+    },
+    "dmg": {
+      "title": "Encyclopedia 2000",
+      "artifactName": "Encyclopedia-2000-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Education",
+      "synopsis": "The CD-ROM encyclopedia, reborn with today’s Wikipedia",
+      "maintainer": "Encyclopedia 2000 <6220356+sburton0@users.noreply.github.com>",
+      "artifactName": "Encyclopedia-2000-${version}-linux-${arch}.${ext}"
     },
     "publish": [
       {

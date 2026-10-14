@@ -89,7 +89,7 @@ window.E2KOptions = (() => {
     const voiceSel = h('select', { class: 'oselect', onchange: () => set('voice', voiceSel.value) });
     function fillVoices() {
       const voices = 'speechSynthesis' in window ? speechSynthesis.getVoices() : [];
-      voiceSel.replaceChildren(h('option', { value: '' }, 'Windows default voice'),
+      voiceSel.replaceChildren(h('option', { value: '' }, window.e2k.platform === 'win32' ? 'Windows default voice' : 'System default voice'),
         ...voices.map((v) => h('option', { value: v.voiceURI }, `${v.name.replace(/^Microsoft /, '').replace(/ - .*$/, '')} (${v.lang})`)));
       voiceSel.value = draft.voice;
     }

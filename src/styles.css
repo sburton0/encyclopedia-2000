@@ -24,7 +24,15 @@ button { font-family: inherit; cursor: default; }
 .titlebar .emb { width: 16px; height: 16px; }
 .titlebar .wc { margin-left: auto; display: flex; height: 100%; -webkit-app-region: no-drag; }
 .titlebar .wc button { width: 46px; height: 100%; border: 0; background: transparent; color: #bbb;
-                       font: 10px "Segoe MDL2 Assets", "Segoe Fluent Icons"; }
+                       display: grid; place-items: center; }
+/* Window button icons: 10px line drawings, like the Windows caption glyphs. */
+.wi { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1px; shape-rendering: crispEdges; }
+.wi.x { shape-rendering: geometricPrecision; }
+/* macOS: the system's close, minimize, and zoom buttons sit at the left of the title bar, the title is centered,
+   and the menus are in the menu bar at the top of the screen. */
+[data-platform="darwin"] .titlebar { padding-left: 78px; padding-right: 78px; }
+[data-platform="darwin"] .titlebar .emb, [data-platform="darwin"] .titlebar .wc, [data-platform="darwin"] .menubar { display: none; }
+[data-platform="darwin"] .titlebar > span { flex: 1; text-align: center; }
 .titlebar .wc button:hover { background: #2c2c2c; color: #fff; }
 .titlebar .wc button.close:hover { background: #c42b1c; }
 
@@ -152,7 +160,7 @@ button { font-family: inherit; cursor: default; }
              background: linear-gradient(#2a2a2a, #0d0d0d); font: 600 12px "Segoe UI"; color: #ddd; }
 .fpane .fh .ic { width: 13px; height: 13px; fill: var(--orange); }
 .fpane .fh span { flex: 1; }
-.fpane .fh button { width: 22px; height: 20px; padding: 0; background: none; border: 1px solid transparent; color: #aaa; font: 10px "Segoe MDL2 Assets"; }
+.fpane .fh button { width: 22px; height: 20px; padding: 0; background: none; border: 1px solid transparent; color: #aaa; display: grid; place-items: center; }
 .fpane .fh button:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
 .fpane .fb { flex: 1; overflow: auto; padding: 12px 14px; }
 .fpane .add { display: flex; align-items: center; gap: 7px; width: 100%; margin-bottom: 12px; padding: 5px 8px; text-align: left;

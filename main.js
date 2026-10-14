@@ -5,7 +5,7 @@ const os = require('os');
 const { pathToFileURL } = require('url');
 
 // Wikimedia asks API clients to identify themselves with a descriptive User-Agent.
-app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (https://encyclopedia2000.com; Windows desktop encyclopedia; Electron)`;
+app.userAgentFallback = `Encyclopedia2000/${app.getVersion()} (https://encyclopedia2000.com; desktop encyclopedia; Electron)`;
 
 // A fixed app ID lets Windows match the running window to its Start menu shortcut and taskbar pin.
 // Keep it in sync with tools/make-shortcut.ps1.
@@ -20,8 +20,12 @@ if (PORTABLE_DIR) app.setPath('userData', path.join(PORTABLE_DIR, 'Encyclopedia 
 if (process.env.E2K_PROFILE) app.setPath('userData', process.env.E2K_PROFILE);
 
 const SRC = path.join(__dirname, 'src');
-const ICON = path.join(__dirname, 'build', 'icon.ico');
+const MAC = process.platform === 'darwin';
+// macOS takes the app's icon from the app bundle; Linux needs a PNG.
+const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const env = process.env;
+// The app draws its own title bar. On macOS it keeps the system's close, minimize, and zoom buttons, inset into that bar.
+const FRAME = MAC ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 10, y: 8 } } : { frame: false };
 
 // Settings the main process needs before any window opens. Everything else lives in the page's storage.
 const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true, autoUpdate: true };
@@ -67,7 +71,7 @@ function createMain(route) {
   const saved = settings.windowMode === 'remember' && onScreen(settings.bounds) ? settings.bounds : null;
   const win = new BrowserWindow({
     width: 1024, height: 740, minWidth: 980, minHeight: 640,
-    frame: false, show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
+    ...FRAME, show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });
   // setBounds mirrors getNormalBounds exactly. Passing saved bounds to the constructor instead makes a
@@ -175,7 +179,7 @@ ipcMain.handle('print:open', (e) => {
   if (preview && !preview.isDestroyed()) { preview.focus(); return; }
   previewSource = BrowserWindow.fromWebContents(e.sender);
   preview = new BrowserWindow({
-    width: 900, height: 760, minWidth: 720, minHeight: 520, frame: false, show: false, parent: previewSource,
+    width: 900, height: 760, minWidth: 720, minHeight: 520, ...FRAME, show: false, parent: previewSource,
     backgroundColor: '#0f2250', title: 'Print Preview', icon: ICON,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, plugins: true },
   });
@@ -217,11 +221,35 @@ ipcMain.handle('print:save', async () => {
   return { saved: true, filePath };
 });
 
-// The app and Windows versions, for the feedback dialog.
-ipcMain.handle('app:info', () => {
+// The app and operating system versions, for the feedback dialog.
+function systemName() {
+  if (MAC) return `macOS ${process.getSystemVersion()}`;
+  if (process.platform === 'linux') {
+    let name = 'Linux';
+    try { name = /^PRETTY_NAME="?([^"\n]*)/m.exec(fs.readFileSync('/etc/os-release', 'utf8'))[1]; } catch {}
+    return `${name} (kernel ${os.release()})`;
+  }
   const [major, , build] = os.release().split('.').map(Number);
-  const windows = process.platform !== 'win32' ? os.type() : major === 10 && build >= 22000 ? 'Windows 11' : major === 10 ? 'Windows 10' : 'Windows';
-  return { version: app.getVersion(), windows: `${windows} (build ${build || os.release()})` };
+  return `${major === 10 && build >= 22000 ? 'Windows 11' : major === 10 ? 'Windows 10' : 'Windows'} (build ${build || os.release()})`;
+}
+ipcMain.handle('app:info', () => ({ version: app.getVersion(), windows: systemName() }));
+
+// ---------- macOS menu bar ----------
+// The page sends its menus (the same ones it draws inside the window on Windows and Linux). Items carry either a
+// built-in role, such as copy or quit, or an id that is sent back to the page when the item is chosen.
+ipcMain.on('menu:set', (e, template) => {
+  if (!MAC || !Array.isArray(template)) return;
+  const build = (it) => {
+    if (it === '-') return { type: 'separator' };
+    if (it.role) return { role: it.role, ...(it.label ? { label: it.label } : {}) };
+    if (it.items) return { label: it.label, submenu: it.items.map(build) };
+    return {
+      label: it.label, accelerator: it.key || undefined, enabled: !it.disabled,
+      ...(it.checked != null ? { type: 'checkbox', checked: !!it.checked } : {}),
+      click: () => { if (!e.sender.isDestroyed()) e.sender.send('menu:run', it.id); },
+    };
+  };
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template.map(build)));
 });
 
 ipcMain.handle('open-external', (_e, url) => {
@@ -229,7 +257,8 @@ ipcMain.handle('open-external', (_e, url) => {
 });
 
 app.whenReady().then(() => {
-  Menu.setApplicationMenu(null);
+  // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
+  if (!MAC) Menu.setApplicationMenu(null);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
   require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false });

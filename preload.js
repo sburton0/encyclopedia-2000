@@ -1,6 +1,18 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Mark the page with its platform ("win32", "darwin", or "linux") for platform-specific styles.
+// Segoe UI only ships with Windows, so other platforms load a bundled stand-in (see src/fonts/fonts.css).
+const platform = process.platform;
+window.addEventListener('DOMContentLoaded', () => {
+  document.documentElement.dataset.platform = platform;
+  if (platform !== 'win32') document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'fonts/fonts.css' }));
+});
+
 contextBridge.exposeInMainWorld('e2k', {
+  platform,
+  // macOS shows the app's menus in the menu bar at the top of the screen; the page sends their contents here.
+  setMenu: (template) => ipcRenderer.send('menu:set', template),
+  onMenu: (cb) => ipcRenderer.on('menu:run', (_e, id) => cb(id)),
   win: (cmd) => ipcRenderer.send('win', cmd),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   onMaximized: (cb) => ipcRenderer.on('maximized', (_e, v) => cb(v)),
