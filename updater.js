@@ -5,7 +5,8 @@
 const { app, ipcMain, shell } = require('electron');
 
 // The portable version can't replace itself, so it only tells people a new version exists and links to the download page.
-// The same goes for Linux's .deb package, which needs an administrator password to update; the AppImage updates itself.
+// The same goes for Linux's .deb package, which needs an administrator password to update. (An AppImage could update
+// itself, but current Ubuntu won't start Electron AppImages, so the Linux version is shipped as a .deb for now.)
 const PORTABLE = !!process.env.PORTABLE_EXECUTABLE_DIR || (process.platform === 'linux' && !process.env.APPIMAGE);
 const KIND = process.platform === 'linux' ? 'deb' : 'portable';
 const DOWNLOADS = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';

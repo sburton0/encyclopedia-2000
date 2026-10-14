@@ -70,7 +70,7 @@ npm start
 
 To launch it like a regular program, run `npm run shortcut` once. It adds **Encyclopedia 2000** to the Start menu with its icon; right-click it there and choose **Pin to taskbar**. If you move the project folder, run it again.
 
-To build the Windows installer and portable version, run `npm run dist`; the files appear in `dist/`. On a Mac, `npm run dist:mac` builds the macOS disk image (for Apple Silicon and Intel), and `npm run dist:linux` builds the Linux AppImage and .deb on a Mac or Linux. The `release`, `release:mac`, and `release:linux` scripts build and publish to a GitHub release (they need a `GH_TOKEN`).
+To build the Windows installer and portable version, run `npm run dist`; the files appear in `dist/`. On a Mac, `npm run dist:mac` builds the macOS disk image (for Apple Silicon and Intel), and `npm run dist:linux` builds the Linux .deb package on a Mac or Linux. The `release`, `release:mac`, and `release:linux` scripts build and publish to a GitHub release (they need a `GH_TOKEN`).
 
 The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simplified for 16 to 24 px). After editing either one, run `npm run icons` to rebuild `build/icon.ico` and the PNG sizes.
 
