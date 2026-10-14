@@ -600,15 +600,22 @@
     pg.text.append(loading('Searching…'));
     if (!mount(pg.root, token)) return;
     setStatus('Searching…', true);
-    const res = await Wiki.searchPages(q);
+    const [res, spelling] = await Promise.all([Wiki.searchPages(q), Wiki.spelling(q)]);
     if (!live(token)) return;
     const pages = res.pages || [];
+    // Wikipedia suggests a spelling for almost every search ("moon" gets "mount"), so only offer it when no
+    // result's title matches what was typed.
+    const norm = (s) => s.toLowerCase().replace(/[\s_]+/g, ' ').trim();
+    const didYouMean = spelling && norm(spelling) !== norm(q) && !pages.some((p) => norm(p.title) === norm(q))
+      ? spelling.charAt(0).toUpperCase() + spelling.slice(1) : '';
+    const suggest = didYouMean ? h('p', { class: 'dym' }, 'Did you mean ',
+      h('button', { onclick: () => go(route('search', didYouMean), { replace: true }) }, didYouMean), '?') : null;
     pg.railIn.append(h('div', { class: 'note' }, pages.length ? `${pages.length} best matches for “${q}”.` : 'No matches found.'),
       h('hr'), railLink(`Search Wikipedia for “${q}”`, () => window.e2k.openExternal(`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}&fulltext=1`), 'sub'));
     if (!pages.length) {
-      pg.text.replaceChildren(h('div', { class: 'errbox' }, h('b', {}, 'No articles found'), `Nothing matched “${q}”. Check the spelling, or try a broader subject.`));
+      pg.text.replaceChildren(...(suggest ? [suggest] : []), h('div', { class: 'errbox' }, h('b', {}, 'No articles found'), `Nothing matched “${q}”. Check the spelling, or try a broader subject.`));
     } else {
-      pg.text.replaceChildren(h('div', { class: 'results' }, pages.map((p) => {
+      pg.text.replaceChildren(...(suggest ? [suggest] : []), h('div', { class: 'results' }, pages.map((p) => {
         const ex = h('p');
         const parts = (p.excerpt || '').split(/<span class="searchmatch">|<\/span>/);
         parts.forEach((part, i) => {
@@ -985,6 +992,13 @@
     const text = $('.page .text');
     if (!current || !text || !('speechSynthesis' in window)) return;
     if (E2KAudio.isMuted()) { setIdle('Sound is muted. Turn up the volume to hear Read Aloud.'); return; }
+    // Many Linux systems come without a text-to-speech voice, and speaking then does nothing at all.
+    if (window.e2k.platform === 'linux' && !speechSynthesis.getVoices().length) {
+      dialog('Read Aloud', 'No voices are installed', [
+        'Read Aloud uses your computer’s text-to-speech voices, and none were found.',
+        'On Ubuntu and Debian, install them with “sudo apt install speech-dispatcher espeak-ng”, then restart Encyclopedia 2000.']);
+      return;
+    }
     const parts = [current.title + '.']
       .concat($$('p, h2, h3, li', text).filter((el) => !el.closest('table, figure, .attrib')).map((el) => el.textContent.replace(/\s+/g, ' ').trim()))
       .filter(Boolean).slice(0, 150);

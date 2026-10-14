@@ -18,8 +18,6 @@ Get the newest version from the [Releases page](https://github.com/sburton0/ency
 
 Requires Windows 10 or 11 (64-bit) and an internet connection.
 
-**"Windows protected your PC"?** Encyclopedia 2000 isn't code-signed yet, so Windows SmartScreen may warn you. Click **More info → Run anyway**.
-
 ## Feedback
 
 Use **Help → Send Feedback** in the app, join the [Discord](https://discord.encyclopedia2000.com), or [send feedback without an account](https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform).
@@ -33,15 +31,15 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 - **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip.
 - **Home screen**: Picture of the Day at the center, today's featured article, an almanac of events from this date, and the Explore shelf of sections.
 - **Articles**: full Wikipedia articles restyled with a contents rail, related articles, lead picture, and quick facts from the infobox. Links open inside the app; external links open in your browser.
-- **Find**: suggestions as you type, full-text search results, and a dropdown of recently viewed articles.
+- **Find**: suggestions as you type, full-text search results with "Did you mean…?" spelling suggestions, and a dropdown of recently viewed articles.
 - **Media**: the Picture of the Day for the past week.
 - **Timeline**: highlights, events, births, deaths, and holidays for today's date.
 - **Articles (Explore)**: eight random articles; shuffle for more.
 - **Options** (Tools → Options…, or Ctrl+,): skip the startup screen or its sound, choose which page to start on, remember the window size, set the volume, click sounds, and Read Aloud voice and speed, change the text size and article font, turn off animations, clear the recently viewed list, or reset everything.
-- **Themes** (Tools → Options → Appearance): Bloom, Aurora, Sunset, CD-ROM, Ocean, Library, and Classic Gray. Each changes the colors, the Home screen artwork and Explore buttons, and the startup screen.
+- **Themes** (Tools → Themes): Bloom, Aurora, Sunset, CD-ROM, Ocean, Library, and Classic Gray. Each changes the colors, the Home screen artwork and Explore buttons, and the startup screen.
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
-- **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (Windows text-to-speech), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
+- **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (using your computer's text-to-speech voices), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
 - **World Explorer**: a clickable map of 237 countries and territories, with region filters, search, and Random Country. Each country's card shows its flag, capital, population, area, languages, currency, and government, live from Wikidata. Choosing a region shows its area, population, and a clickable list of its countries.
 - **Activities**:

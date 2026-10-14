@@ -362,6 +362,9 @@ button { font-family: inherit; cursor: default; }
 
 /* search results */
 .results { max-width: 860px; }
+.dym { max-width: 860px; margin: 0 0 14px; font: 15px "Segoe UI"; color: #333; }
+.dym button { padding: 0; border: 0; border-bottom: 1px dotted rgba(29, 71, 168, .5); background: none; font: italic 600 15px "Segoe UI"; color: #1d47a8; cursor: pointer; }
+.dym button:hover { color: #c26a00; border-bottom-color: #c26a00; }
 .res { display: flex; gap: 14px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
 .res:hover { background: #f1f5fc; }
 .res .th { flex: none; width: 64px; height: 64px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }

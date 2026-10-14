@@ -24,6 +24,9 @@ window.Wiki = (() => {
     random: () => get(`${BASE}/api/rest_v1/page/random/summary`),
     searchTitles: (q) => get(`${BASE}/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`),
     searchPages: (q) => get(`${BASE}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=20`),
+    // Wikipedia's spelling suggestion for a search ("napolean" -> "napoleon"), or '' if it has none.
+    spelling: (q) => get(`${BASE}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srinfo=suggestion&srprop=&srlimit=1&format=json&formatversion=2&origin=*`)
+      .then((r) => r.query?.searchinfo?.suggestion || '', () => ''),
     pageUrl: (title) => `${BASE}/wiki/${enc(title)}`,
   };
 })();
