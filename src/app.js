@@ -866,7 +866,7 @@
     version: '0.2',
     name: '0.2 Beta',
     items: [
-      ['Themes', 'Give Encyclopedia 2000 a new look, from Aurora and Ocean to Library and Classic Gray. Find them under Tools › Themes.'],
+      ['Themes', `Give Encyclopedia 2000 a new look, from Aurora and Ocean to Library and Classic Gray. Find them under ${MAC ? 'Encyclopedia 2000' : 'Tools'} › Themes.`],
       ['Now on Mac and Linux', 'Share Encyclopedia 2000 with friends on any computer. Downloads are at encyclopedia2000.com.'],
       ['Fixes and improvements', 'Drag any dialog by its title bar, plus smaller fixes throughout.'],
     ],
