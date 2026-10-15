@@ -1,6 +1,7 @@
 /* Segoe UI ships only with Windows. On macOS and Linux, preload.js loads this file so the interface uses
-   Selawik instead: Microsoft's open-source font made to match Segoe UI's size and spacing (SIL Open Font License). */
-@font-face { font-family: "Segoe UI"; font-weight: 100 349; src: url("Selawik-300.woff2") format("woff2"); }
-@font-face { font-family: "Segoe UI"; font-weight: 350 549; src: url("Selawik-400.woff2") format("woff2"); }
-@font-face { font-family: "Segoe UI"; font-weight: 550 649; src: url("Selawik-600.woff2") format("woff2"); }
-@font-face { font-family: "Segoe UI"; font-weight: 650 900; src: url("Selawik-700.woff2") format("woff2"); }
+   Selawik instead: Microsoft's open-source font made to match Segoe UI's size and spacing (SIL Open Font License).
+   Selawik draws "…" as a single dot and "⇧" as a thin arrow, so those two come from the next font in the list. */
+@font-face { font-family: "Segoe UI"; font-weight: 100 349; src: url("Selawik-300.woff2") format("woff2"); unicode-range: U+0-2025, U+2027-21E6, U+21E8-10FFFF; }
+@font-face { font-family: "Segoe UI"; font-weight: 350 549; src: url("Selawik-400.woff2") format("woff2"); unicode-range: U+0-2025, U+2027-21E6, U+21E8-10FFFF; }
+@font-face { font-family: "Segoe UI"; font-weight: 550 649; src: url("Selawik-600.woff2") format("woff2"); unicode-range: U+0-2025, U+2027-21E6, U+21E8-10FFFF; }
+@font-face { font-family: "Segoe UI"; font-weight: 650 900; src: url("Selawik-700.woff2") format("woff2"); unicode-range: U+0-2025, U+2027-21E6, U+21E8-10FFFF; }
