@@ -66,7 +66,7 @@
     if (file[file.length - 1] === '-') file.pop();
     const template = [
       { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Themes…', 'themes']), '-',
-        { role: 'services' }, '-', { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit' }] },
+        { role: 'services' }, '-', { role: 'hide', label: 'Hide Encyclopedia 2000' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit', label: 'Quit Encyclopedia 2000' }] },
       { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
       { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find an Article', 'find', 'Ctrl+F'])] },
       ...['View', 'Go', 'Favorites', 'Features'].map((label) => ({ label, items: conv(m[label]) })),

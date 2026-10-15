@@ -265,6 +265,8 @@ ipcMain.handle('open-external', (_e, url) => {
 app.whenReady().then(() => {
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
   if (!MAC) Menu.setApplicationMenu(null);
+  // Run from source, macOS shows Electron's icon in the Dock; the built app uses its own.
+  if (MAC && !app.isPackaged) app.dock.setIcon(ICON);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
   require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false });
