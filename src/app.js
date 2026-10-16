@@ -401,7 +401,7 @@
   new ResizeObserver(fitHome).observe(view);
 
   // ---------- page shell ----------
-  function shell({ kicker, title = '', desc = '', railTitle = '', wide = false, tools = [] }) {
+  function shell({ title = '', desc = '', railTitle = '', wide = false, tools = [] }) {
     const railArt = svg('svg', { viewBox: '0 0 230 600', preserveAspectRatio: 'xMidYMax slice' });
     E2KThemes.railArt(railArt);
 
@@ -419,7 +419,7 @@
     const root = h('div', { class: 'page' },
       h('aside', { class: 'rail' }, railArt, railIn),
       h('section', { class: 'art' },
-        h('header', { class: 'band' }, bandArt, h('div', { class: 't' }, h('small', {}, kicker), h1, dsc), toolsEl),
+        h('header', { class: 'band' }, bandArt, h('div', { class: 't' }, h1, dsc), toolsEl),
         content));
     return {
       root, railIn, text, media, content, toolsEl,
@@ -522,7 +522,7 @@
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
     const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
-    const pg = shell({ kicker: 'ARTICLE', title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn] });
+    const pg = shell({ title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn] });
     pg.text.append(loading('Retrieving article…'));
     if (!mount(pg.root, token)) return;
     setStatus(`Retrieving “${title}”…`, true);
@@ -616,7 +616,7 @@
 
   // ---------- search ----------
   async function viewSearch(q, token) {
-    const pg = shell({ kicker: 'SEARCH', title: `Results for “${q}”`, railTitle: 'Search', wide: true });
+    const pg = shell({ title: `Results for “${q}”`, railTitle: 'Search', wide: true });
     pg.text.append(loading('Searching…'));
     if (!mount(pg.root, token)) return;
     setStatus('Searching…', true);
@@ -660,7 +660,7 @@
   // ---------- explore ----------
   async function viewExplore(token) {
     const pg = shell({
-      kicker: 'ARTICLES', title: 'Explore the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
+      title: 'Explore the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
       railTitle: 'Browse', wide: true, tools: [bandBtn('Shuffle', () => reload(), 'shuffle')],
     });
     pg.railIn.append(
@@ -689,7 +689,7 @@
 
   // ---------- gallery ----------
   async function viewGallery(token) {
-    const pg = shell({ kicker: 'MEDIA', title: 'Picture of the Day', desc: 'Featured images from Wikimedia Commons', railTitle: 'This week', wide: true });
+    const pg = shell({ title: 'Picture of the Day', desc: 'Featured images from Wikimedia Commons', railTitle: 'This week', wide: true });
     pg.text.append(loading('Loading pictures…'));
     if (!mount(pg.root, token)) return;
     setStatus('Loading pictures…', true);
@@ -728,7 +728,7 @@
 
   // ---------- on this day ----------
   async function viewOnThisDay(token) {
-    const pg = shell({ kicker: 'TIMELINE', title: `On this day: ${longDate()}`, desc: 'Events, births, and deaths from across history', railTitle: 'Categories', wide: true });
+    const pg = shell({ title: `On this day: ${longDate()}`, desc: 'Events, births, and deaths from across history', railTitle: 'Categories', wide: true });
     pg.text.append(loading('Consulting the almanac…'));
     if (!mount(pg.root, token)) return;
     setStatus('Consulting the almanac…', true);
@@ -763,7 +763,7 @@
 
   // ---------- games ----------
   function viewGames(token) {
-    const pg = shell({ kicker: 'GAMES', title: 'Games', desc: 'Play and learn with challenges drawn from the encyclopedia', railTitle: 'Games', wide: true });
+    const pg = shell({ title: 'Games', desc: 'Play and learn with challenges drawn from the encyclopedia', railTitle: 'Games', wide: true });
     const games = E2KGames.list;
     pg.railIn.append(...games.map((g) => railLink(g.name, () => go(route('game', g.id)))),
       h('hr'), h('div', { class: 'note' }, 'More games are on the way.'));
@@ -788,7 +788,7 @@
   // ---------- activities ----------
   let activityFilter = 'All';
   function viewActivities(token) {
-    const pg = shell({ kicker: 'ACTIVITIES', title: 'Activities', desc: 'Interactive tools and explorations', railTitle: 'Activities', wide: true });
+    const pg = shell({ title: 'Activities', desc: 'Interactive tools and explorations', railTitle: 'Activities', wide: true });
     // Grouped by subject (see E2KActivities.categories); activities without a category go in "More".
     const groups = [...E2KActivities.categories, 'More']
       .map((cat) => [cat, E2KActivities.list.filter((a) => (E2KActivities.categories.includes(a.category) ? a.category : 'More') === cat)])
@@ -848,7 +848,7 @@
   function showError(err, name, arg, token) {
     const offline = !navigator.onLine;
     const notFound = err.status === 404;
-    const pg = shell({ kicker: 'NOTICE', title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
+    const pg = shell({ title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
     pg.text.append(h('div', { class: 'errbox' },
       h('b', {}, offline ? 'You’re offline' : notFound ? `There’s no article called “${arg}”` : 'This page couldn’t be loaded'),
       offline ? 'Encyclopedia 2000 retrieves its articles from Wikipedia, so it needs an internet connection.'

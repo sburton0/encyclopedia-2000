@@ -1,7 +1,6 @@
 /* ---------- World Explorer ---------- */
 .wx { position: absolute; inset: 0; overflow: hidden; color: #fff; background: var(--scene); }
 .wx-head { position: absolute; left: 24px; top: 14px; right: 380px; display: flex; align-items: flex-end; gap: 18px; z-index: 3; }
-.wx-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .wx-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; white-space: nowrap; }
 .wx-find { display: flex; margin-left: auto; margin-bottom: 3px; white-space: nowrap; }
 .wx-field { position: relative; }

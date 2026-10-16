@@ -109,7 +109,7 @@
       h('button', { class: 'pt-fam all', onclick: () => setFilter(null) }, 'Show all'));
 
     const canvas = h('div', { class: 'pt-canvas' },
-      h('div', { class: 'pt-head' }, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'Periodic Table')),
+      h('div', { class: 'pt-head' }, h('h1', {}, 'Periodic Table')),
       card,
       ELEMENTS.map(tileFor),
       ph('57–71', 6, 'lanthanide'), ph('89–103', 7, 'actinide'),

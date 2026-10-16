@@ -68,7 +68,7 @@
     const foot = h('div', { class: 'act-panel ll-foot' });
     root.append(
       h('div', { class: 'act-head' },
-        h('div', {}, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'Lifelines')),
+        h('div', {}, h('h1', {}, 'Lifelines')),
         h('div', { class: 'll-add' }, h('div', { class: 'act-field' }, input, sug), h('button', { class: 'go', onclick: () => addTyped() }, 'Add'))),
       h('div', { class: 'll-sets' }, h('span', {}, 'Try a set:'), setBtns, h('button', { class: 'act-chip clr', onclick: () => { list = []; selected = null; markSet(null); save(); draw(); } }, 'Clear All')),
       chart, foot);

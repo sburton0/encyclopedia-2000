@@ -51,7 +51,7 @@
     const list = h('div', { class: 'act-scroll' });
     root.append(
       h('div', { class: 'act-head' },
-        h('div', {}, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'The Day You Were Born')),
+        h('div', {}, h('h1', {}, 'The Day You Were Born')),
         h('div', { class: 'bd-pick' }, 'Your birthday', month, day, year, h('button', { class: 'go', onclick: () => show() }, 'Show Me'))),
       h('div', { class: 'bd-body' }, left, h('div', { class: 'act-panel' }, tabs, list)));
 

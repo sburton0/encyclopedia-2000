@@ -8,7 +8,6 @@
 .pt-holder { position: absolute; inset: 0; overflow: hidden; }
 .pt-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); color: #fff; }
 .pt-head { position: absolute; left: 30px; top: 14px; }
-.pt-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .pt-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; }
 
 .pt-el { position: absolute; width: 43px; height: 43px; padding: 0; border: 1px solid rgba(0, 0, 0, .45); border-radius: 3px; color: #141a2e;
@@ -51,7 +50,6 @@
 /* ---------- Shared pieces for the newer activities ---------- */
 .act { color: #fff; background: var(--scene); }
 .act-head { position: absolute; left: 24px; top: 14px; right: 24px; display: flex; align-items: flex-end; gap: 18px; z-index: 2; }
-.act-head small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
 .act-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; white-space: nowrap; }
 .act-panel { min-height: 0; display: flex; flex-direction: column; overflow: hidden;
              background: linear-gradient(rgba(var(--glass), .82), rgba(var(--glass), .62)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .3); }

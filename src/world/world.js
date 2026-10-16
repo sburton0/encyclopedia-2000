@@ -114,7 +114,7 @@ window.E2KWorld = (() => {
     const card = h('div', { class: 'wx-card' });
     const el = h('div', { class: 'wx' },
       h('div', { class: 'wx-head' },
-        h('div', {}, h('small', {}, 'WORLD EXPLORER'), h('h1', {}, 'Countries of the World')),
+        h('div', {}, h('h1', {}, 'Countries of the World')),
         h('div', { class: 'wx-find' }, h('div', { class: 'wx-field' }, input, sugBox), h('button', { class: 'go', onclick: () => findBest() }, 'Go'))),
       h('div', { class: 'wx-regions' }, regionBtns,
         h('button', { class: 'wx-chip rnd', title: 'Pick a country at random', onclick: () => randomCountry() }, api.icon('dice'), 'Random Country')),

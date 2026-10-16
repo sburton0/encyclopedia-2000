@@ -139,7 +139,7 @@
     const step = (n) => { month += n; if (month < 0) { month = 11; year--; } if (month > 11) { month = 0; year++; } sel = Math.min(sel, new Date(year, month + 1, 0).getDate()); draw(); };
     const card = h('div', { class: 'act-card ac-card' });
     root.append(
-      h('div', { class: 'act-head' }, h('div', {}, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'Almanac Calendar'))),
+      h('div', { class: 'act-head' }, h('div', {}, h('h1', {}, 'Almanac Calendar'))),
       h('div', { class: 'ac-cal' },
         h('div', { class: 'ac-bar' },
           h('button', { class: 'act-chip', title: 'Previous month', onclick: () => step(-1) }, '‹'), title,

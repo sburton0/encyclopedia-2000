@@ -184,7 +184,6 @@
 /* ---------- Classic Gray: gray page bands and rails ---------- */
 [data-theme="classic"] .band { background: #c0c0c0; color: #000; border-bottom: 2px solid #808080; }
 [data-theme="classic"] .band > svg { display: none; }
-[data-theme="classic"] .band .t small { color: #000080; }
 [data-theme="classic"] .band h1 { color: #000; text-shadow: none; }
 [data-theme="classic"] .band .desc { color: #404040; }
 [data-theme="classic"] .band .bbtn { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #404040 #404040 #fff; }
@@ -202,7 +201,6 @@
 
 /* ---------- Library: keep the band's text readable over the books ---------- */
 [data-theme="library"] .band .t { text-shadow: 0 1px 3px #1a0e05, 0 0 12px #2a1608; }
-[data-theme="library"] .band .t small { color: #ffe2a0; }
 
 /* ---------- Night skies for games (Star Chart), darker than the bright scenes ---------- */
 :root[data-theme="sunset"] { --night: linear-gradient(#140a24 0%, #2b1238 50%, #4a1d3c 85%, #6b2c4a 100%); }

@@ -142,7 +142,7 @@
       s.append(pole);
 
       const canvas = h('div', { class: 'sc-canvas' }, s,
-        h('div', { class: 'sc-title' }, h('small', {}, 'GAMES'), h('h1', {}, 'Star Chart'),
+        h('div', { class: 'sc-title' }, h('h1', {}, 'Star Chart'),
           h('p', {}, 'Answer questions to light each star. Chart all six constellations to reach the Pole Star.')),
         hud());
       show(canvas);

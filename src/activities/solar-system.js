@@ -117,7 +117,7 @@
     const card = h('div', { class: 'act-card ss-card' });
     root.append(
       h('div', { class: 'ss-map' }, map),
-      h('div', { class: 'act-head ss-head' }, h('div', {}, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'The Solar System'))),
+      h('div', { class: 'act-head ss-head' }, h('div', {}, h('h1', {}, 'The Solar System'))),
       dateEl,
       h('div', { class: 'ss-ctl' }, playBtn, h('span', { class: 'lbl' }, 'Speed'), speedBtns,
         h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today')),

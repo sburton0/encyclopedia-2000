@@ -159,7 +159,7 @@
     const mapBox = h('div', { class: 'wc-map' }, h('div', { class: 'wc-loading' }, 'Loading the map…'));
     const card = h('div', { class: 'act-card wc-card' });
     root.append(
-      h('div', { class: 'act-head' }, h('div', {}, h('small', {}, 'ACTIVITIES'), h('h1', {}, 'World Clock'))),
+      h('div', { class: 'act-head' }, h('div', {}, h('h1', {}, 'World Clock'))),
       mapBox,
       h('div', { class: 'wc-hint' }, 'The shaded side of the Earth is in night right now. Click a city to add or remove its clock. Scroll to zoom, drag to move.'),
       card);
