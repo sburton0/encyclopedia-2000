@@ -1,8 +1,8 @@
 /* ---------- World Explorer ---------- */
 .wx { position: absolute; inset: 0; overflow: hidden; color: #fff; background: var(--scene); }
-.wx-head { position: absolute; left: 24px; top: 14px; right: 380px; display: flex; align-items: flex-end; gap: 18px; z-index: 3; }
+.wx-head { position: absolute; left: 24px; top: 0; right: 380px; height: 82px; display: flex; align-items: center; gap: 18px; z-index: 3; }
 .wx-head h1 { margin: 0; font: 300 30px/1.1 "Segoe UI"; white-space: nowrap; }
-.wx-find { display: flex; margin-left: auto; margin-bottom: 3px; white-space: nowrap; }
+.wx-find { display: flex; margin-left: auto; white-space: nowrap; }
 .wx-field { position: relative; }
 .wx-field input { width: 190px; height: 24px; padding: 0 8px; border: 1px solid #4a5262; background: #0a0c10; color: #fff; font: 12px "Segoe UI"; outline: none; }
 .wx-field input:focus { border-color: var(--orange); }
