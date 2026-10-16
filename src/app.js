@@ -904,12 +904,13 @@
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
   const WHATS_NEW = {
-    version: '0.2',
-    name: '0.2 Beta',
+    version: '0.3',
+    name: '0.3 Beta',
     items: [
-      ['Themes', `Give Encyclopedia 2000 a new look, from Aurora and Ocean to Library and Classic Gray. Find them under ${MAC ? 'Encyclopedia 2000' : 'Tools'} › Themes.`],
-      ['Now on Mac and Linux', 'Share Encyclopedia 2000 with friends on any computer. Downloads are at encyclopedia2000.com.'],
-      ['Fixes and improvements', 'Drag any dialog by its title bar, plus smaller fixes throughout.'],
+      ['World Clock', 'See where it’s day and night right now, and keep clocks for the cities you care about.'],
+      ['Almanac Calendar', 'Moon phases, sunrise and sunset, and the seasons for any city, with history from each day.'],
+      ['Activities by subject', 'Activities are now grouped into Science, History, and Geography, with buttons to show just one.'],
+      ['Fixes and improvements', 'A 24-hour clock option, theme artwork that fills any window, and cleaner page headers.'],
     ],
   };
   const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
