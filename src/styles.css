@@ -193,7 +193,7 @@ button { font-family: inherit; cursor: default; }
 /* ---------- home ---------- */
 .home { position: absolute; inset: 0; overflow: hidden; }
 .home-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); }
-.home-canvas > svg { position: absolute; left: 0; top: 0; width: 1024px; height: 610px; overflow: visible; pointer-events: none; }
+.home-art { position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none; }
 .home .brand { position: absolute; left: 34px; top: 24px; color: #fff; }
 .home .brand small { display: block; margin-bottom: -2px; font: 300 22px "Segoe UI"; }
 .home .brand .y { font: 600 64px/1 "Segoe UI"; letter-spacing: 2px; }

@@ -154,9 +154,15 @@ window.E2KThemes = (() => {
   }
 
   // ---------- the Home screen (1024 × 610) ----------
-  function homeArt(art) {
+  // The art is drawn in the Home canvas's own units, so it lines up with the Picture of the Day and the panels. `box` is the
+  // part of that space the window shows: wider or taller than 1024 × 610 when the window's shape differs, so backgrounds
+  // (stars, rays, shelves, dunes) are drawn out to the edges instead of stopping at the canvas.
+  function homeArt(art, box = { x: 0, y: 0, w: 1024, h: 610 }) {
     const rnd = seeded(7);
     const W = 1024, H = 610;
+    const { x: X, y: Y, w: BW, h: BH } = box;
+    const area = (w, h) => Math.max(1, (w * h) / (W * H)); // keeps star and bubble density steady as the area grows
+    const across = (fn) => { const g = el('g', { transform: `translate(${X} ${Y})` }); fn(g); art.append(g); };
     switch (current) {
       case 'bloom': {
         const bloom = el('g', { transform: 'translate(563 158)', filter: 'url(#soft)' });
@@ -167,28 +173,38 @@ window.E2KThemes = (() => {
         break;
       }
       case 'aurora':
-        stars(art, rnd, 160, W, H, 1.2);
+        across((g) => stars(g, rnd, Math.round(160 * area(BW, BH)), BW, BH, 1.2));
         nebula(art, 820, 420, 260, 150, '#b06bff', .55);
         nebula(art, 300, 380, 200, 120, '#ff6fae', .35);
-        auroraRibbons(art, W, 0);
+        across((g) => auroraRibbons(g, BW, -Y));
         ringedPlanet(art, 380, 74, 30);
         break;
       case 'sunset':
         sun(art, 563, 170, 175);
-        dunes(art, W, H);
+        // The dunes keep their height on the canvas and run out to both sides and down to the bottom of the window.
+        [[.77, '#7a2f4a', .7], [.85, '#4a1d3c', .85]].forEach(([f, c, o], i) => {
+          const y = H * f, x0 = X, w = BW, bottom = Y + BH;
+          art.append(el('path', { d: `M ${x0} ${y} C ${x0 + w * .18} ${y - 40} ${x0 + w * .33} ${y + 30} ${x0 + w * .51 + i * 100} ${y - 10} S ${x0 + w * .84} ${y - 50} ${x0 + w} ${y} L ${x0 + w} ${bottom} L ${x0} ${bottom} Z`, fill: c, opacity: o }));
+        });
         break;
       case 'disc':
         cd(art, 563, 158, 158);
         break;
       case 'ocean':
-        rays(art, W, H, 9);
-        bubbles(art, rnd, 40, W, 120, 480, false);
+        across((g) => rays(g, BW, BH, Math.max(9, Math.round(9 * BW / W))));
+        across((g) => bubbles(g, rnd, Math.round(40 * area(BW, BH)), BW, Math.max(0, 120 - Y), BH - Math.max(0, 120 - Y), false));
         break;
-      case 'library':
-        bookshelf(art, rnd, W, -8, 76);
-        bookshelf(art, rnd, W, 76, 78);
-        bookshelf(art, rnd, W, 560, 50);
+      case 'library': {
+        // The original three shelves, then more shelves stacked above and below to fill a taller window.
+        const g = el('g', { transform: `translate(${X} 0)` });
+        bookshelf(g, rnd, BW, -8, 76);
+        bookshelf(g, rnd, BW, 76, 78);
+        bookshelf(g, rnd, BW, 560, 50);
+        for (let y = -8 - 86; y + 86 > Y; y -= 86) bookshelf(g, rnd, BW, y, 78);
+        for (let y = 618; y < Y + BH; y += 86) bookshelf(g, rnd, BW, y, 78);
+        art.append(g);
         break;
+      }
       default: // classic: a plain desktop
     }
   }

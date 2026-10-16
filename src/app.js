@@ -318,8 +318,9 @@
   const orb = (id) => ORBS.find((o) => o.id === id);
 
   function viewHome(token) {
-    const art = svg('svg', { viewBox: '0 0 1024 610' });
-    E2KThemes.homeArt(art);
+    // The theme's artwork fills the whole window behind the canvas (see fitHome), so square and very wide windows don't
+    // show plain bands around it.
+    const art = svg('svg', { class: 'home-art', viewBox: '0 0 1024 610', preserveAspectRatio: 'none' });
 
     const dial = h('button', { class: 'dial', title: 'Picture of the Day', onclick: () => go('gallery') });
     const dialCap = h('span', {}, 'Loading…');
@@ -330,7 +331,6 @@
     const almList = h('div', { class: 'list' }, h('div', { class: 'muted' }, 'Loading…'));
 
     const canvas = h('div', { class: 'home-canvas' },
-      art,
       h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '2000'), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
       dial,
       h('div', { class: 'dialcap' }, h('b', {}, 'PICTURE OF THE DAY'), h('br'), dialCap),
@@ -342,7 +342,7 @@
       h('div', { class: 'panel alm' }, h('h3', {}, 'Almanac'), h('div', { class: 'd' }, longDate().toUpperCase()), almList,
         h('button', { class: 'more', onclick: () => go('onthisday') }, 'See all of today’s events ›')),
     );
-    if (!mount(h('div', { class: 'home' }, canvas), token)) return;
+    if (!mount(h('div', { class: 'home' }, art, canvas), token)) return;
     fitHome();
     setStatus('Gathering today’s discoveries…', true);
 
@@ -379,9 +379,24 @@
     });
   }
 
+  let homeBox = '';
   function fitHome() {
     const c = $('.home-canvas');
-    if (c) c.style.setProperty('--s', Math.min(MAX_CANVAS, view.clientWidth / 1024, view.clientHeight / 610));
+    if (!c) return;
+    const vw = view.clientWidth, vh = view.clientHeight;
+    const s = Math.min(MAX_CANVAS, vw / 1024, vh / 610);
+    c.style.setProperty('--s', s);
+    // The part of the canvas's 1024 × 610 space the window shows; the artwork is drawn out to its edges.
+    const art = $('.home-art');
+    if (!art || !s) return;
+    const w = vw / s, hh = vh / s;
+    const box = { x: 512 - w / 2, y: 305 - hh / 2, w, h: hh };
+    art.setAttribute('viewBox', `${box.x} ${box.y} ${box.w} ${box.h}`);
+    const key = [E2KThemes.current(), Math.round(box.w), Math.round(box.h)].join(',');
+    if (key === homeBox && art.childNodes.length) return;
+    homeBox = key;
+    art.replaceChildren();
+    E2KThemes.homeArt(art, box);
   }
   new ResizeObserver(fitHome).observe(view);
 
