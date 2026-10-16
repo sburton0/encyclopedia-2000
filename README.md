@@ -1,22 +1,24 @@
 # Encyclopedia 2000
 
-[![Download for Windows](https://img.shields.io/badge/Download-Windows-f5a623?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/sburton0/encyclopedia-2000/releases/latest)
+[![Download for Windows, Mac, and Linux](https://img.shields.io/badge/Download-Windows%20%C2%B7%20Mac%20%C2%B7%20Linux-f5a623?style=for-the-badge)](https://encyclopedia2000.com/#download)
 [![Join the Discord](https://img.shields.io/badge/Join%20the-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.encyclopedia2000.com)
 
-A free desktop encyclopedia for Windows, inspired by the CD-ROM reference software of the early 2000s and powered by today's Wikipedia. Articles, pictures, and history come live from Wikipedia.
+A free desktop encyclopedia for Windows, Mac, and Linux, inspired by the CD-ROM reference software of the early 2000s and powered by today's Wikipedia. Articles, pictures, and history come live from Wikipedia.
 
-**Version 0.1 is a public beta.** Your feedback shapes what comes next.
+**Version 0.2 is a public beta.** Your feedback shapes what comes next.
 
 ## Download
 
-Get the newest version from the [Releases page](https://github.com/sburton0/encyclopedia-2000/releases/latest). There are two versions; choose **one**:
+Get the newest version from [encyclopedia2000.com](https://encyclopedia2000.com/#download) or the [Releases page](https://github.com/sburton0/encyclopedia-2000/releases/latest). Choose **one** file for your computer:
 
-| File | Choose this if… |
-| --- | --- |
-| **Encyclopedia-2000-Installer-….exe** | You want it installed like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
-| **Encyclopedia-2000-Portable-….exe** | You'd rather not install anything. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, but you download it yourself. |
+| Computer | File | Notes |
+| --- | --- | --- |
+| **Windows** | **Encyclopedia-2000-Installer-….exe** | Recommended. Installs like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
+| Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, but you download it yourself. |
+| **Mac** | **Encyclopedia-2000-….dmg** | Open it and drag Encyclopedia 2000 to Applications. Updates automatically. For Apple Silicon and Intel Macs. |
+| **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. It tells you when a new version is out. |
 
-Requires Windows 10 or 11 (64-bit) and an internet connection.
+Requires Windows 10 or 11 (64-bit), macOS 13 Ventura or later, or 64-bit Linux, and an internet connection. On Linux, Read Aloud needs text-to-speech voices; if none are installed, run `sudo apt install speech-dispatcher espeak-ng`.
 
 ## Feedback
 
@@ -55,7 +57,7 @@ Planned for future versions:
 - **Reading:** offline reading, more languages, a full history, notes and favorites folders, and search improvements
 - **Look and sound:** pronunciations and spoken articles, and videos in Media
 - **Content:** more games and activities, and better Star Chart questions
-- **Platforms:** accessibility improvements, macOS and Linux versions, and the Microsoft Store
+- **Platforms:** accessibility improvements, the Microsoft Store, and Flathub for Linux
 
 ## Building from source
 
