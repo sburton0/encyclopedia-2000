@@ -186,6 +186,7 @@
   E2KActivities.register({
     id: 'periodic-table',
     name: 'Periodic Table',
+    category: 'Science',
     blurb: 'Explore all 118 chemical elements, colored by family, with details and a summary of each one from the encyclopedia.',
     art, mount,
   });

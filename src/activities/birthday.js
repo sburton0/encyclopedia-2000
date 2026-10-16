@@ -158,6 +158,7 @@
   E2KActivities.register({
     id: 'birthday',
     name: 'The Day You Were Born',
+    category: 'History',
     blurb: 'Enter your birthday to see what happened that day, how many days you’ve been alive, and which famous people share your birthday.',
     art, mount,
   });

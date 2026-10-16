@@ -1,7 +1,7 @@
 // Tools > Options: a tabbed settings dialog with OK, Cancel, and Apply.
 // Changes are staged in `draft` and only saved on OK or Apply. "Clear" and "Reset" act immediately.
 window.E2KOptions = (() => {
-  const RENDERER_KEYS = ['theme', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
+  const RENDERER_KEYS = ['theme', 'clock24', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
 
   async function open(api, tab) {
     const { h, store } = api;
@@ -15,6 +15,7 @@ window.E2KOptions = (() => {
       hardwareAcceleration: main.hardwareAcceleration !== false,
       autoUpdate: main.autoUpdate !== false,
       theme: store.get('theme', 'bloom'),
+      clock24: store.get('clock24', false),
       startupSound: store.get('startupSound', true),
       startOn: store.get('startOn', 'home'),
       volume: Math.round(E2KAudio.getVolume() * 100),
@@ -180,7 +181,9 @@ window.E2KOptions = (() => {
     });
     const appearance = h('div', { class: 'opane' },
       group('Theme', h('div', { class: 'themes' }, picks), themeNote,
-        h('p', { class: 'onote' }, 'Themes change the colors, the Home screen, and the startup screen. Articles always stay easy to read.')));
+        h('p', { class: 'onote' }, 'Themes change the colors, the Home screen, and the startup screen. Articles always stay easy to read.')),
+      group('Clock', radios('clock24', 'o-clock', [[false, '12-hour (9:30 PM)'], [true, '24-hour (21:30)']]),
+        h('p', { class: 'onote' }, 'For the clock in the status bar, the World Clock, and sunrise and sunset times.')));
 
     const TABS = [['Startup', startup], ['Appearance', appearance], ['Sound', sound], ['Reading', reading], ['Privacy', privacy]];
     const tabBtns = TABS.map(([label], i) => h('button', { class: 'otab', role: 'tab', onclick: () => show(i) }, label));
@@ -197,7 +200,7 @@ window.E2KOptions = (() => {
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
       main.autoUpdate = draft.autoUpdate;
-      ['theme', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
+      ['theme', 'clock24', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);
       E2KAudio.setMuted(draft.muted);

@@ -179,6 +179,7 @@
   E2KActivities.register({
     id: 'solar-system',
     name: 'The Solar System',
+    category: 'Science',
     blurb: 'Watch the planets circle the Sun in an animated model, and click any world to compare its size, its day and year, and its moons.',
     art, mount,
   });

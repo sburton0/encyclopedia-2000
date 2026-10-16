@@ -123,7 +123,7 @@
   addEventListener('online', updateNet);
   addEventListener('offline', updateNet);
   updateNet();
-  const tick = () => { $('#clock').textContent = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+  const tick = () => { $('#clock').textContent = new Date().toLocaleTimeString('en-US', E2KTime.opts()); };
   tick();
   setInterval(tick, 15000);
 
@@ -144,11 +144,16 @@
   setFontScale(store.get('fontScale', 1));
 
   // Article font and animations, from Options.
+  let clockShown = null;
   function applyPrefs() {
     const before = E2KThemes.current();
     E2KThemes.apply(store.get('theme', 'bloom'));
     // A new theme redraws the screen you're on, since its artwork is drawn when a screen opens.
-    if (E2KThemes.current() !== before && nav.idx >= 0) setTimeout(() => reload(), 0);
+    // So does switching between 12-hour and 24-hour time, so every clock on the screen updates at once.
+    const clock = E2KTime.is24();
+    if ((E2KThemes.current() !== before || (clockShown !== null && clock !== clockShown)) && nav.idx >= 0) setTimeout(() => reload(), 0);
+    clockShown = clock;
+    if (typeof tick === 'function') tick();
     document.documentElement.dataset.font = store.get('articleFont', 'serif');
     document.documentElement.classList.toggle('no-anim', !store.get('animations', true));
   }
@@ -766,13 +771,33 @@
   }
 
   // ---------- activities ----------
+  let activityFilter = 'All';
   function viewActivities(token) {
     const pg = shell({ kicker: 'ACTIVITIES', title: 'Activities', desc: 'Interactive tools and explorations', railTitle: 'Activities', wide: true });
-    const list = E2KActivities.list;
-    pg.railIn.append(...list.map((a) => railLink(a.name, () => go(route('activity', a.id)))));
-    pg.text.append(h('div', { class: 'gcards' }, list.map((a) => h('button', { class: 'gcard', onclick: () => go(route('activity', a.id)) },
+    // Grouped by subject (see E2KActivities.categories); activities without a category go in "More".
+    const groups = [...E2KActivities.categories, 'More']
+      .map((cat) => [cat, E2KActivities.list.filter((a) => (E2KActivities.categories.includes(a.category) ? a.category : 'More') === cat)])
+      .filter(([, items]) => items.length);
+    const open = (a) => go(a.route || route('activity', a.id));
+    const card = (a) => h('button', { class: 'gcard', onclick: () => open(a) },
       h('div', { class: 'gart' }, a.art ? a.art(E2K) : null),
-      h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, ''), h('span', { class: 'gplay' }, 'Open ›')))))));
+      h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, ''), h('span', { class: 'gplay' }, 'Open ›'))));
+    const sections = groups.map(([cat, items], i) => {
+      pg.railIn.append(...(i ? [h('hr')] : []), h('h4', {}, cat), ...items.map((a) => railLink(a.name, () => open(a), 'sub')));
+      const sec = h('section', { class: 'act-group', 'data-cat': cat }, h('h3', {}, cat, h('span', {}, `${items.length} ${items.length === 1 ? 'activity' : 'activities'}`)),
+        h('div', { class: 'gcards' }, items.map(card)));
+      pg.text.append(sec);
+      return sec;
+    });
+    // Subject buttons in the header, styled like World Explorer's region buttons. The choice is kept for the session.
+    const chips = ['All', ...groups.map(([cat]) => cat)].map((cat) => h('button', { class: 'wx-chip', onclick: () => filter(cat) }, cat));
+    function filter(cat) {
+      activityFilter = cat;
+      chips.forEach((c) => c.classList.toggle('on', c.textContent === cat));
+      sections.forEach((sec) => { sec.hidden = cat !== 'All' && sec.dataset.cat !== cat; });
+    }
+    pg.toolsEl.append(...chips);
+    filter(groups.some(([cat]) => cat === activityFilter) ? activityFilter : 'All');
     mount(pg.root, token);
     setIdle();
   }
@@ -780,6 +805,7 @@
   function viewActivity(id, token) {
     const activity = E2KActivities.get(id);
     if (!activity) throw Object.assign(new Error('Activity not found'), { status: 404 });
+    if (activity.route) return go(activity.route, { replace: true });
     const root = h('div', { class: 'game-root' });
     if (!mount(root, token)) return;
     gameCleanup = activity.mount(root, E2K) || null;

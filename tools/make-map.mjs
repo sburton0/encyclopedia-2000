@@ -150,6 +150,8 @@ for (const [r, [w, s, e, n]] of Object.entries(REGION_BOXES)) {
 
 const data = {
   w: W, h: H, views,
+  // The projection's scale and center, so other screens (such as the World Clock) can place points on the same map.
+  proj: { scale: +projection.scale().toFixed(4), translate: projection.translate().map((n) => +n.toFixed(4)) },
   grid: draw({ type: 'GeometryCollection', geometries: graticule }),
   inert: draw({ type: 'FeatureCollection', features: inert }) || '',
   countries,

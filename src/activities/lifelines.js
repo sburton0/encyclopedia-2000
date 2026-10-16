@@ -262,6 +262,7 @@
   E2KActivities.register({
     id: 'lifelines',
     name: 'Lifelines',
+    category: 'History',
     blurb: 'See famous lives side by side on one timeline. Did Newton and Bach live at the same time? Point at any year to find out.',
     art, mount,
   });
