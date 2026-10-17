@@ -300,10 +300,13 @@ app.whenReady().then(() => {
   main.once('ready-to-show', () => { mainReady = true; reveal(); });
   ipcMain.once('splash-done', () => { splashDone = true; reveal(); });
   splash.on('closed', () => { splashDone = true; reveal(); });
-  // The startup screen normally finishes itself within 6 seconds. If its page crashes or stops drawing (seen in a Linux
-  // virtual machine without a graphics card, where the window stayed solid blue), move on to the main window anyway.
+  // The startup screen normally finishes itself 6.5 seconds after its page loads. If its page crashes or stops drawing
+  // (seen in a Linux virtual machine without a graphics card, where the window stayed solid blue), move on to the main
+  // window anyway. The wait counts from when the page loads, since on a slow first start (the portable version, or a
+  // fresh Windows Sandbox) loading alone can take seconds, and counting from the start cut the jingle short.
   const skipSplash = () => { if (!splashDone) { splashDone = true; reveal(); } };
-  setTimeout(skipSplash, 9000);
+  splash.webContents.once('did-finish-load', () => setTimeout(skipSplash, 9000));
+  setTimeout(skipSplash, 30000);
   splash.webContents.on('render-process-gone', skipSplash);
   splash.on('unresponsive', skipSplash);
   captureLater(env.E2K_CAPTURE_WIN === 'splash' ? splash : main);
