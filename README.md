@@ -5,7 +5,7 @@
 
 A free desktop encyclopedia for Windows, Mac, and Linux, inspired by the CD-ROM reference software of the early 2000s and powered by today's Wikipedia. Articles, pictures, and history come live from Wikipedia.
 
-**Version 0.2 is a public beta.** Your feedback shapes what comes next.
+**Version 0.3 is a public beta.** Your feedback shapes what comes next.
 
 ## Download
 
