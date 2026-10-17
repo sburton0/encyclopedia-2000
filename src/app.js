@@ -401,7 +401,7 @@
   new ResizeObserver(fitHome).observe(view);
 
   // ---------- page shell ----------
-  function shell({ title = '', desc = '', railTitle = '', wide = false, tools = [] }) {
+  function shell({ title = '', desc = '', railTitle = '', wide = false, tools = [], article = false }) {
     const railArt = svg('svg', { viewBox: '0 0 230 600', preserveAspectRatio: 'xMidYMax slice' });
     E2KThemes.railArt(railArt);
 
@@ -414,19 +414,20 @@
     const dsc = h('div', { class: 'desc' }, desc);
     const toolsEl = h('div', { class: 'tools' }, tools);
     const tEl = h('div', { class: 't' }, h1, dsc);
+    const band = h('header', { class: 'band' + (article ? ' article' : '') }, bandArt, tEl, toolsEl);
+    // An article's title is centered in the space between the bottom of its buttons and the bottom of the header.
+    if (article) new ResizeObserver(() => band.style.setProperty('--tools-bottom', (toolsEl.offsetTop + toolsEl.offsetHeight) + 'px')).observe(toolsEl);
     const text = h('div', { class: 'text' });
     const media = h('aside', { class: 'media' });
     const content = h('div', { class: 'content' + (wide ? ' wide' : '') }, text, wide ? null : media);
     const root = h('div', { class: 'page' },
       h('aside', { class: 'rail' }, railArt, railIn),
       h('section', { class: 'art' },
-        h('header', { class: 'band' }, bandArt, tEl, toolsEl),
+        band,
         content));
-    // Keep the title clear of the header's buttons: a long title ends with "…" just before them (its full text is in a tooltip).
-    new ResizeObserver(() => { tEl.style.right = (toolsEl.offsetWidth ? toolsEl.offsetWidth + 14 + 20 : 22) + 'px'; }).observe(toolsEl);
     return {
       root, railIn, text, media, content, toolsEl,
-      setTitle(t, d) { h1.textContent = t; h1.title = t; dsc.textContent = d || ''; },
+      setTitle(t, d) { h1.textContent = t; h1.title = t; dsc.textContent = d || ''; band.classList.toggle('no-desc', !d); },
     };
   }
   const bandBtn = (label, onclick, ic) => h('button', { class: 'bbtn', onclick }, ic ? icon(ic) : null, label);
@@ -525,7 +526,7 @@
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
     const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
-    const pg = shell({ title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn] });
+    const pg = shell({ title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn], article: true });
     pg.text.append(loading('Retrieving article…'));
     if (!mount(pg.root, token)) return;
     setStatus(`Retrieving “${title}”…`, true);
