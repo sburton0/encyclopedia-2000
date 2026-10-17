@@ -291,22 +291,44 @@ app.whenReady().then(() => {
   }
 
   const splash = createSplash();
+  // Development aid: E2K_DEBUG_START=1 prints each startup step with its time, for diagnosing a stuck startup screen.
+  const t0 = Date.now();
+  const log = (m) => { if (env.E2K_DEBUG_START) console.log(`[startup +${Date.now() - t0} ms] ${m}`); };
+  if (env.E2K_DEBUG_START) {
+    splash.once('ready-to-show', () => log('startup screen drawn'));
+    splash.webContents.once('did-finish-load', () => log('startup page loaded'));
+    main.webContents.once('did-finish-load', () => log('main page loaded'));
+    app.on('child-process-gone', (_e, d) => log(`${d.type} process gone: ${d.reason}`));
+  }
   let splashDone = false, mainReady = false;
+  let forced = false, revealed = false;
   const reveal = () => {
-    if (!splashDone || !mainReady || main.isDestroyed()) return;
+    // If the main window still hasn't drawn a few seconds after the startup screen is done, show it anyway rather
+    // than leave the startup screen up forever.
+    if (splashDone && !mainReady && !forced) { forced = true; setTimeout(() => { if (!mainReady) log('main window never drew; showing it anyway'); mainReady = true; reveal(); }, 5000); }
+    if (!splashDone || !mainReady || revealed || main.isDestroyed()) return;
+    revealed = true;
+    log('main window shown');
     present(main);
     if (!splash.isDestroyed()) splash.destroy();
   };
-  main.once('ready-to-show', () => { mainReady = true; reveal(); });
-  ipcMain.once('splash-done', () => { splashDone = true; reveal(); });
+  main.once('ready-to-show', () => { log('main window drawn'); mainReady = true; reveal(); });
+  // On Linux with Wayland, a hidden window may not draw (and so never be "ready to show") until it's shown, which
+  // left the startup screen up for good in an Ubuntu virtual machine. Its page having loaded is enough to go on.
+  main.webContents.once('did-finish-load', () => setTimeout(() => { if (!mainReady) { log('main page loaded but not drawn; showing it'); mainReady = true; reveal(); } }, 500));
+  ipcMain.once('splash-done', () => { log('startup screen finished'); splashDone = true; reveal(); });
   splash.on('closed', () => { splashDone = true; reveal(); });
-  // The startup screen normally finishes itself 6.5 seconds after its page loads. If its page crashes or stops drawing
-  // (seen in a Linux virtual machine without a graphics card, where the window stayed solid blue), move on to the main
-  // window anyway. The wait counts from when the page loads, since on a slow first start (the portable version, or a
-  // fresh Windows Sandbox) loading alone can take seconds, and counting from the start cut the jingle short.
-  const skipSplash = () => { if (!splashDone) { splashDone = true; reveal(); } };
-  splash.webContents.once('did-finish-load', () => setTimeout(skipSplash, 9000));
-  setTimeout(skipSplash, 30000);
+  // The startup screen normally finishes itself 6.5 seconds after its page loads. If its page never loads, crashes, or
+  // stops drawing (seen in a Linux virtual machine without a graphics card, where the window stayed solid blue), move
+  // on to the main window after 9 seconds. A page that loaded slowly (the portable version, or a fresh Windows
+  // Sandbox) gets 9 seconds from when it loaded instead, so its jingle isn't cut short.
+  const skipSplash = (why = 'timed out') => { if (!splashDone) { log(`startup screen skipped (${typeof why === 'string' ? why : 'stopped'})`); splashDone = true; reveal(); } };
+  let loadedAt = 0;
+  splash.webContents.once('did-finish-load', () => { loadedAt = Date.now(); });
+  setTimeout(() => {
+    if (!loadedAt) skipSplash();
+    else setTimeout(skipSplash, Math.max(0, loadedAt + 9000 - Date.now()));
+  }, 9000);
   splash.webContents.on('render-process-gone', skipSplash);
   splash.on('unresponsive', skipSplash);
   captureLater(env.E2K_CAPTURE_WIN === 'splash' ? splash : main);
