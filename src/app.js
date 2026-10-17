@@ -433,6 +433,23 @@
   const bandBtn = (label, onclick, ic) => h('button', { class: 'bbtn', onclick }, ic ? icon(ic) : null, label);
   const railLink = (label, onclick, cls = '') => h('button', { class: 'lnk ' + cls, onclick }, label);
   const loading = (msg) => h('div', { class: 'loading' }, msg);
+  // A rail section that folds from its heading, showing a short summary while it's closed. Whether each section
+  // is open is remembered across articles.
+  function railSection(title, summary, kids) {
+    const isShut = () => store.get('railShut', []).includes(title);
+    const head = h('h4', { class: 'fold', role: 'button', tabindex: 0 }, title, h('span', { class: 'n' }, summary));
+    const body = h('div', { class: 'rbody' }, kids);
+    const show = (shut) => { body.hidden = shut; head.classList.toggle('shut', shut); head.setAttribute('aria-expanded', String(!shut)); };
+    const toggle = () => {
+      const shut = !body.hidden;
+      show(shut);
+      store.set('railShut', [...store.get('railShut', []).filter((t) => t !== title), ...(shut ? [title] : [])]);
+    };
+    head.addEventListener('click', toggle);
+    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    show(isShut());
+    return h('section', { class: 'rsec' }, head, body);
+  }
 
   // ---------- article ----------
   const DROP_SECTIONS = /^(references|notes|citations|sources|bibliography|further reading|external links|footnotes|works cited|notes and references|references and notes|explanatory notes)$/i;
@@ -526,7 +543,7 @@
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
     const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
-    const pg = shell({ title, railTitle: 'In this article', tools: [speakBtn, favBtn, wikiBtn], article: true });
+    const pg = shell({ title, tools: [speakBtn, favBtn, wikiBtn], article: true });
     pg.text.append(loading('Retrieving article…'));
     if (!mount(pg.root, token)) return;
     setStatus(`Retrieving “${title}”…`, true);
@@ -558,10 +575,12 @@
       const target = pg.text.querySelector('#' + CSS.escape(id));
       if (target) pg.content.scrollTo({ top: target.offsetTop - pg.content.offsetTop - 10, behavior: 'smooth' });
     })));
-    pg.railIn.append(...tocLinks);
+    const tocSec = railSection('In this article', `${tocLinks.length} sections`, tocLinks);
+    pg.railIn.append(tocSec);
     if (related.length) {
-      pg.railIn.append(h('hr'), h('h4', {}, 'Related articles'), ...related.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub')));
+      pg.railIn.append(railSection('Related articles', `${related.length} articles`, related.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub'))));
     }
+    mediaBox(canon, token).then((box) => { if (box && live(token)) tocSec.after(box); }, () => {});
     pg.content.addEventListener('scroll', () => {
       const y = pg.content.scrollTop + 40;
       let active = 0;
@@ -1039,6 +1058,228 @@
     document.body.append(ov);
   }
 
+  // ---------- media: an article's pictures, videos, and sounds ----------
+  // Everything comes from Wikimedia Commons. Videos and sounds load only when opened, and follow the app's volume.
+  const clock = (sec) => {
+    const s = Math.max(0, Math.round(sec || 0));
+    const hh = Math.floor(s / 3600), mm = Math.floor(s / 60) % 60, ss = String(s % 60).padStart(2, '0');
+    return hh ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+  };
+  const noUtm = (u) => https(u || '').replace(/\?utm_[^#]*$/, '');
+  const fileName = (file) => file.replace(/^File:/, '').replace(/\.[a-z0-9]+$/i, '').replace(/_/g, ' ');
+  const KIND = { image: 'Picture', video: 'Video', audio: 'Sound' };
+
+  // The best WebM version up to 720p (Chromium no longer plays Ogg Theora video).
+  function videoSource(sources) {
+    const webm = sources.filter((s) => /webm/.test(s.mime)).map((s) => {
+      const url = noUtm(s.url);
+      return { url, px: Number(/\.(\d+)p\.webm$/.exec(url)?.[1] || s.height) || 0 };
+    }).sort((a, b) => b.px - a.px);
+    return (webm.find((s) => s.px <= 720) || webm[webm.length - 1])?.url || '';
+  }
+  function creditOf(ii) {
+    const md = ii?.extmetadata || {};
+    let artist = decodeHtml(strip(md.Artist?.value || '')).replace(/\s+/g, ' ').trim();
+    if (artist.length > 90) artist = artist.slice(0, 88) + '…';
+    return [artist, md.LicenseShortName?.value, 'From Wikimedia Commons'].filter(Boolean).join(' · ');
+  }
+
+  // The article's media in page order. Recordings that read the whole article aloud are left out (they belong
+  // with Read Aloud), and so are the small icons Wikipedia keeps out of its own galleries.
+  async function articleMedia(title) {
+    const items = [];
+    for (const it of (await Wiki.mediaList(title)).items || []) {
+      const caption = (it.caption?.text || '').trim();
+      if (it.type === 'image') {
+        if (!it.showInGallery || !it.srcset?.length) continue;
+        const src = it.srcset.map((s) => noUtm(s.src));
+        items.push({ type: 'image', file: it.title, caption, thumb: src[0], large: src[src.length - 1] });
+      } else if (it.type === 'video' || (it.type === 'audio' && it.audio_type !== 'spoken')) {
+        items.push({ type: it.type, file: it.title, caption, sources: it.sources || [] });
+      }
+    }
+    const av = items.filter((m) => m.type !== 'image');
+    for (let i = 0; i < av.length; i += 50) {
+      const batch = av.slice(i, i + 50);
+      const info = await Wiki.fileInfo(batch.map((m) => m.file));
+      for (const m of batch) {
+        const ii = info[m.file];
+        if (!ii) continue;
+        m.duration = ii.duration || 0;
+        m.credit = creditOf(ii);
+        if (m.type === 'video') {
+          m.thumb = noUtm(ii.thumburl);
+          m.src = videoSource(m.sources);
+        } else {
+          const url = noUtm(ii.url);
+          // MIDI files can't play directly, but Commons keeps an MP3 of each one.
+          m.src = /midi/.test(ii.mime) ? url.replace(/\/commons\/(\w\/\w\w)\/([^/]+)$/, '/commons/transcoded/$1/$2/$2.mp3') : url;
+        }
+      }
+    }
+    return items.filter((m) => m.type === 'image' || m.src);
+  }
+
+  // Bars that suggest a sound's waveform. They aren't its real shape, but each file gets its own.
+  function waveform(seed, n = 14) {
+    let x = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const w = h('span', { class: 'wave' });
+    for (let i = 0; i < n; i++) {
+      x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+      w.append(h('i', { style: `height:${25 + ((x >>> 16) % 76)}%` }));
+    }
+    return w;
+  }
+  function mediaTile(m, onclick) {
+    const label = m.caption || fileName(m.file);
+    return h('button', { class: 'mt ' + m.type, style: m.type === 'audio' ? null : bg(m.thumb), title: label, onclick },
+      m.type === 'audio' ? [waveform(m.file), h('span', { class: 'lbl' }, label)] : null,
+      m.type === 'image' ? null : h('b', {}, (m.type === 'video' ? '▶︎ ' : '♪︎ ') + clock(m.duration)));
+  }
+
+  // The Media box in an article's rail: counts, nine tiles, and "See all".
+  async function mediaBox(title, token) {
+    const items = await articleMedia(title);
+    if (!live(token)) return null;
+    const of = (type) => items.filter((m) => m.type === type);
+    const [pictures, videos, sounds] = [of('image'), of('video'), of('audio')];
+    if (!videos.length && !sounds.length && pictures.length < 2) return null;
+    // Up to two videos and two sounds go in fixed places among the pictures, so they're easy to spot.
+    const featured = [videos[0], sounds[0], videos[1], sounds[1], videos[2], sounds[2], videos[3], sounds[3]].filter(Boolean).slice(0, 4);
+    const mixed = [];
+    for (let i = 0, p = 0, f = 0; i < 9; i++) {
+      const m = ([0, 1, 6, 8].includes(i) && featured[f] ? featured[f++] : pictures[p++] || featured[f++]);
+      if (m) mixed.push(m);
+    }
+    // The counts double as filters when there's more than one kind: click one to show only that kind, again for all.
+    const kinds = [['image', pictures, 'picture', 'pictures'], ['video', videos, 'video', 'videos'], ['audio', sounds, 'sound', 'sounds']]
+      .filter(([, list]) => list.length);
+    const grid = h('div', { class: 'mbox' });
+    const all = railLink('', null, 'sub mall');
+    let only = null;
+    const counts = kinds.map(([type, list, one, many]) => {
+      const label = [h('b', {}, list.length), ' ' + (list.length === 1 ? one : many)];
+      if (kinds.length < 2) return h('span', {}, label);
+      return h('button', { title: `Show only ${many}`, onclick: () => show(only === type ? null : type) }, label);
+    });
+    function show(type) {
+      only = type;
+      counts.forEach((c, i) => {
+        c.classList.toggle('on', kinds[i][0] === type);
+        if (c.tagName === 'BUTTON') c.title = kinds[i][0] === type ? 'Show everything' : `Show only ${kinds[i][3]}`;
+      });
+      const list = type ? items.filter((m) => m.type === type) : items;
+      const [, , one, many] = kinds.find(([t]) => t === type) || [, , 'item', 'items'];
+      grid.replaceChildren(...(type ? list.slice(0, 9) : mixed).map((m) => mediaTile(m, () => mediaViewer(list, list.indexOf(m), true))));
+      all.textContent = `See all ${list.length} ${type ? (list.length === 1 ? one : many) : ''} ›`.replace('  ', ' ');
+      all.onclick = () => mediaViewer(list, 0);
+    }
+    show(null);
+    return railSection('Media', `${items.length} items`, [h('div', { class: 'mcount' }, counts), grid, all]);
+  }
+
+  // The viewer: one picture, video, or sound at a time, with a strip of the article's other media.
+  function mediaViewer(items, start, autoplay = false) {
+    closeOverlays();
+    let at = -1, el = null;
+    const kind = h('span', { class: 'vt' });
+    const pos = h('span', { class: 'pos' });
+    const stage = h('div', { class: 'mstage' });
+    const playBtn = h('button', { class: 'pb', title: 'Play', onclick: () => playPause() }, icon('play'));
+    const cur = h('span', {}, '0:00'), dur = h('span', {}, '0:00');
+    const fill = h('i');
+    const bar = h('div', { class: 'bar' }, fill);
+    const volB = h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol'));
+    const controls = h('div', { class: 'ctl' }, playBtn, cur, bar, dur, volB);
+    const credit = h('div', { class: 'credit' });
+    const strip = h('div', { class: 'mstrip' }, items.map((m, i) => mediaTile(m, () => show(i, true))));
+    const prev = h('button', { class: 'nav prev', title: 'Previous', onclick: () => show(at - 1) }, '‹');
+    const next = h('button', { class: 'nav next', title: 'Next', onclick: () => show(at + 1) }, '›');
+    const ov = h('div', { class: 'overlay mview', onmousedown: (e) => { if (e.target === ov) ov.remove(); } },
+      h('div', { class: 'mviewer', role: 'dialog' },
+        h('div', { class: 'dt' }, kind, pos, h('button', { class: 'x', title: 'Close', onclick: () => ov.remove() }, '✕')),
+        h('div', { class: 'stagewrap' }, stage, prev, next), controls, credit, strip));
+
+    function playPause() {
+      if (!el) return;
+      if (el.paused || el.ended) el.play().catch(() => {}); else el.pause();
+    }
+    function seek(e) {
+      const r = bar.getBoundingClientRect();
+      const d = el?.duration || items[at].duration;
+      if (el && d) el.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * d;
+    }
+    bar.addEventListener('pointerdown', (e) => { bar.setPointerCapture(e.pointerId); seek(e); });
+    bar.addEventListener('pointermove', (e) => { if (bar.hasPointerCapture(e.pointerId)) seek(e); });
+
+    function show(i, play = false) {
+      if (i < 0 || i >= items.length) return;
+      at = i;
+      const m = items[i];
+      const label = m.caption || fileName(m.file);
+      kind.textContent = `${KIND[m.type]} · ${label}`;
+      kind.title = label;
+      pos.textContent = `${i + 1} of ${items.length}`;
+      prev.hidden = i === 0;
+      next.hidden = i === items.length - 1;
+      [...strip.children].forEach((t, j) => t.classList.toggle('on', j === i));
+      strip.children[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      stage.className = 'mstage ' + m.type;
+      stage.replaceChildren();
+      el = null;
+      if (m.type === 'image') {
+        stage.append(h('img', { src: m.large, alt: label }));
+      } else {
+        el = h(m.type, { src: m.src, preload: play ? 'auto' : 'none', poster: m.type === 'video' ? m.thumb : null });
+        el.volume = E2KAudio.level();
+        const tick = () => {
+          const d = el.duration || m.duration;
+          cur.textContent = clock(el.currentTime);
+          fill.style.width = d ? (100 * el.currentTime / d) + '%' : '0';
+        };
+        const state = () => {
+          const playing = !el.paused && !el.ended;
+          playBtn.querySelector('use').setAttribute('href', '#i-' + (playing ? 'pause' : 'play'));
+          playBtn.title = playing ? 'Pause' : 'Play';
+          stage.classList.toggle('playing', playing);
+        };
+        el.addEventListener('timeupdate', tick);
+        el.addEventListener('loadedmetadata', () => { if (el.duration && isFinite(el.duration)) dur.textContent = clock(el.duration); });
+        el.addEventListener('play', () => { speechStop(); state(); });
+        el.addEventListener('pause', state);
+        el.addEventListener('ended', state);
+        el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
+        if (m.type === 'video') {
+          el.addEventListener('click', playPause);
+          stage.append(el, h('button', { class: 'big', title: 'Play', onclick: playPause }, icon('play')));
+        } else {
+          stage.append(waveform(m.file, 48), h('div', { class: 'lbl' }, label), h('button', { class: 'big', title: 'Play', onclick: playPause }, icon('play')), el);
+        }
+        dur.textContent = clock(m.duration);
+        tick();
+        state();
+        if (play) el.play().catch(() => {});
+      }
+      controls.hidden = !el;
+      credit.textContent = m.credit || '';
+      if (m.credit === undefined) {
+        m.credit = '';
+        Wiki.fileInfo([m.file]).then((info) => { m.credit = creditOf(info[m.file]); if (items[at] === m) credit.textContent = m.credit; }, () => {});
+      }
+    }
+
+    const onKey = (e) => {
+      if (!ov.isConnected) { document.removeEventListener('keydown', onKey); return; }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); show(at - 1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); show(at + 1); }
+      else if (e.key === ' ' && el && !e.target.closest('button')) { e.preventDefault(); playPause(); }
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.append(ov);
+    updateVolume();
+    show(start, autoplay);
+  }
+
   // ---------- favorites, recent, read aloud ----------
   const favs = () => store.get('favorites', []);
   const isFav = () => !!current && favs().some((f) => f.title === current.title);
@@ -1318,7 +1559,8 @@
     const pct = Math.round(E2KAudio.getVolume() * 100);
     const muted = E2KAudio.isMuted();
     const ic = muted ? 'mute' : pct < 50 ? 'vol-low' : 'vol';
-    [volBtn, volMute].forEach((b) => b.querySelector('use').setAttribute('href', '#i-' + ic));
+    [volBtn, volMute, ...$$('.mviewer .vb')].forEach((b) => b.querySelector('use').setAttribute('href', '#i-' + ic));
+    $$('video, audio').forEach((m) => { m.volume = E2KAudio.level(); });
     volRange.value = pct;
     volRange.style.setProperty('--p', pct + '%');
     $('#volpct').textContent = muted ? 'Muted' : pct + '%';

@@ -198,6 +198,13 @@
 [data-theme="classic"] .rail .lnk:hover, [data-theme="classic"] .rail .lnk.sub:hover { color: #000080; }
 [data-theme="classic"] .rail .lnk.on { background: #000080; color: #fff; border-left-color: #000080; }
 [data-theme="classic"] .rail .note { color: #404040; }
+[data-theme="classic"] .rail .rsec + .rsec { border-top-color: #808080; }
+[data-theme="classic"] .rail h4.fold::before, [data-theme="classic"] .rail h4.fold .n, [data-theme="classic"] .rail .mcount { color: #404040; }
+[data-theme="classic"] .rail .mcount b { color: #000; }
+[data-theme="classic"] .rail .mcount button:hover { color: #000080; }
+[data-theme="classic"] .rail .mcount button.on { background: #000080; color: #fff; box-shadow: none; }
+[data-theme="classic"] .rail .mcount button.on b { color: #fff; }
+[data-theme="classic"] .mbox .mt { border-color: #808080; }
 
 /* ---------- Library: keep the band's text readable over the books ---------- */
 [data-theme="library"] .band .t { text-shadow: 0 1px 3px #1a0e05, 0 0 12px #2a1608; }
