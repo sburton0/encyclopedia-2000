@@ -28,7 +28,8 @@ function findTool(dir, relative) {
   throw new Error(`Couldn't find ${dir} in ${root}. See the setup steps at the top of tools/sign.js.`);
 }
 
-function sign(file) {
+function sign(files) {
+  files = [].concat(files);
   if (process.env.E2K_SKIP_SIGNING) return;
   const dlib = findTool('Microsoft.Trusted.Signing.Client', (v) => path.join(v, 'bin', 'x64', 'Azure.CodeSigning.Dlib.dll'));
   const signtool = findTool('Microsoft.Windows.SDK.BuildTools', (v) => {
@@ -53,7 +54,7 @@ function sign(file) {
   try {
     execFileSync(signtool, ['sign', '/v', '/fd', 'SHA256', '/tr', TIMESTAMP, '/td', 'SHA256',
       '/d', 'Encyclopedia 2000', '/du', 'https://github.com/sburton0/encyclopedia-2000',
-      '/dlib', dlib, '/dmdf', metaFile, file], { stdio: 'inherit', env });
+      '/dlib', dlib, '/dmdf', metaFile, ...files], { stdio: 'inherit', env });
   } finally {
     fs.rmSync(metaFile, { force: true });
   }
@@ -61,4 +62,5 @@ function sign(file) {
 
 // electron-builder passes { path, ... }; running `node tools/sign.js <file>` signs one file by hand.
 module.exports = async (configuration) => sign(configuration.path);
-if (require.main === module) sign(path.resolve(process.argv[2]));
+module.exports.sign = sign;
+if (require.main === module) sign(process.argv.slice(2).map((f) => path.resolve(f)));

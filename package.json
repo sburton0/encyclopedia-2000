@@ -13,8 +13,8 @@
     "icons": "electron tools/make-icons.js",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
     "map": "node tools/make-map.mjs",
-    "dist": "electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
-    "release": "electron-builder --win --publish always -c.electronDist=node_modules/electron/dist",
+    "dist": "node tools/sign-nsis-plugins.js && electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
+    "release": "node tools/sign-nsis-plugins.js && electron-builder --win --publish always -c.electronDist=node_modules/electron/dist",
     "stats": "node tools/stats.mjs",
     "dist:mac": "electron-builder --mac --publish never",
     "release:mac": "electron-builder --mac --publish always",
@@ -69,6 +69,9 @@
         }
       ],
       "icon": "build/icon.ico",
+      "signExts": [
+        ".dll"
+      ],
       "signtoolOptions": {
         "sign": "./tools/sign.js",
         "signingHashAlgorithms": [
