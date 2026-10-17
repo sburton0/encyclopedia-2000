@@ -1253,7 +1253,7 @@
       [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
     else if (s.state === 'available' && s.kind === 'deb') {
       // Ubuntu's App Center won't replace an app that's already installed, so updating takes one command in a terminal.
-      const cmd = `sudo apt install ~/Downloads/Encyclopedia-2000-${s.version}-linux-x64.deb`;
+      const cmd = `sudo apt install ~/Downloads/${s.file || `Encyclopedia-2000-${s.version}-linux-amd64.deb`}`;
       const copy = h('button', { class: 'bbtn', onclick: () => { navigator.clipboard.writeText(cmd).catch(() => {}); copy.textContent = 'Copied'; } }, 'Copy');
       dialog(title, 'A new version is available', [
         `Version ${prettyVersion(s.version)} is ready to download. Download the new .deb file, then open a terminal and run:`,

@@ -4,7 +4,7 @@
 <component type="desktop-application">
   <id>com.svid.encyclopedia2000</id>
   <name>Encyclopedia 2000</name>
-  <summary>The CD-ROM encyclopedia, reborn with today's Wikipedia</summary>
+  <summary>The CD-ROM encyclopedia, reborn with Wikipedia</summary>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <developer id="com.encyclopedia2000">
@@ -25,7 +25,6 @@
   <icon type="stock">encyclopedia-2000</icon>
   <categories>
     <category>Education</category>
-    <category>Reference</category>
   </categories>
   <url type="homepage">https://encyclopedia2000.com</url>
   <url type="bugtracker">https://github.com/sburton0/encyclopedia-2000/issues</url>

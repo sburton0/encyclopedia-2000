@@ -129,7 +129,7 @@
       ],
       "icon": "build/icon.png",
       "category": "Education",
-      "synopsis": "The CD-ROM encyclopedia, reborn with today's Wikipedia",
+      "synopsis": "The CD-ROM encyclopedia, reborn with Wikipedia",
       "maintainer": "Encyclopedia 2000 <6220356+sburton0@users.noreply.github.com>",
       "artifactName": "Encyclopedia-2000-${version}-linux-${arch}.${ext}"
     },

@@ -25,7 +25,7 @@ function setup({ getWindow, isEnabled }) {
   // Development aid: E2K_FAKE_UPDATE=ready shows the "ready to install" message without a real update.
   // E2K_FAKE_KIND=deb or portable picks which "available" message to show.
   if (process.env.E2K_FAKE_UPDATE) {
-    const fake = () => ({ state: process.env.E2K_FAKE_UPDATE, version: '0.4.0-beta', kind: process.env.E2K_FAKE_KIND || KIND });
+    const fake = () => ({ state: process.env.E2K_FAKE_UPDATE, version: '0.4.0-beta', kind: process.env.E2K_FAKE_KIND || KIND, file: 'Encyclopedia-2000-0.4.0-beta-linux-amd64.deb' });
     ipcMain.handle('update:state', fake);
     ipcMain.handle('update:check', fake);
     ipcMain.handle('update:install', () => {});
@@ -48,7 +48,9 @@ function setup({ getWindow, isEnabled }) {
 
   autoUpdater.on('checking-for-update', () => send({ state: 'checking' }));
   autoUpdater.on('update-not-available', () => send({ state: 'none' }));
-  autoUpdater.on('update-available', (i) => send(PORTABLE ? { state: 'available', version: i.version, kind: KIND } : { state: 'downloading', version: i.version, percent: 0 }));
+  autoUpdater.on('update-available', (i) => send(PORTABLE
+    ? { state: 'available', version: i.version, kind: KIND, file: (i.files || []).map((f) => f.url).find((u) => /\.deb$/.test(u || '')) || '' }
+    : { state: 'downloading', version: i.version, percent: 0 }));
   autoUpdater.on('download-progress', (p) => send({ ...state, state: 'downloading', percent: Math.round(p.percent) }));
   autoUpdater.on('update-downloaded', (i) => send({ state: 'ready', version: i.version }));
   autoUpdater.on('error', (err) => {
