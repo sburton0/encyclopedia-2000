@@ -1162,13 +1162,13 @@
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
   const WHATS_NEW = {
-    version: '0.3',
-    name: '0.3 Beta',
+    version: '0.4',
+    name: '0.4 Beta',
     items: [
-      ['World Clock', 'See where it’s day and night right now, and keep clocks for the cities you care about.'],
-      ['Almanac Calendar', 'Moon phases, sunrise and sunset, and the seasons for any city, with history from each day.'],
-      ['Activities by subject', 'Activities are now grouped into Science, History, and Geography, with buttons to show just one.'],
-      ['Fixes and improvements', 'A 24-hour clock option, theme artwork that fills any window, and cleaner page headers.'],
+      ['Videos and sounds', 'Watch videos and hear sounds right in articles, and browse every picture, video, and sound in the new Media box.'],
+      ['Hear it spoken', 'Hear how a subject’s name is pronounced, and listen to recordings read by Wikipedia volunteers in Read Aloud.'],
+      ['Media of the Day', 'Media now has Video and Sound tabs, with a video chosen each day and famous recordings to explore.'],
+      ['Fixes and improvements', 'Articles fill the window with slightly larger text, pages load faster, and updating on Linux is easier.'],
     ],
   };
   const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
