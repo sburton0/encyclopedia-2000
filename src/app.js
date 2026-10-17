@@ -856,7 +856,7 @@
     const stage = h('div', { class: 'mstage ' + m.type });
     const el = h(m.type, { src: m.src, preload: 'none', poster: m.type === 'video' ? m.thumb : null });
     const parts = playerParts();
-    const controls = h('div', { class: 'ctl' }, parts.pb, parts.cur, parts.bar, parts.tot, h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol')));
+    const controls = h('div', { class: 'ctl' }, parts.pb, parts.cur, parts.bar, parts.tot, ...volControl());
     const toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => stage.classList.toggle('playing', on) });
     el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
     const big = h('button', { class: 'big', title: 'Play', onclick: toggle }, icon('play'));
@@ -1474,6 +1474,13 @@
     state();
     return toggle;
   }
+  // The volume control for media players: a mute button and a slider, kept in step with the toolbar's volume.
+  function volControl() {
+    const range = h('input', { type: 'range', class: 'vr', min: 0, max: 100, title: 'Volume' });
+    range.addEventListener('input', () => { E2KAudio.setVolume(range.value / 100); updateVolume(); });
+    range.addEventListener('keydown', (e) => e.stopPropagation());
+    return [h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol')), range];
+  }
   const playerParts = () => {
     const fill = h('i');
     return { pb: h('button', { class: 'pb' }, icon('play')), fill, bar: h('div', { class: 'bar' }, fill), cur: h('span', {}, '0:00'), tot: h('span', {}, '0:00') };
@@ -1565,7 +1572,7 @@
       } else {
         const el = h(m.type, { src: m.src, preload: play ? 'auto' : 'none', poster: m.type === 'video' ? m.thumb : null });
         const parts = playerParts();
-        controls.append(parts.pb, parts.cur, parts.bar, parts.tot, h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol')));
+        controls.append(parts.pb, parts.cur, parts.bar, parts.tot, ...volControl());
         toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => stage.classList.toggle('playing', on) });
         el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
         const big = h('button', { class: 'big', title: 'Play', onclick: toggle }, icon('play'));
@@ -1970,6 +1977,7 @@
     const muted = E2KAudio.isMuted();
     const ic = muted ? 'mute' : pct < 50 ? 'vol-low' : 'vol';
     [volBtn, volMute, ...$$('.mviewer .vb')].forEach((b) => b.querySelector('use').setAttribute('href', '#i-' + ic));
+    $$('.mviewer .vr').forEach((r) => { r.value = pct; r.style.setProperty('--p', pct + '%'); r.classList.toggle('muted', muted); });
     $$('video, audio').forEach((m) => { m.volume = E2KAudio.level(); });
     volRange.value = pct;
     volRange.style.setProperty('--p', pct + '%');
