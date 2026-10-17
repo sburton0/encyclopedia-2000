@@ -5,7 +5,7 @@
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
   "homepage": "https://encyclopedia2000.com",
   "author": "Scott Burton",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "main": "main.js",
   "scripts": {
     "setup": "npm install && node node_modules/electron/install.js",

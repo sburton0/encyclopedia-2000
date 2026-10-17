@@ -1,8 +1,8 @@
 # Name and icon
 
-The source code of Encyclopedia 2000 is open under the [MIT License](LICENSE). The project's name and icon are not.
+The source code of Encyclopedia 2000 is open under the [GNU General Public License v3.0 or later](LICENSE). The project's name and icon are not.
 
-**Not covered by the MIT License (all rights reserved by Scott Burton):**
+**Not covered by the GPL (all rights reserved by Scott Burton):**
 
 - The name **"Encyclopedia 2000"** when used as the name of an app, product, or project
 - The **Book in Bloom** icon: `src/icon.svg`, `src/icon-small.svg`, and the icon files generated from them in `build/`
