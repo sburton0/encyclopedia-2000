@@ -23,9 +23,11 @@ function setup({ getWindow, isEnabled }) {
   };
 
   // Development aid: E2K_FAKE_UPDATE=ready shows the "ready to install" message without a real update.
+  // E2K_FAKE_KIND=deb or portable picks which "available" message to show.
   if (process.env.E2K_FAKE_UPDATE) {
-    ipcMain.handle('update:state', () => ({ state: process.env.E2K_FAKE_UPDATE, version: '0.1.0-beta.2' }));
-    ipcMain.handle('update:check', () => ({ state: process.env.E2K_FAKE_UPDATE, version: '0.1.0-beta.2' }));
+    const fake = () => ({ state: process.env.E2K_FAKE_UPDATE, version: '0.4.0-beta', kind: process.env.E2K_FAKE_KIND || KIND });
+    ipcMain.handle('update:state', fake);
+    ipcMain.handle('update:check', fake);
     ipcMain.handle('update:install', () => {});
     return;
   }

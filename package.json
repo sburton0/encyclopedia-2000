@@ -129,9 +129,12 @@
       ],
       "icon": "build/icon.png",
       "category": "Education",
-      "synopsis": "The CD-ROM encyclopedia, reborn with today’s Wikipedia",
+      "synopsis": "The CD-ROM encyclopedia, reborn with today's Wikipedia",
       "maintainer": "Encyclopedia 2000 <6220356+sburton0@users.noreply.github.com>",
       "artifactName": "Encyclopedia-2000-${version}-linux-${arch}.${ext}"
+    },
+    "deb": {
+      "fpm": ["build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml"]
     },
     "publish": [
       {

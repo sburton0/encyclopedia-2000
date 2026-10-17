@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- AppStream details for Linux software centers (Ubuntu's App Center, GNOME Software, KDE Discover).
+     Installed by the .deb to /usr/share/metainfo (see "deb" in package.json). -->
+<component type="desktop-application">
+  <id>com.svid.encyclopedia2000</id>
+  <name>Encyclopedia 2000</name>
+  <summary>The CD-ROM encyclopedia, reborn with today's Wikipedia</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <developer id="com.encyclopedia2000">
+    <name>Encyclopedia 2000</name>
+  </developer>
+  <description>
+    <p>
+      Encyclopedia 2000 brings back the feel of the early-2000s CD-ROM encyclopedia, filled with today's Wikipedia.
+      Read articles with pictures, videos, and sounds, explore the world on an interactive map, browse history on a
+      timeline, and play learning games and activities.
+    </p>
+    <p>
+      It's free, with no ads and no account, and it collects nothing about you. Articles come live from Wikipedia and
+      Wikimedia Commons.
+    </p>
+  </description>
+  <launchable type="desktop-id">encyclopedia-2000.desktop</launchable>
+  <icon type="stock">encyclopedia-2000</icon>
+  <categories>
+    <category>Education</category>
+    <category>Reference</category>
+  </categories>
+  <url type="homepage">https://encyclopedia2000.com</url>
+  <url type="bugtracker">https://github.com/sburton0/encyclopedia-2000/issues</url>
+  <url type="vcs-browser">https://github.com/sburton0/encyclopedia-2000</url>
+  <content_rating type="oars-1.1" />
+</component>

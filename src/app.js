@@ -1251,9 +1251,17 @@
     const title = 'Check for Updates';
     if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
       [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
-    else if (s.state === 'available') dialog(title, 'A new version is available', [s.kind === 'deb'
-      ? `Version ${prettyVersion(s.version)} is ready to download. Download the new .deb file and open it to install it over this one. Your settings and favorites are kept.`
-      : `Version ${prettyVersion(s.version)} is ready to download. This portable copy can’t update itself, so download the new version and use it in place of this one. Your settings and favorites carry over if you keep its “Encyclopedia 2000 Data” folder next to it.`],
+    else if (s.state === 'available' && s.kind === 'deb') {
+      // Ubuntu's App Center won't replace an app that's already installed, so updating takes one command in a terminal.
+      const cmd = `sudo apt install ~/Downloads/Encyclopedia-2000-${s.version}-linux-x64.deb`;
+      const copy = h('button', { class: 'bbtn', onclick: () => { navigator.clipboard.writeText(cmd).catch(() => {}); copy.textContent = 'Copied'; } }, 'Copy');
+      dialog(title, 'A new version is available', [
+        `Version ${prettyVersion(s.version)} is ready to download. Download the new .deb file, then open a terminal and run:`,
+        h('p', { class: 'cmd' }, h('code', {}, cmd), copy),
+        'Your settings and favorites are kept. (The App Center can’t update an app that’s already installed.)'],
+      [['Download', () => window.e2k.update.install(), true], ['Later']]);
+    } else if (s.state === 'available') dialog(title, 'A new version is available', [
+      `Version ${prettyVersion(s.version)} is ready to download. This portable copy can’t update itself, so download the new version and use it in place of this one. Your settings and favorites carry over if you keep its “Encyclopedia 2000 Data” folder next to it.`],
       [['Download', () => window.e2k.update.install(), true], ['Later']]);
     else if (s.state === 'downloading') dialog(title, 'An update is on its way', [`Version ${prettyVersion(s.version)} is downloading. You’ll see a Restart Now button in the status bar when it’s ready.`]);
     else if (s.state === 'none') dialog(title, 'You’re up to date', [`Encyclopedia 2000 ${prettyVersion((await window.e2k.appInfo()).version)} is the newest version.`]);
