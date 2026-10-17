@@ -62,5 +62,5 @@ function sign(files) {
 
 // electron-builder passes { path, ... }; running `node tools/sign.js <file>` signs one file by hand.
 module.exports = async (configuration) => sign(configuration.path);
-module.exports.sign = sign;
+module.exports.signFiles = sign; // not "sign": electron-builder would call that instead of the default export
 if (require.main === module) sign(process.argv.slice(2).map((f) => path.resolve(f)));

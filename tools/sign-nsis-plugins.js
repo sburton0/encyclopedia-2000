@@ -7,7 +7,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { sign } = require('./sign');
+const { signFiles: sign } = require('./sign');
 
 const cache = path.join(process.env.LOCALAPPDATA || '', 'electron-builder', 'Cache');
 const found = [];
@@ -15,7 +15,7 @@ function walk(dir) {
   for (const e of fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }) : []) {
     const p = path.join(dir, e.name);
     if (e.isDirectory()) walk(p);
-    else if (/\.dll$/i.test(e.name) && /[\/]plugins[\/]x86-unicode[\/]/i.test(p)) found.push(p);
+    else if (/\.dll$/i.test(e.name) && /[\\/]plugins[\\/]x86-unicode[\\/]/i.test(p)) found.push(p);
   }
 }
 for (const name of fs.existsSync(cache) ? fs.readdirSync(cache) : []) if (/^nsis/i.test(name)) walk(path.join(cache, name));
