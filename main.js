@@ -85,6 +85,8 @@ function createMain(route) {
   if (size) win.setBounds({ x: 0, y: 0, width: +size[1], height: +size[2] });
   secure(win);
   win.loadFile(path.join(SRC, 'index.html'), route ? { hash: route } : {});
+  // If the page's process crashes (for example, after a graphics failure), load it again instead of leaving a blank window.
+  win.webContents.on('render-process-gone', (_e, d) => { if (d.reason !== 'clean-exit' && !win.isDestroyed()) win.reload(); });
   win.on('maximize', () => win.webContents.send('maximized', true));
   win.on('unmaximize', () => win.webContents.send('maximized', false));
   // macOS hides the window buttons in full screen, so the title bar drops the space it keeps for them.
@@ -287,6 +289,12 @@ app.whenReady().then(() => {
   main.once('ready-to-show', () => { mainReady = true; reveal(); });
   ipcMain.once('splash-done', () => { splashDone = true; reveal(); });
   splash.on('closed', () => { splashDone = true; reveal(); });
+  // The startup screen normally finishes itself within 6 seconds. If its page crashes or stops drawing (seen in a Linux
+  // virtual machine without a graphics card, where the window stayed solid blue), move on to the main window anyway.
+  const skipSplash = () => { if (!splashDone) { splashDone = true; reveal(); } };
+  setTimeout(skipSplash, 9000);
+  splash.webContents.on('render-process-gone', skipSplash);
+  splash.on('unresponsive', skipSplash);
   captureLater(env.E2K_CAPTURE_WIN === 'splash' ? splash : main);
 });
 
