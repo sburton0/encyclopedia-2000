@@ -105,7 +105,7 @@ The game then appears on the Games page automatically, and its route is `game/<i
 
 ## License
 
-Encyclopedia 2000 is free software, licensed under the [GNU General Public License v3.0 or later](LICENSE). You can use, study, share, and change it; if you distribute a modified version, you must share its source code under the same license. Versions up to 0.3 were released under the MIT License, and those releases remain available under it.
+Encyclopedia 2000 is free software, licensed under the [GNU General Public License v3.0 or later](LICENSE). You can use, study, share, and change it; if you distribute a modified version, you must share its source code under the same license.
 
 The "Encyclopedia 2000" name and the Book in Bloom icon are not covered by the license; see [TRADEMARKS.md](TRADEMARKS.md). Forks are welcome under their own name and icon.
 
