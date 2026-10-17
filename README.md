@@ -5,7 +5,7 @@
 
 A free desktop encyclopedia for Windows, Mac, and Linux, inspired by the CD-ROM reference software of the early 2000s and powered by today's Wikipedia. Articles, pictures, and history come live from Wikipedia.
 
-**Version 0.3 is a public beta.** Your feedback shapes what comes next.
+**Version 0.4 is a public beta.** Your feedback shapes what comes next.
 
 ## Download
 
@@ -16,7 +16,7 @@ Get the newest version from [encyclopedia2000.com](https://encyclopedia2000.com/
 | **Windows** | **Encyclopedia-2000-Installer-….exe** | Recommended. Installs like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
 | Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, but you download it yourself. |
 | **Mac** | **Encyclopedia-2000-….dmg** | Open it and drag Encyclopedia 2000 to Applications. Updates automatically. For Apple Silicon and Intel Macs. |
-| **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. It tells you when a new version is out. |
+| **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. It tells you when a new version is out; install updates the same way with `sudo apt install`. |
 
 Requires Windows 10 or 11 (64-bit), macOS 13 Ventura or later, or 64-bit Linux, and an internet connection. On Linux, Read Aloud needs text-to-speech voices; if none are installed, run `sudo apt install speech-dispatcher espeak-ng`.
 
@@ -26,22 +26,23 @@ Use **Help → Send Feedback** in the app, join the [Discord](https://discord.en
 
 ## Privacy
 
-Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, and game progress stay on your computer. The app connects only to Wikipedia and Wikidata to fetch what you ask for, and to GitHub to check for updates (you can turn that off in Tools → Options → Privacy). Read the full [privacy policy](PRIVACY.md).
+Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, and game progress stay on your computer. The app connects only to Wikipedia, Wikimedia Commons, and Wikidata to fetch what you ask for, and to GitHub to check for updates (you can turn that off in Tools → Options → Privacy). Read the full [privacy policy](PRIVACY.md).
 
 ## Features
 
 - **Splash screen** with an animated bloom and a startup jingle synthesized live with the Web Audio API (no audio files). Click or press a key to skip.
 - **Home screen**: Picture of the Day at the center, today's featured article, an almanac of events from this date, and the Explore shelf of sections.
-- **Articles**: full Wikipedia articles restyled with a contents rail, related articles, lead picture, and quick facts from the infobox. Links open inside the app; external links open in your browser.
+- **Articles**: full Wikipedia articles restyled with a contents rail, related articles, lead picture, and quick facts from the infobox, at Wikipedia's reading width. Links open inside the app; external links open in your browser.
+- **Videos and sounds**: articles play their videos and sounds on the page. The **Media box** in each article's rail shows every picture, video, and sound, with filters, and opens them in a full-size **viewer** with its own controls and credits. A 🔊 button by the title plays the name's pronunciation when Wikipedia has a recording.
 - **Find**: suggestions as you type, full-text search results with "Did you mean…?" spelling suggestions, and a dropdown of recently viewed articles.
-- **Media**: the Picture of the Day for the past week.
+- **Media**: the Picture of the Day for the past week, Wikimedia Commons' **Media of the Day** (a video chosen each day), and **Featured Sounds**: famous speeches, historic recordings, and music.
 - **Timeline**: highlights, events, births, deaths, and holidays for today's date.
 - **Articles (Explore)**: eight random articles; shuffle for more.
 - **Options** (Tools → Options…, or Ctrl+,): skip the startup screen or its sound, choose which page to start on, remember the window size, set the volume, click sounds, and Read Aloud voice and speed, change the text size and article font, turn off animations, clear the recently viewed list, or reset everything.
 - **Themes** (Tools → Themes): Bloom, Aurora, Sunset, CD-ROM, Ocean, Library, and Classic Gray. Each changes the colors, the Home screen artwork and Explore buttons, and the startup screen.
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
-- **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (using your computer's text-to-speech voices), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
+- **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (using your computer's text-to-speech voices, or a Wikipedia volunteer's recorded narration when the article has one), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
 - **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
 - **World Explorer**: a clickable map of 237 countries and territories, with region filters, search, and Random Country. Each country's card shows its flag, capital, population, area, languages, currency, and government, live from Wikidata. Choosing a region shows its area, population, and a clickable list of its countries.
 - **Activities**:
@@ -54,8 +55,8 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 
 Planned for future versions:
 
-- **Reading:** offline reading, more languages, a full history, notes and favorites folders, and search improvements
-- **Look and sound:** pronunciations and spoken articles, and videos in Media
+- **Reading:** offline reading, more languages, notes and favorites folders, and search improvements
+- **Look and feel:** a full history of visited articles, a refreshed toolbar, a new Nebula theme, and a new logo
 - **Content:** more games and activities, and better Star Chart questions
 - **Platforms:** accessibility improvements, the Microsoft Store, and Flathub for Linux
 

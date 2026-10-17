@@ -1,6 +1,6 @@
 {
   "name": "encyclopedia-2000",
-  "version": "0.3.0-beta",
+  "version": "0.4.0-beta",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
   "homepage": "https://encyclopedia2000.com",
@@ -134,7 +134,9 @@
       "artifactName": "Encyclopedia-2000-${version}-linux-${arch}.${ext}"
     },
     "deb": {
-      "fpm": ["build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml"]
+      "fpm": [
+        "build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml"
+      ]
     },
     "publish": [
       {

@@ -1,6 +1,6 @@
 # Encyclopedia 2000 Privacy Policy
 
-**Effective October 11, 2026**
+**Effective October 17, 2026**
 
 Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
@@ -25,7 +25,7 @@ To show you articles and keep itself up to date, the app connects to these servi
 | Service | Why |
 | --- | --- |
 | **Wikipedia** (en.wikipedia.org) | Articles, search, featured content, and "On this day" events |
-| **Wikimedia Commons** (upload.wikimedia.org) | Pictures |
+| **Wikimedia Commons** (upload.wikimedia.org and commons.wikimedia.org) | Pictures, videos, and sounds, and the Media of the Day and Featured Sounds lists |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
 | **GitHub** (github.com) | Checking for and downloading updates |
 
