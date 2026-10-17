@@ -413,7 +413,8 @@
     const h1 = h('h1', {}, title);
     const dsc = h('div', { class: 'desc' }, desc);
     const toolsEl = h('div', { class: 'tools' }, tools);
-    const tEl = h('div', { class: 't' }, h1, dsc);
+    const titleRow = h('div', { class: 'trow' }, h1);
+    const tEl = h('div', { class: 't' }, titleRow, dsc);
     const band = h('header', { class: 'band' + (article ? ' article' : '') }, bandArt, tEl, toolsEl);
     // An article's title is centered in the space between the bottom of its buttons and the bottom of the header.
     if (article) new ResizeObserver(() => band.style.setProperty('--tools-bottom', (toolsEl.offsetTop + toolsEl.offsetHeight) + 'px')).observe(toolsEl);
@@ -440,7 +441,7 @@
         band,
         content));
     return {
-      root, railIn, text, media, content, toolsEl,
+      root, railIn, text, media, content, toolsEl, titleRow,
       setTitle(t, d) { h1.textContent = t; h1.title = t; dsc.textContent = d || ''; band.classList.toggle('no-desc', !d); },
     };
   }
@@ -472,6 +473,15 @@
   function cleanArticle(html) {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const body = doc.body;
+    // A recording of the subject's name, from the first English "listen" button before the first section heading.
+    let pron = null;
+    const firstH2 = body.querySelector('h2');
+    for (const ph of body.querySelectorAll('.ext-phonos')) {
+      if (firstH2 && ph.compareDocumentPosition(firstH2) & Node.DOCUMENT_POSITION_PRECEDING) break;
+      let o = null;
+      try { o = JSON.parse(ph.querySelector('[data-ooui]')?.getAttribute('data-ooui') || 'null'); } catch {}
+      if (o?.href && /^en\b/.test(o.data?.lang || 'en')) { pron = { src: https(o.href), file: o.data?.file || '' }; break; }
+    }
     // Videos become a still picture with a play button, and sounds a small player (mediaSlots brings both to life).
     // "Listen" boxes keep their headings and descriptions.
     const fileOf = (el) => { const r = (el.getAttribute('resource') || '').replace(/^\.\//, ''); try { return decodeURIComponent(r); } catch { return r; } };
@@ -577,7 +587,7 @@
       if (!h2.id) h2.id = 'sec-' + i;
       return { id: h2.id, label: h2.textContent.trim() };
     });
-    return { nodes: [...body.childNodes], facts, toc, related, infoImg };
+    return { nodes: [...body.childNodes], facts, toc, related, infoImg, pron };
   }
 
   async function viewArticle(title, token) {
@@ -599,7 +609,8 @@
 
     const html = await Wiki.html(canon);
     if (!live(token)) return;
-    const { nodes, facts, toc, related, infoImg } = cleanArticle(html);
+    const { nodes, facts, toc, related, infoImg, pron } = cleanArticle(html);
+    if (pron) pg.titleRow.append(pronButton(name, pron.src));
 
     current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
     addRecent(name);
@@ -1279,6 +1290,21 @@
     wireMedia(au, { ...parts, duration: Number(dur) || 0, onState: (on) => box.classList.toggle('playing', on) });
     au.addEventListener('error', () => { box.classList.add('err'); parts.pb.title = 'This sound can’t be played right now.'; }, true);
     return box;
+  }
+
+  // The 🔊 button by an article's title: plays a recording of how the subject's name is said.
+  function pronButton(name, src) {
+    const au = h('audio', { preload: 'none', src });
+    const btn = h('button', { class: 'pron', title: `Hear how “${name}” is pronounced`, onclick: () => {
+      au.volume = E2KAudio.level();
+      if (E2KAudio.isMuted()) setIdle('Sound is muted. Turn up the volume to hear the pronunciation.');
+      au.currentTime = 0;
+      au.play().catch(() => setIdle('The pronunciation can’t be played right now.'));
+    } }, icon('vol'), au);
+    au.addEventListener('play', () => { speechStop(); $$('video, audio').forEach((o) => { if (o !== au) o.pause(); }); btn.classList.add('on'); });
+    au.addEventListener('pause', () => btn.classList.remove('on'));
+    au.addEventListener('ended', () => btn.classList.remove('on'));
+    return btn;
   }
 
   // Brings the article's video and sound placeholders (made in cleanArticle) to life. Videos open in the viewer.

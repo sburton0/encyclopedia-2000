@@ -185,6 +185,9 @@
 [data-theme="classic"] .band { background: #c0c0c0; color: #000; border-bottom: 2px solid #808080; }
 [data-theme="classic"] .band > svg { display: none; }
 [data-theme="classic"] .band h1 { color: #000; text-shadow: none; }
+[data-theme="classic"] .band .pron { background: #c0c0c0; border-color: #808080; color: #000; }
+[data-theme="classic"] .band .pron:hover { background: #d4d0c8; border-color: #000; }
+[data-theme="classic"] .band .pron.on { background: #000080; border-color: #000080; color: #fff; }
 [data-theme="classic"] .band .desc { color: #404040; }
 [data-theme="classic"] .band .bbtn { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #404040 #404040 #fff; }
 [data-theme="classic"] .band .bbtn:hover { background: #d4d4d4; color: #000080; }
