@@ -469,6 +469,29 @@ button { font-family: inherit; cursor: default; }
 .lightbox img { max-width: 88vw; max-height: 78vh; border: 6px solid #fff; box-shadow: 0 10px 40px rgba(0, 0, 0, .7); }
 .lightbox div { max-width: 70vw; margin-top: 10px; text-align: center; font: 13px "Segoe UI"; color: #e6eefc; }
 
+/* Read Aloud's choice of reader, and the recorded narration bar */
+.rmenu { position: fixed; z-index: 60; width: 300px; padding: 4px; background: #16181d; border: 1px solid var(--bar-edge); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+.rmenu .ri { width: 100%; display: flex; gap: 10px; padding: 8px 10px; border: 0; border-radius: 2px; background: none; text-align: left; font: 13px "Segoe UI"; color: #e8e8e8; cursor: pointer; }
+.rmenu .ri:hover, .rmenu .ri:focus-visible { background: var(--ink-2); outline: none; }
+.rmenu .rio { flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .1); color: var(--orange); }
+.rmenu .rio .ic { width: 15px; height: 15px; fill: currentColor; }
+.rmenu .ri b { display: block; font-weight: 600; }
+.rmenu .ri .s { display: block; margin-top: 2px; font-size: 11.5px; line-height: 1.35; color: #9aa6bd; }
+.nbar { flex: none; display: flex; align-items: center; gap: 12px; padding: 8px 24px; background: linear-gradient(var(--ink-1), var(--ink-0)); box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+  font: 12px "Segoe UI"; color: #cfd6e2; font-variant-numeric: tabular-nums; position: relative; z-index: 1; }
+.nbar .ic { fill: currentColor; }
+.nbar .pb { width: 30px; height: 30px; flex: none; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--orange); color: #141a2e; cursor: pointer; }
+.nbar .pb .ic { width: 13px; height: 13px; }
+.nbar .who { flex: none; max-width: 300px; min-width: 0; }
+.nbar .who b { display: block; font-weight: 600; color: #fff; white-space: nowrap; }
+.nbar .who b span { font-weight: 400; color: #aac0e6; }
+.nbar .who > span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; color: #aac0e6; }
+.nbar .bar { position: relative; flex: 1; height: 14px; cursor: pointer; touch-action: none; }
+.nbar .bar::before { content: ""; position: absolute; left: 0; right: 0; top: 5px; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .2); }
+.nbar .bar i { position: absolute; left: 0; top: 5px; height: 4px; border-radius: 2px; background: var(--orange); }
+.nbar .x { flex: none; padding: 2px 6px; background: none; border: 0; font-size: 13px; color: #cfd6e2; cursor: pointer; }
+.nbar .x:hover { color: #fff; }
+
 /* The media viewer */
 .mviewer .ic { fill: currentColor; }
 .mview { background: rgba(0, 0, 0, .82); }

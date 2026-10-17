@@ -25,7 +25,7 @@ window.Wiki = (() => {
     mediaList: (title) => get(`${BASE}/api/rest_v1/page/media-list/${enc(title)}?redirect=true`),
     // Size, length, file address, a still picture, and the credit for up to 50 files ("File:…" titles).
     fileInfo: (files) => get(`${BASE}/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=imageinfo`
-      + `&iiprop=url|size|mime|extmetadata&iiextmetadatafilter=Artist|LicenseShortName&iiurlwidth=480`
+      + `&iiprop=url|size|mime|timestamp|extmetadata&iiextmetadatafilter=Artist|LicenseShortName|DateTimeOriginal&iiurlwidth=480`
       + `&titles=${encodeURIComponent(files.join('|'))}`)
       .then((r) => {
         const names = Object.fromEntries((r.query?.normalized || []).map((n) => [n.to, n.from]));

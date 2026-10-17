@@ -628,6 +628,8 @@
     });
     mediaP.catch(() => {});
     current.media = mediaP;
+    mediaP.then((items) => { if (current?.media === mediaP) current.spoken = items.spoken || []; }, () => {});
+    current.content = pg.content;
     mediaSlots(pg.text, mediaP);
 
     // contents rail
@@ -1153,9 +1155,10 @@
   // The article's media in page order. Recordings that read the whole article aloud are left out (they belong
   // with Read Aloud), and so are the small icons Wikipedia keeps out of its own galleries.
   async function articleMedia(title) {
-    const items = [];
+    const items = [], spoken = [];
     for (const it of (await Wiki.mediaList(title)).items || []) {
       const caption = (it.caption?.text || '').trim();
+      if (it.type === 'audio' && it.audio_type === 'spoken') spoken.push({ file: it.title });
       if (it.type === 'image') {
         if (!it.showInGallery || !it.srcset?.length) continue;
         const src = it.srcset.map((s) => noUtm(s.src));
@@ -1183,7 +1186,29 @@
         }
       }
     }
-    return items.filter((m) => m.type === 'image' || m.src);
+    const out = items.filter((m) => m.type === 'image' || m.src);
+    out.spoken = await narrationOf(spoken).catch(() => []);
+    return out;
+  }
+
+  // A volunteer's recording of the whole article (Spoken Wikipedia), in its parts: where to play each one, how long
+  // it is, who read it, and when.
+  async function narrationOf(parts) {
+    if (!parts.length) return [];
+    parts.sort((a, b) => a.file.localeCompare(b.file, 'en', { numeric: true }));
+    const info = await Wiki.fileInfo(parts.map((p) => p.file));
+    const out = [];
+    for (const p of parts) {
+      const ii = info[p.file];
+      if (!ii?.url) continue;
+      const md = ii.extmetadata || {};
+      const artist = decodeHtml(strip(md.Artist?.value || '')).replace(/\s+/g, ' ').trim();
+      const reader = /Speaker:\s*(.+?)(?:\s+Authors of the article.*)?$/i.exec(artist)?.[1] || (artist.length < 40 && !/author/i.test(artist) ? artist : '');
+      const ym = /(\d{4})-(\d{2})/.exec(strip(md.DateTimeOriginal?.value || '')) || /(\d{4})-(\d{2})/.exec(ii.timestamp || '');
+      const when = ym ? new Date(+ym[1], +ym[2] - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '';
+      out.push({ file: p.file, src: noUtm(ii.url), duration: ii.duration || 0, reader, when });
+    }
+    return out;
   }
 
   // Bars that suggest a sound's waveform. They aren't its real shape, but each file gets its own.
@@ -1415,8 +1440,99 @@
     store.set('recent', list.slice(0, 12));
   }
 
+  // Read Aloud: when the article has a volunteer's recorded narration, ask which to use; otherwise use the computer voice.
   function toggleSpeak() {
     if (speaking) return speechStop();
+    if (current?.spoken?.length) return readAloudMenu();
+    speakComputer();
+  }
+  function readAloudMenu() {
+    if ($('.rmenu')) { $('.rmenu').remove(); return; }
+    const parts = current.spoken;
+    const length = parts.reduce((a, p) => a + p.duration, 0);
+    const hrs = Math.floor(length / 3600), mins = Math.round((length % 3600) / 60);
+    const long = hrs ? `${hrs} hr ${mins} min` : `${Math.max(1, mins)} min`;
+    const when = parts[0].when ? ` in ${parts[0].when}` : '';
+    const item = (ic, title, sub, fn) => h('button', { class: 'ri', onclick: () => { menu.remove(); fn(); } },
+      h('span', { class: 'rio' }, icon(ic)), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
+    const menu = h('div', { class: 'rmenu', role: 'menu' },
+      item('read', 'Computer voice', 'Reads the article as it is today, using your computer’s voice.', speakComputer),
+      item('mic', 'Recorded narration', `Read by a Wikipedia volunteer${when} · ${long}. The article may have changed since.`, () => playNarration(parts)));
+    const anchor = current.speakBtn;
+    const r = anchor.getBoundingClientRect();
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 310)) + 'px';
+    document.body.append(menu);
+    const away = (e) => { if (!menu.contains(e.target) && !anchor.contains(e.target)) { menu.remove(); document.removeEventListener('mousedown', away, true); } };
+    document.addEventListener('mousedown', away, true);
+    menu.querySelector('.ri').focus();
+  }
+
+  // The narration plays in a bar at the top of the article, across all of its parts as if they were one recording.
+  let narration = null;
+  function playNarration(parts) {
+    speechStop();
+    if (!current?.content?.isConnected) return;
+    if (E2KAudio.isMuted()) setIdle('Sound is muted. Turn up the volume to hear the narration.');
+    const total = parts.reduce((a, p) => a + p.duration, 0);
+    const offset = (i) => parts.slice(0, i).reduce((a, p) => a + p.duration, 0);
+    const au = h('audio', { preload: 'auto' });
+    let at = 0;
+    const { pb, bar, fill, cur, tot } = playerParts();
+    const partLbl = h('span');
+    const reader = [parts[0].reader, parts[0].when].filter(Boolean).join(' · ') || 'Read by a Wikipedia volunteer';
+    const el = h('div', { class: 'nbar' }, pb,
+      h('div', { class: 'who' }, h('b', {}, 'Recorded narration', partLbl), h('span', {}, reader)),
+      cur, bar, tot, h('button', { class: 'x', title: 'Stop the narration', onclick: () => speechStop() }, '✕'), au);
+    const load = (i, t = 0, play = true) => {
+      at = i;
+      au.src = parts[i].src;
+      partLbl.textContent = parts.length > 1 ? ` · part ${i + 1} of ${parts.length}` : '';
+      if (t) au.addEventListener('loadedmetadata', () => { au.currentTime = t; }, { once: true });
+      au.volume = E2KAudio.level();
+      if (play) au.play().catch(() => setIdle('The narration can’t be played right now.'));
+    };
+    const tick = () => {
+      const now = offset(at) + au.currentTime;
+      cur.textContent = clock(now);
+      fill.style.width = total ? (100 * now / total) + '%' : '0';
+    };
+    const state = () => {
+      const playing = !au.paused && !au.ended;
+      pb.querySelector('use').setAttribute('href', '#i-' + (playing ? 'pause' : 'play'));
+      pb.title = playing ? 'Pause' : 'Play';
+    };
+    const seek = (e) => {
+      const r = bar.getBoundingClientRect();
+      const target = Math.min(0.999, Math.max(0, (e.clientX - r.left) / r.width)) * total;
+      let i = 0;
+      while (i < parts.length - 1 && target >= offset(i + 1)) i++;
+      if (i === at) au.currentTime = target - offset(i); else load(i, target - offset(i), !au.paused);
+      tick();
+    };
+    pb.addEventListener('click', () => { if (au.paused) au.play().catch(() => {}); else au.pause(); });
+    bar.addEventListener('pointerdown', (e) => { bar.setPointerCapture(e.pointerId); seek(e); });
+    bar.addEventListener('pointermove', (e) => { if (bar.hasPointerCapture(e.pointerId)) seek(e); });
+    au.addEventListener('timeupdate', tick);
+    au.addEventListener('play', () => {
+      if ('speechSynthesis' in window) speechSynthesis.cancel();
+      $$('video, audio').forEach((o) => { if (o !== au) o.pause(); });
+      state();
+    });
+    au.addEventListener('pause', state);
+    au.addEventListener('ended', () => { if (at < parts.length - 1) load(at + 1); else speechStop(); });
+    tot.textContent = clock(total);
+    current.content.before(el);
+    narration = { au, el };
+    speaking = true;
+    load(0);
+    tick();
+    state();
+    setIdle('Playing the recorded narration. Press Stop Reading or ✕ to stop.');
+    updateToolbar();
+  }
+
+  function speakComputer() {
     const text = $('.page .text');
     if (!current || !text || !('speechSynthesis' in window)) return;
     if (E2KAudio.isMuted()) { setIdle('Sound is muted. Turn up the volume to hear Read Aloud.'); return; }
@@ -1446,6 +1562,8 @@
   }
   function speechStop() {
     if ('speechSynthesis' in window) speechSynthesis.cancel();
+    if (narration) { narration.au.pause(); narration.el.remove(); narration = null; }
+    $$('.rmenu').forEach((m) => m.remove());
     if (speaking) { speaking = false; setIdle(); }
     updateToolbar();
   }
