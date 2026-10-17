@@ -1,0 +1,44 @@
+# Saves a daily snapshot of the release download counts to the "stats" branch (history.jsonl, one JSON line per day),
+# because GitHub only keeps running totals. The download dashboard reads that file. See tools/stats.mjs.
+name: Download stats
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # every day at 06:17 UTC
+  workflow_dispatch: {}     # "Run workflow" button for a snapshot right now
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Take the snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node tools/stats.mjs --json > /tmp/snapshot.json
+      - name: Add it to the stats branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin stats 2>/dev/null; then
+            git checkout -B stats origin/stats
+          else
+            git checkout --orphan stats
+            git rm -rf --quiet .
+            printf '# Download stats\n\nDaily snapshots of release download counts, written by .github/workflows/download-stats.yml on main.\nEach line of history.jsonl is one day. See tools/stats.mjs on main for what the numbers mean.\n' > README.md
+          fi
+          today=$(node -e "console.log(JSON.parse(require('fs').readFileSync('/tmp/snapshot.json','utf8')).date)")
+          touch history.jsonl
+          # One line per day: replace today's line if the workflow runs twice.
+          grep -v "\"date\":\"$today\"" history.jsonl > /tmp/history.jsonl || true
+          cat /tmp/snapshot.json >> /tmp/history.jsonl
+          mv /tmp/history.jsonl history.jsonl
+          git add README.md history.jsonl 2>/dev/null || git add history.jsonl
+          git commit -m "Download stats for $today" || exit 0
+          git push origin stats
