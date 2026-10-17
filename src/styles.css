@@ -438,7 +438,27 @@ button { font-family: inherit; cursor: default; }
 .strip { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
 .strip button { width: 120px; padding: 3px; background: #fff; border: 1px solid #c9d3ea; text-align: center; font: 11px "Segoe UI"; color: #555; }
 .strip button:hover, .strip button.on { border-color: var(--orange); color: #000; }
-.strip button i { display: block; height: 80px; margin-bottom: 3px; background: #dfe6f3 center/cover; }
+.strip button i { position: relative; display: block; height: 80px; margin-bottom: 3px; background: #dfe6f3 center/cover; }
+.strip button:disabled { opacity: .5; cursor: default; }
+.strip button:disabled:hover { border-color: #c9d3ea; color: #555; }
+.strip button i.audio { background: linear-gradient(135deg, #2a4f96, #12285a); }
+.strip button i b { position: absolute; left: 3px; bottom: 3px; padding: 0 4px; border-radius: 2px; background: rgba(0, 0, 0, .7); font: 600 10px/16px "Segoe UI"; font-style: normal; color: #fff; }
+.rail .lnk:disabled { opacity: .45; cursor: default; }
+/* The Media page's Picture / Video / Sound tabs */
+.mtabs { display: flex; border: 1px solid rgba(255, 255, 255, .35); border-radius: 3px; overflow: hidden; }
+.mtabs button { display: flex; align-items: center; gap: 6px; padding: 5px 14px; border: 0; border-right: 1px solid rgba(255, 255, 255, .25); background: rgba(0, 0, 0, .25);
+  font: 600 12px "Segoe UI"; color: #e6eefc; cursor: pointer; }
+.mtabs button:last-child { border-right: 0; }
+.mtabs button:hover { background: rgba(255, 255, 255, .12); }
+.mtabs button .ic { width: 13px; height: 13px; fill: currentColor; }
+.mtabs button.on { background: var(--ink-0); color: var(--orange); box-shadow: inset 0 -2px var(--orange); cursor: default; }
+/* Media of the Day and Featured Sounds play on the page, with the viewer's controls. */
+.mviewer.inline { width: auto; max-height: none; box-shadow: 0 2px 8px rgba(0, 0, 0, .12); }
+.mviewer.inline .mstage { max-height: 58vh; }
+.sotd .mstage { aspect-ratio: auto; height: 240px; }
+.potd .eyebrow { margin-bottom: 6px; font: 600 11px "Segoe UI"; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink-2); }
+.mlist-h { margin: 24px 0 8px; font: 600 calc(17px * var(--fs)) "Segoe UI"; color: #33507f; }
+.mlist { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 8px; max-width: 980px; }
 
 /* search results */
 .results { max-width: 860px; }

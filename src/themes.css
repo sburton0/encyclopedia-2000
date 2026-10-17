@@ -192,6 +192,10 @@
 [data-theme="classic"] .band .bbtn { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #404040 #404040 #fff; }
 [data-theme="classic"] .band .bbtn:hover { background: #d4d4d4; color: #000080; }
 [data-theme="classic"] .band .bbtn.on { border-color: #404040 #fff #fff #404040; color: #000080; }
+[data-theme="classic"] .mtabs { gap: 2px; border: 0; border-radius: 0; }
+[data-theme="classic"] .mtabs button { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #404040 #404040 #fff; }
+[data-theme="classic"] .mtabs button:hover { color: #000080; }
+[data-theme="classic"] .mtabs button.on { background: #c0c0c0; color: #000080; border-color: #404040 #fff #fff #404040; box-shadow: none; }
 [data-theme="classic"] .band .bbtn .ic { fill: currentColor; }
 [data-theme="classic"] .rail { background: #c0c0c0; color: #000; border-right: 2px solid #808080; }
 [data-theme="classic"] .rail h4 { color: #000080; }
