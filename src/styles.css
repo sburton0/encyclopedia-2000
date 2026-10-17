@@ -360,6 +360,24 @@ button { font-family: inherit; cursor: default; }
 .text figure { float: right; clear: right; max-width: 250px; margin: 4px 0 12px 18px; padding: 4px; background: #fff; border: 1px solid #c9d3ea; }
 .text figure a { border: 0; }
 .text figure img { display: block; max-width: 100%; height: auto; cursor: zoom-in; }
+/* Wikipedia's multiple-image boxes ({{Multiple image}}): one frame with a heading, several pictures, and captions */
+.text .tmulti { float: right; clear: right; max-width: 100%; margin: 4px 0 12px 18px; padding: 4px; background: #fff; border: 1px solid #c9d3ea; font: 11.5px/1.4 "Segoe UI"; color: #444; }
+.text .tmulti.floatleft, .text .tmulti.tleft { float: left; clear: left; margin: 4px 18px 12px 0; }
+.text .tmulti.tnone, .text .tmulti.center { float: none; width: fit-content; margin: 12px auto; }
+.text .tmulti .thumbinner { max-width: 100% !important; }
+.text .tmulti .trow { display: flex; justify-content: center; gap: 4px; }
+.text .tmulti .trow + .trow { margin-top: 6px; }
+.text .tmulti .theader { flex: 1; padding: 2px 0 4px; text-align: center; font-weight: 600; color: #222; }
+.text .tmulti .tsingle { max-width: 100%; }
+.text .tmulti .thumbimage img { display: block; max-width: 100%; height: auto; margin: 0 auto; cursor: zoom-in; }
+.text .tmulti .thumbcaption { padding-top: 3px; }
+/* Wikipedia's picture galleries: a row of framed pictures with captions */
+.text ul.gallery { clear: both; display: flex; flex-wrap: wrap; gap: 10px; max-width: none !important; margin: 12px 0; padding: 0; list-style: none; }
+.text ul.gallery li.gallerycaption { width: 100%; font: 600 13px "Segoe UI"; color: #33507f; }
+.text ul.gallery li.gallerybox { width: 190px !important; padding: 4px; background: #fff; border: 1px solid #c9d3ea; font: 11.5px/1.4 "Segoe UI"; color: #444; }
+.text ul.gallery li.gallerybox .thumb { width: auto !important; height: 140px !important; display: flex; align-items: center; justify-content: center; }
+.text ul.gallery li.gallerybox img { display: block; max-width: 100%; max-height: 140px; width: auto; height: auto; cursor: zoom-in; }
+.text ul.gallery .gallerytext { padding-top: 4px; }
 /* Videos and sounds in the article text */
 .vthumb { position: relative; display: block; min-width: 200px; min-height: 120px; padding: 0; border: 0; background: #0b0e16; cursor: pointer; }
 .text figure .vthumb img { cursor: pointer; }
