@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Encyclopedia 2000 Downloads</title>
+<style>
+/* Layout: summary tiles, then charts over time, then a table per release. Navy and amber from the app's own palette. */
+:root {
+  --bg: #f4f6fb; --panel: #ffffff; --fg: #142041; --muted: #5d6a86; --line: #dde3ef;
+  --win: #2f6fd8; --port: #8aa9e6; --mac: #9b59d0; --linux: #e5891e; --upd: #2aa198; --chk: #8a93a6; --accent: #e5891e;
+  --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0b1226; --panel: #121c38; --fg: #e8eefc; --muted: #9aa8c6; --line: #24315a;
+          --win: #5b93f0; --port: #a9c2f2; --mac: #c08ae8; --linux: #f5a623; --upd: #4fd1c5; --chk: #8a93a6; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font); }
+.wrap { max-width: 1080px; margin: 0 auto; padding: 28px max(16px, env(safe-area-inset-right)) 40px max(16px, env(safe-area-inset-left)); display: grid; gap: 22px; }
+header h1 { margin: 0; font-size: 1.6rem; font-weight: 300; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.tile, .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+.tile small { display: block; font-size: .78rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.tile b { display: block; font-size: 2.2rem; font-weight: 300; font-variant-numeric: tabular-nums; line-height: 1.1; margin-top: 4px; }
+.tile span { font-size: .85rem; color: var(--muted); }
+.tile span em { font-style: normal; color: var(--fg); font-weight: 600; }
+.card h2 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
+.card .sub { margin: 0 0 12px; color: var(--muted); font-size: .85rem; }
+.chart { position: relative; height: 280px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 22px; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; font-variant-numeric: tabular-nums; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--muted); font-weight: 600; font-size: .8rem; }
+.est { color: var(--muted); }
+.note { color: var(--muted); font-size: .82rem; }
+.err { padding: 12px 14px; border-radius: 6px; background: rgba(229, 137, 30, .12); color: var(--fg); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Encyclopedia 2000 downloads</h1>
+    <p id="asof">Loading…</p>
+  </header>
+  <div id="msg" hidden></div>
+  <section class="tiles">
+    <div class="tile"><small>New downloads</small><b id="t-dl">—</b><span id="t-dl-7"></span></div>
+    <div class="tile"><small>Automatic updates</small><b id="t-up">—</b><span id="t-up-7"></span></div>
+    <div class="tile"><small>Update checks</small><b id="t-ck">—</b><span id="t-ck-7"></span></div>
+    <div class="tile"><small>Latest version</small><b id="t-ver">—</b><span id="t-ver-d"></span></div>
+  </section>
+  <section class="card">
+    <h2>New downloads by platform</h2>
+    <p class="sub">People downloading the app, all versions combined. Running total per day.</p>
+    <div class="chart"><canvas id="c-dl"></canvas></div>
+  </section>
+  <div class="grid2">
+    <section class="card">
+      <h2>Automatic updates</h2>
+      <p class="sub">Installed copies updating themselves. Running total.</p>
+      <div class="chart"><canvas id="c-up"></canvas></div>
+    </section>
+    <section class="card">
+      <h2>Update checks per day</h2>
+      <p class="sub">A sign of how much the app is used: each running copy checks at start and every 6 hours.</p>
+      <div class="chart"><canvas id="c-ck"></canvas></div>
+    </section>
+  </div>
+  <section class="card">
+    <h2>By version</h2>
+    <p class="sub">Totals for each release, live from GitHub.</p>
+    <div class="tablewrap"><table id="tbl"></table></div>
+  </section>
+  <p class="note">How these are counted: GitHub counts each file downloaded. The Mac .dmg, Linux .deb, and Windows portable are only downloaded by people; the Mac .zip only by the updater. The Windows installer is downloaded by both, so its split is an estimate (updates ≈ the update-only .blockmap file). Update checks count check-ins, not people. Daily history starts 2026-10-17 and is saved by the "Download stats" workflow.</p>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const fmt = (n) => n.toLocaleString('en-US');
+  const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+
+  // Same rules as tools/stats.mjs on main.
+  const kind = (n) => /^latest\.yml$/.test(n) ? 'checkWindows' : /^latest-mac\.yml$/.test(n) ? 'checkMac' : /^latest-linux\.yml$/.test(n) ? 'checkLinux'
+    : /Installer.*\.exe\.blockmap$/.test(n) ? 'winUpdaterBlockmap' : /Installer.*\.exe$/.test(n) ? 'winInstaller' : /Portable.*\.exe$/.test(n) ? 'winPortable'
+    : /\.dmg$/.test(n) ? 'mac' : /-mac\.zip$/.test(n) ? 'macUpdate' : /\.deb$/.test(n) ? 'linux' : null;
+  function summarize(rel) {
+    const c = {};
+    for (const a of rel.assets) { const k = kind(a.name); if (k) c[k] = (c[k] || 0) + a.download_count; }
+    const winUpdates = Math.min(c.winUpdaterBlockmap || 0, c.winInstaller || 0);
+    return { version: rel.tag_name, published: (rel.published_at || '').slice(0, 10),
+      downloads: { windowsInstaller: (c.winInstaller || 0) - winUpdates, windowsPortable: c.winPortable || 0, mac: c.mac || 0, linux: c.linux || 0 },
+      updates: { windows: winUpdates, mac: c.macUpdate || 0 }, checks: { windows: c.checkWindows || 0, mac: c.checkMac || 0, linux: c.checkLinux || 0 } };
+  }
+  // Totals across releases for one snapshot.
+  function totals(rels) {
+    const t = { dl: { windowsInstaller: 0, windowsPortable: 0, mac: 0, linux: 0 }, up: { windows: 0, mac: 0 }, ck: 0 };
+    for (const r of rels) { for (const k in t.dl) t.dl[k] += r.downloads[k]; for (const k in t.up) t.up[k] += r.updates[k]; t.ck += sum(r.checks); }
+    return t;
+  }
+
+  let history = [];
+  try {
+    const text = await (await fetch('history.jsonl', { cache: 'no-store' })).text();
+    history = text.split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  } catch {}
+  let live = null;
+  try {
+    const res = await fetch('https://api.github.com/repos/sburton0/encyclopedia-2000/releases?per_page=100');
+    if (res.ok) live = (await res.json()).filter((r) => !r.draft).map(summarize);
+  } catch {}
+  if (!live && !history.length) { $('msg').hidden = false; $('msg').className = 'err'; $('msg').textContent = 'Couldn’t load the numbers. Check your connection and reload.'; return; }
+
+  // Points: one per saved day, plus "now" from GitHub's live totals.
+  const today = new Date().toISOString().slice(0, 10);
+  const points = history.map((h) => ({ date: h.date, t: totals(h.releases) }));
+  if (live) { const p = { date: today, t: totals(live) }; const i = points.findIndex((x) => x.date === today); i >= 0 ? (points[i] = p) : points.push(p); }
+  points.sort((a, b) => a.date.localeCompare(b.date));
+  const now = points[points.length - 1].t;
+  const weekAgo = [...points].reverse().find((p) => p.date <= new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10)) || points[0];
+  const delta = (a, b) => a - b;
+
+  $('asof').textContent = `Live from GitHub · updated ${new Date().toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}` + (history.length ? ` · ${history.length} saved ${history.length === 1 ? 'day' : 'days'}` : '');
+  const d7 = (el, v) => { $(el).replaceChildren(document.createTextNode(points.length > 1 ? 'Last 7 days: ' : 'History builds daily'), ...(points.length > 1 ? [Object.assign(document.createElement('em'), { textContent: (v >= 0 ? '+' : '') + fmt(v) })] : [])); };
+  $('t-dl').textContent = fmt(sum(now.dl)); d7('t-dl-7', delta(sum(now.dl), sum(weekAgo.t.dl)));
+  $('t-up').textContent = fmt(sum(now.up)); d7('t-up-7', delta(sum(now.up), sum(weekAgo.t.up)));
+  $('t-ck').textContent = fmt(now.ck); d7('t-ck-7', delta(now.ck, weekAgo.t.ck));
+  if (live && live.length) { $('t-ver').textContent = live[0].version.replace(/^v/, '').replace('-beta', ' Beta'); $('t-ver-d').textContent = `Released ${live[0].published}`; }
+
+  // Charts.
+  const grid = css('--line'), tick = css('--muted');
+  Chart.defaults.font.family = css('--font'); Chart.defaults.color = tick;
+  const labels = points.map((p) => p.date);
+  const ds = (label, data, color) => ({ label, data, borderColor: color, backgroundColor: color, pointRadius: points.length < 20 ? 3 : 0, tension: .25, borderWidth: 2 });
+  const opts = (stacked) => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } },
+    scales: { x: { grid: { color: grid } }, y: { beginAtZero: true, stacked, grid: { color: grid }, ticks: { precision: 0 } } } });
+  new Chart($('c-dl'), { type: 'line', data: { labels, datasets: [
+    ds('Windows installer', points.map((p) => p.t.dl.windowsInstaller), css('--win')),
+    ds('Windows portable', points.map((p) => p.t.dl.windowsPortable), css('--port')),
+    ds('Mac', points.map((p) => p.t.dl.mac), css('--mac')),
+    ds('Linux', points.map((p) => p.t.dl.linux), css('--linux'))] }, options: opts(false) });
+  new Chart($('c-up'), { type: 'line', data: { labels, datasets: [
+    ds('Windows', points.map((p) => p.t.up.windows), css('--win')), ds('Mac', points.map((p) => p.t.up.mac), css('--mac'))] }, options: opts(false) });
+  const perDay = points.map((p, i) => (i ? Math.max(0, p.t.ck - points[i - 1].t.ck) : 0));
+  new Chart($('c-ck'), { type: 'bar', data: { labels: labels.slice(1), datasets: [{ label: 'Update checks', data: perDay.slice(1), backgroundColor: css('--upd') }] },
+    options: { ...opts(false), plugins: { legend: { display: false } } } });
+
+  // Table.
+  const rows = live || (history.length ? history[history.length - 1].releases : []);
+  const head = ['Version', 'Released', 'Windows installer*', 'Portable', 'Mac', 'Linux', 'New downloads', 'Updates*', 'Update checks'];
+  const tr = (cells, tag) => { const r = document.createElement('tr'); cells.forEach((c, i) => { const e = document.createElement(tag); e.textContent = c; if (tag === 'td' && (i === 2 || i === 7)) e.className = 'est'; r.append(e); }); return r; };
+  $('tbl').append(tr(head, 'th'), ...rows.map((r) => tr([r.version.replace(/^v/, ''), r.published, fmt(r.downloads.windowsInstaller), fmt(r.downloads.windowsPortable), fmt(r.downloads.mac), fmt(r.downloads.linux),
+    fmt(sum(r.downloads)), fmt(sum(r.updates)), fmt(sum(r.checks))], 'td')));
+  const cap = document.createElement('caption'); cap.className = 'note'; cap.style.captionSide = 'bottom'; cap.style.textAlign = 'left'; cap.style.paddingTop = '8px';
+  cap.textContent = '* Estimates: the Windows installer is downloaded by both people and the updater.';
+  $('tbl').append(cap);
+})();
+</script>
+</body>
+</html>
