@@ -38,6 +38,10 @@ th:first-child, td:first-child { text-align: left; }
 th { color: var(--muted); font-weight: 600; font-size: .8rem; }
 .est { color: var(--muted); }
 .note { color: var(--muted); font-size: .82rem; }
+.view { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; margin-bottom: 10px; }
+.view button { padding: 5px 12px; border: 0; background: none; color: var(--muted); font: 600 .82rem var(--font); cursor: pointer; }
+.view button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.view button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .err { padding: 12px 14px; border-radius: 6px; background: rgba(229, 137, 30, .12); color: var(--fg); }
 </style>
 </head>
@@ -56,13 +60,14 @@ th { color: var(--muted); font-weight: 600; font-size: .8rem; }
   </section>
   <section class="card">
     <h2>New downloads by platform</h2>
-    <p class="sub">People downloading the app, all versions combined. Running total per day.</p>
+    <p class="sub">People downloading the app, all versions combined.</p>
+    <div class="view" role="group" aria-label="Chart view"><button type="button" data-view="day" aria-pressed="true">Per day</button><button type="button" data-view="total" aria-pressed="false">Running total</button></div>
     <div class="chart"><canvas id="c-dl"></canvas></div>
   </section>
   <div class="grid2">
     <section class="card">
       <h2>Automatic updates</h2>
-      <p class="sub">Installed copies updating themselves. Running total.</p>
+      <p class="sub">Installed copies updating themselves. Uses the same view as above.</p>
       <div class="chart"><canvas id="c-up"></canvas></div>
     </section>
     <section class="card">
@@ -141,13 +146,25 @@ th { color: var(--muted); font-weight: 600; font-size: .8rem; }
   const opts = (stacked) => ({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
     plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, boxHeight: 12 } } },
     scales: { x: { grid: { color: grid } }, y: { beginAtZero: true, stacked, grid: { color: grid }, ticks: { precision: 0 } } } });
-  new Chart($('c-dl'), { type: 'line', data: { labels, datasets: [
-    ds('Windows installer', points.map((p) => p.t.dl.windowsInstaller), css('--win')),
-    ds('Windows portable', points.map((p) => p.t.dl.windowsPortable), css('--port')),
-    ds('Mac', points.map((p) => p.t.dl.mac), css('--mac')),
-    ds('Linux', points.map((p) => p.t.dl.linux), css('--linux'))] }, options: opts(false) });
-  new Chart($('c-up'), { type: 'line', data: { labels, datasets: [
-    ds('Windows', points.map((p) => p.t.up.windows), css('--win')), ds('Mac', points.map((p) => p.t.up.mac), css('--mac'))] }, options: opts(false) });
+  // Per day: the change since the previous saved day (the first day has nothing to compare, so the charts start on day two).
+  const perDayOf = (get) => points.map((p, i) => (i ? Math.max(0, get(p) - get(points[i - 1])) : 0)).slice(1);
+  const dlSeries = [['Windows installer', (p) => p.t.dl.windowsInstaller, '--win'], ['Windows portable', (p) => p.t.dl.windowsPortable, '--port'],
+    ['Mac', (p) => p.t.dl.mac, '--mac'], ['Linux', (p) => p.t.dl.linux, '--linux']];
+  const upSeries = [['Windows', (p) => p.t.up.windows, '--win'], ['Mac', (p) => p.t.up.mac, '--mac']];
+  const barOpts = { ...opts(true), scales: { x: { stacked: true, grid: { color: grid } }, y: { beginAtZero: true, stacked: true, grid: { color: grid }, ticks: { precision: 0 } } } };
+  const make = (canvas, series, view) => view === 'day'
+    ? new Chart(canvas, { type: 'bar', data: { labels: labels.slice(1), datasets: series.map(([l, g, c]) => ({ label: l, data: perDayOf(g), backgroundColor: css(c) })) }, options: barOpts })
+    : new Chart(canvas, { type: 'line', data: { labels, datasets: series.map(([l, g, c]) => ds(l, points.map(g), css(c))) }, options: opts(false) });
+  let view = 'day';
+  try { view = localStorage.getItem('e2k-stats-view') || 'day'; } catch {}
+  let charts = [];
+  const draw = () => {
+    charts.forEach((c) => c.destroy());
+    charts = [make($('c-dl'), dlSeries, view), make($('c-up'), upSeries, view)];
+    document.querySelectorAll('.view button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  };
+  document.querySelectorAll('.view button').forEach((b) => b.addEventListener('click', () => { view = b.dataset.view; try { localStorage.setItem('e2k-stats-view', view); } catch {} draw(); }));
+  draw();
   const perDay = points.map((p, i) => (i ? Math.max(0, p.t.ck - points[i - 1].t.ck) : 0));
   new Chart($('c-ck'), { type: 'bar', data: { labels: labels.slice(1), datasets: [{ label: 'Update checks', data: perDay.slice(1), backgroundColor: css('--upd') }] },
     options: { ...opts(false), plugins: { legend: { display: false } } } });
