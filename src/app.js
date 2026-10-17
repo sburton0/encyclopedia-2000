@@ -494,6 +494,9 @@
       file: fileOf(au), dur: au.getAttribute('data-durationhint') || '', label,
       src: JSON.stringify([...au.querySelectorAll('source')].map((s) => [s.getAttribute('src') || '', s.getAttribute('type') || ''])),
     });
+    // The little speaker picture beside each "Listen" box is decoration, not one of the article's pictures.
+    const decor = new Set();
+    body.querySelectorAll('.listen img[resource]').forEach((img) => decor.add(fileOf(img)));
     body.querySelectorAll('.listen').forEach((box) => {
       const out = doc.createElement('div');
       out.className = 'sounds';
@@ -587,7 +590,7 @@
       if (!h2.id) h2.id = 'sec-' + i;
       return { id: h2.id, label: h2.textContent.trim() };
     });
-    return { nodes: [...body.childNodes], facts, toc, related, infoImg, pron };
+    return { nodes: [...body.childNodes], facts, toc, related, infoImg, pron, decor };
   }
 
   async function viewArticle(title, token) {
@@ -612,7 +615,7 @@
 
     const html = await htmlP;
     if (!live(token)) return;
-    const { nodes, facts, toc, related, infoImg, pron } = cleanArticle(html);
+    const { nodes, facts, toc, related, infoImg, pron, decor } = cleanArticle(html);
     if (pron) pg.titleRow.append(pronButton(name, pron.src));
 
     current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
@@ -627,7 +630,9 @@
     const soundNames = [...pg.text.querySelectorAll('.aslot')].map((s) => [s.dataset.file, s.dataset.label]).filter(([, l]) => l);
     const mediaP = articleMedia(canon).then((items) => {
       for (const m of items) if (!m.caption) m.caption = soundNames.find(([f]) => sameFile(f, m.file))?.[1] || '';
-      return items;
+      const kept = items.filter((m) => ![...decor].some((f) => sameFile(f, m.file)));
+      kept.spoken = items.spoken;
+      return kept;
     });
     mediaP.catch(() => {});
     current.media = mediaP;
