@@ -473,15 +473,21 @@
   function cleanArticle(html) {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const body = doc.body;
-    // A recording of the subject's name, from the first English "listen" button before the first section heading.
-    let pron = null;
+    // A recording of the subject's name, from the introduction or a footnote it points to (many articles keep the
+    // pronunciation there). An English recording is preferred; otherwise the first one, which is often the name said
+    // in its own language (German for Einstein, Japanese for Tokyo).
     const firstH2 = body.querySelector('h2');
+    const inLead = (el) => !firstH2 || !(el.compareDocumentPosition(firstH2) & Node.DOCUMENT_POSITION_PRECEDING);
+    const leadNotes = new Set([...body.querySelectorAll('sup.reference a[href*="#cite_note-"]')].filter(inLead)
+      .map((a) => a.getAttribute('href').split('#')[1]));
+    const recordings = [];
     for (const ph of body.querySelectorAll('.ext-phonos')) {
-      if (firstH2 && ph.compareDocumentPosition(firstH2) & Node.DOCUMENT_POSITION_PRECEDING) break;
+      if (!inLead(ph) && !leadNotes.has(ph.closest('li[id^="cite_note-"]')?.id)) continue;
       let o = null;
       try { o = JSON.parse(ph.querySelector('[data-ooui]')?.getAttribute('data-ooui') || 'null'); } catch {}
-      if (o?.href && /^en\b/.test(o.data?.lang || 'en')) { pron = { src: https(o.href), file: o.data?.file || '' }; break; }
+      if (o?.href) recordings.push({ src: https(o.href), file: o.data?.file || '' });
     }
+    const pron = recordings.find((r) => recordingLanguage(r.file) === 'English') || recordings[0] || null;
     // Videos become a still picture with a play button, and sounds a small player (mediaSlots brings both to life).
     // "Listen" boxes keep their headings and descriptions.
     const fileOf = (el) => { const r = (el.getAttribute('resource') || '').replace(/^\.\//, ''); try { return decodeURIComponent(r); } catch { return r; } };
@@ -616,7 +622,7 @@
     const html = await htmlP;
     if (!live(token)) return;
     const { nodes, facts, toc, related, infoImg, pron, decor } = cleanArticle(html);
-    if (pron) pg.titleRow.append(pronButton(name, pron.src));
+    if (pron) pg.titleRow.append(pronButton(name, pron));
 
     current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
     addRecent(name);
@@ -1500,9 +1506,20 @@
   }
 
   // The 🔊 button by an article's title: plays a recording of how the subject's name is said.
-  function pronButton(name, src) {
+  // The language of a pronunciation recording, from its file name: "De-Albert Einstein.oga" (German),
+  // "LL-Q1860 (eng)-Speaker-Word.wav" (Lingua Libre; English), or "Paris Pronunciation in French.ogg". '' if unknown.
+  function recordingLanguage(file) {
+    const f = String(file || '').replace(/_/g, ' ');
+    const named = /(?:^|\s)in ([A-Z][a-z]+)\b/.exec(f)?.[1];
+    if (named) return named;
+    const code = (/^LL-Q\d+ \(([a-z]{2,3})\)/i.exec(f) || /^([a-z]{2,3})(?:-[a-z]{2})?-/i.exec(f))?.[1]?.toLowerCase();
+    if (!code) return '';
+    try { return new Intl.DisplayNames(['en'], { type: 'language' }).of(code === 'eng' ? 'en' : code); } catch { return ''; }
+  }
+  function pronButton(name, { src, file }) {
+    const lang = recordingLanguage(file);
     const au = h('audio', { preload: 'none', src });
-    const btn = h('button', { class: 'pron', title: `Hear how “${name}” is pronounced`, onclick: () => {
+    const btn = h('button', { class: 'pron', title: lang && lang !== 'English' ? `Hear “${name}” said in ${lang}` : `Hear how “${name}” is pronounced`, onclick: () => {
       au.volume = E2KAudio.level();
       if (E2KAudio.isMuted()) setIdle('Sound is muted. Turn up the volume to hear the pronunciation.');
       au.currentTime = 0;
