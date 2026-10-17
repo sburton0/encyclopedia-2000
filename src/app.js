@@ -413,14 +413,17 @@
     const h1 = h('h1', {}, title);
     const dsc = h('div', { class: 'desc' }, desc);
     const toolsEl = h('div', { class: 'tools' }, tools);
+    const tEl = h('div', { class: 't' }, h1, dsc);
     const text = h('div', { class: 'text' });
     const media = h('aside', { class: 'media' });
     const content = h('div', { class: 'content' + (wide ? ' wide' : '') }, text, wide ? null : media);
     const root = h('div', { class: 'page' },
       h('aside', { class: 'rail' }, railArt, railIn),
       h('section', { class: 'art' },
-        h('header', { class: 'band' }, bandArt, h('div', { class: 't' }, h1, dsc), toolsEl),
+        h('header', { class: 'band' }, bandArt, tEl, toolsEl),
         content));
+    // Keep the title clear of the header's buttons: a long title ends with "…" just before them (its full text is in a tooltip).
+    new ResizeObserver(() => { tEl.style.right = (toolsEl.offsetWidth ? toolsEl.offsetWidth + 14 + 20 : 22) + 'px'; }).observe(toolsEl);
     return {
       root, railIn, text, media, content, toolsEl,
       setTitle(t, d) { h1.textContent = t; h1.title = t; dsc.textContent = d || ''; },
