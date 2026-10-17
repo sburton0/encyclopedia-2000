@@ -271,10 +271,9 @@ button { font-family: inherit; cursor: default; }
 .rail h4.fold .n { display: none; margin-left: auto; font: 400 11.5px "Segoe UI"; color: var(--sky); }
 .rail h4.fold.shut .n { display: inline; }
 /* The Media box */
-.rail .mcount { display: flex; flex-wrap: wrap; gap: 0 10px; font-size: 11.5px; color: var(--sky); }
+.rail .mcount { display: flex; flex-wrap: wrap; gap: 0 2px; margin: 0 -5px; font-size: 11.5px; color: var(--sky); }
 .rail .mcount b { font-weight: 600; color: #fff; }
-.rail .mcount { margin: 0 -5px; gap: 0 2px; }
-.rail .mcount > * { padding: 1px 5px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; }
+.rail .mcount > * { display: inline-flex; align-items: center; gap: .25em; height: 21px; padding: 0 5px 1px; border: 0; border-radius: 3px; background: none; font: inherit; color: inherit; }
 .rail .mcount button { cursor: pointer; }
 .rail .mcount button:hover { color: var(--gold); }
 .rail .mcount button.on { background: var(--ink-0); box-shadow: inset 0 0 0 1px var(--ink-3); color: #fff; }
