@@ -70,10 +70,21 @@ function secure(win) {
   });
 }
 
+// The first window fits the screen it opens on: about 80% of its width and 85% of its height, at least 1024 x 740
+// (or the whole screen, if that's smaller), and at most 1260 x 960. 1260 is where an article at the normal text
+// size fills the window without margins at the sides.
+// It opens centered on the screen with the mouse pointer.
+function firstBounds() {
+  const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea;
+  const fit = (share, min, max, room) => Math.min(room, Math.max(min, Math.min(max, Math.round(room * share))));
+  const width = fit(0.8, 1024, 1260, area.width), height = fit(0.85, 740, 960, area.height);
+  return { width, height, x: area.x + Math.round((area.width - width) / 2), y: area.y + Math.round((area.height - height) / 2) };
+}
+
 function createMain(route) {
   const saved = settings.windowMode === 'remember' && onScreen(settings.bounds) ? settings.bounds : null;
   const win = new BrowserWindow({
-    width: 1024, height: 740, minWidth: 980, minHeight: 640,
+    ...firstBounds(), minWidth: 980, minHeight: 640,
     ...FRAME, show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
   });

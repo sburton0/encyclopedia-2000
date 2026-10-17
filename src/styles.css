@@ -293,13 +293,13 @@ button { font-family: inherit; cursor: default; }
 .band > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .band .t { position: absolute; left: 22px; right: 360px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
 /* Article titles can be long, so an article's buttons sit at the top right and the title goes below them at full width. */
-.band.article .t { right: 22px; top: var(--tools-bottom, 42px); padding-bottom: 10px; }
+.band.article .t { left: var(--flow-left, 22px); right: var(--flow-right, 22px); top: var(--tools-bottom, 42px); padding-bottom: 10px; }
 .band.article .desc { margin-top: 5px; }
 /* Room below the line keeps descenders (g, y, p) from being clipped by overflow: hidden. */
 .band h1 { margin: 0 0 -6px; padding-bottom: 6px; font: 300 34px/1.15 "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
 .band .desc { font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band .tools { position: absolute; right: 14px; top: 0; bottom: 0; display: flex; align-items: center; gap: 6px; }
-.band.article .tools { bottom: auto; top: 10px; align-items: flex-start; }
+.band.article .tools { right: var(--flow-right, 14px); bottom: auto; top: 10px; align-items: flex-start; }
 .band.article { height: 104px; }
 /* Without a description, the title drops so its lowest letters (g, y) line up with where a description would end. */
 .band.article.no-desc h1 { transform: translateY(10px); }
@@ -312,6 +312,13 @@ button { font-family: inherit; cursor: default; }
 .content.wide { display: block; }
 /* Center the reading column and picture column in wide windows. */
 .content:not(.wide) { justify-content: center; }
+/* Articles: the text wraps around the picture column, and its width is capped at 960px like Wikipedia's so long
+   lines stay readable; the article is centered when the window is wider. */
+.content.article { display: block; }
+.content.article .flow { max-width: calc(960px * var(--fs)); margin: 0 auto; }
+.content.article .flow::after { content: ""; display: block; clear: both; }
+.content.article .media { float: right; margin: 0 0 16px 24px; }
+.content.article .text { max-width: none; }
 .media { width: 260px; flex: none; }
 .media:empty { display: none; }
 .media .frame { padding: 4px; background: #fff; border: 1px solid #9fb0d0; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
@@ -331,17 +338,42 @@ button { font-family: inherit; cursor: default; }
 .rail .in::-webkit-scrollbar-thumb, .suggest::-webkit-scrollbar-thumb, .wx-cb::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .25); border: 4px solid transparent; background-clip: padding-box; }
 
 /* ---------- article typography ---------- */
-.text { flex: 1; min-width: 0; max-width: 960px; font: calc(15px * var(--fs))/1.65 var(--read-font); color: #1c1c1c; user-select: text; cursor: auto; }
+.text { flex: 1; min-width: 0; max-width: 960px; font: calc(16px * var(--fs))/1.65 var(--read-font); color: #1c1c1c; user-select: text; cursor: auto; }
 .text p { margin: 0 0 11px; }
-.text .lede::first-letter { float: left; padding: 5px 7px 0 0; font: 400 calc(52px * var(--fs))/.85 var(--read-font); color: var(--ink-2); }
-.text h2 { clear: both; margin: 24px 0 6px; padding-bottom: 3px; font: 600 calc(20px * var(--fs)) "Segoe UI"; color: var(--ink-2); border-bottom: 1px solid #c9d3ea; }
-.text h3 { margin: 18px 0 4px; font: 600 calc(16px * var(--fs)) "Segoe UI"; color: #33507f; }
-.text h4 { margin: 14px 0 4px; font: 600 calc(14px * var(--fs)) "Segoe UI"; color: #33507f; }
+/* The large first letter sinks two lines into the paragraph. It isn't a float, so a picture floated just above the
+   paragraph (pushed down below the picture column) can't drag it down too. */
+.text .lede::first-letter { initial-letter: 2; margin-right: 7px; font-family: var(--read-font); font-weight: 400; color: var(--ink-2); }
+.text h2 { overflow: hidden; margin: 24px 0 6px; padding-bottom: 3px; font: 600 calc(21px * var(--fs)) "Segoe UI"; color: var(--ink-2); border-bottom: 1px solid #c9d3ea; }
+.text h3 { margin: 18px 0 4px; font: 600 calc(17px * var(--fs)) "Segoe UI"; color: #33507f; }
+.text h4 { margin: 14px 0 4px; font: 600 calc(15px * var(--fs)) "Segoe UI"; color: #33507f; }
 .text a { color: #1d47a8; text-decoration: none; border-bottom: 1px dotted rgba(29, 71, 168, .5); cursor: pointer; }
 .text a:hover { color: #c26a00; border-bottom-color: #c26a00; }
 .text figure { float: right; clear: right; max-width: 250px; margin: 4px 0 12px 18px; padding: 4px; background: #fff; border: 1px solid #c9d3ea; }
 .text figure a { border: 0; }
 .text figure img { display: block; max-width: 100%; height: auto; cursor: zoom-in; }
+/* Videos and sounds in the article text */
+.vthumb { position: relative; display: block; min-width: 200px; min-height: 120px; padding: 0; border: 0; background: #0b0e16; cursor: pointer; }
+.text figure .vthumb img { cursor: pointer; }
+.vthumb .play { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; display: grid; place-items: center; border-radius: 50%;
+  background: rgba(10, 20, 50, .72); border: 2px solid #fff; color: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .5); transition: background .15s; }
+.vthumb .play .ic { width: 20px; height: 20px; margin-left: 3px; fill: currentColor; }
+.vthumb:hover .play { background: var(--ink-2); }
+.vthumb .dur { position: absolute; right: 6px; bottom: 6px; padding: 0 5px; border-radius: 2px; background: rgba(0, 0, 0, .7); font: 600 11px/18px "Segoe UI"; color: #fff; }
+.text .sounds { float: right; clear: right; width: 250px; margin: 4px 0 12px 18px; padding: 8px 10px; background: #fff; border: 1px solid #c9d3ea; font: 12px/1.4 "Segoe UI"; }
+.text .sounds h6 { margin: 0 0 6px; font: 600 12.5px "Segoe UI"; color: var(--ink-1); }
+.text .sounds .aud + .aud, .text .sounds .adesc + .aud { margin-top: 6px; }
+.text .sounds .adesc { margin: 3px 0 0; color: #555; font-size: 11.5px; }
+.aud { display: flex; align-items: center; gap: 10px; padding: 7px 9px; background: #f3f6fc; border: 1px solid #c9d3ea; font-family: "Segoe UI"; }
+.aud .pb { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--ink-2); color: #fff; cursor: pointer; }
+.aud .pb:hover { background: var(--ink-3); }
+.aud .pb .ic { width: 12px; height: 12px; fill: currentColor; }
+.aud .info { flex: 1; min-width: 0; }
+.aud .info b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 12px "Segoe UI"; color: #222; }
+.aud .bar { position: relative; height: 12px; cursor: pointer; touch-action: none; }
+.aud .bar::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; height: 4px; border-radius: 2px; background: #c9d3ea; }
+.aud .bar i { position: absolute; left: 0; top: 4px; height: 4px; border-radius: 2px; background: var(--orange); }
+.aud .tm { display: flex; justify-content: space-between; font-size: 10.5px; color: #666; font-variant-numeric: tabular-nums; }
+.aud.err .pb { background: #9aa3b5; cursor: default; }
 .text figcaption { padding-top: 4px; font: 11.5px/1.4 "Segoe UI"; color: #444; }
 .text img { max-width: 100%; height: auto; }
 .text table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font: 12.5px/1.4 "Segoe UI"; }
@@ -493,6 +525,9 @@ button { font-family: inherit; cursor: default; }
   .text figure, .text table, .text blockquote { break-inside: avoid; }
   /* The lead picture and quick facts sit in a narrow column beside the article. */
   .content:not(.wide) { display: flex; align-items: flex-start; gap: 20px; }
+  .content.article { display: block; }
+  .content.article .flow { max-width: none; }
+  .content.article .media { margin: 0 0 12px 18px; }
   .media { position: static; width: 190px; flex: none; }
   .media .frame img { max-height: 240px; cursor: auto; }
   .facts h6 { color: #000; background: none; border-bottom: 1px solid #9fb0d0; }

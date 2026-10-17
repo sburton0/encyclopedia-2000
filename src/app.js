@@ -419,7 +419,21 @@
     if (article) new ResizeObserver(() => band.style.setProperty('--tools-bottom', (toolsEl.offsetTop + toolsEl.offsetHeight) + 'px')).observe(toolsEl);
     const text = h('div', { class: 'text' });
     const media = h('aside', { class: 'media' });
-    const content = h('div', { class: 'content' + (wide ? ' wide' : '') }, text, wide ? null : media);
+    // In an article the picture column floats at the top right, so the text widens to the full width below it.
+    const flow = article ? h('div', { class: 'flow' }, media, text) : null;
+    const content = article
+      ? h('div', { class: 'content article' }, flow)
+      : h('div', { class: 'content' + (wide ? ' wide' : '') }, text, wide ? null : media);
+    // The article's title and buttons line up with the edges of its text.
+    if (article) {
+      const align = new ResizeObserver(() => {
+        const f = flow.getBoundingClientRect(), b = band.getBoundingClientRect();
+        band.style.setProperty('--flow-left', (f.left - b.left) + 'px');
+        band.style.setProperty('--flow-right', (b.right - f.right) + 'px');
+      });
+      align.observe(flow);
+      align.observe(content);
+    }
     const root = h('div', { class: 'page' },
       h('aside', { class: 'rail' }, railArt, railIn),
       h('section', { class: 'art' },
@@ -458,6 +472,33 @@
   function cleanArticle(html) {
     const doc = new DOMParser().parseFromString(html, 'text/html');
     const body = doc.body;
+    // Videos become a still picture with a play button, and sounds a small player (mediaSlots brings both to life).
+    // "Listen" boxes keep their headings and descriptions.
+    const fileOf = (el) => { const r = (el.getAttribute('resource') || '').replace(/^\.\//, ''); try { return decodeURIComponent(r); } catch { return r; } };
+    const slot = (tag, cls, data) => { const s = doc.createElement(tag); s.className = cls; Object.assign(s.dataset, data); return s; };
+    body.querySelectorAll('video').forEach((v) => v.replaceWith(slot('span', 'vslot', {
+      file: fileOf(v), dur: v.getAttribute('data-durationhint') || '', poster: https(v.getAttribute('poster') || ''),
+      src: videoSource([...v.querySelectorAll('source')].map((s) => ({ url: s.getAttribute('src') || '', mime: s.getAttribute('type') || '', height: s.getAttribute('data-height') }))),
+    })));
+    const audioSlot = (au, label) => slot('div', 'aslot', {
+      file: fileOf(au), dur: au.getAttribute('data-durationhint') || '', label,
+      src: JSON.stringify([...au.querySelectorAll('source')].map((s) => [s.getAttribute('src') || '', s.getAttribute('type') || ''])),
+    });
+    body.querySelectorAll('.listen').forEach((box) => {
+      const out = doc.createElement('div');
+      out.className = 'sounds';
+      const head = box.querySelector('.listen-header');
+      if (head) { const h6 = doc.createElement('h6'); h6.append(...head.childNodes); out.append(h6); }
+      for (const ha of box.querySelectorAll('.haudio')) {
+        const au = ha.querySelector('audio');
+        if (!au) continue;
+        out.append(audioSlot(au, ha.querySelector('.listen-file-header')?.textContent.trim() || ''));
+        const d = ha.querySelector('.description');
+        if (d?.textContent.trim()) { const p = doc.createElement('div'); p.className = 'adesc'; p.append(...d.childNodes); out.append(p); }
+      }
+      if (out.querySelector('.aslot')) box.replaceWith(out);
+    });
+    body.querySelectorAll('audio').forEach((au) => (au.closest('span[typeof^="mw:File"]') || au).replaceWith(audioSlot(au, '')));
     body.querySelectorAll([
       'script', 'style', 'link', 'meta', 'noscript', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'audio', 'video',
       '.mw-editsection', '.navbox', '.navbox-styles', '.vertical-navbox', '.sidebar', '.ambox', '.ombox', '.tmbox', '.mbox-small',
@@ -568,6 +609,15 @@
       'This article uses material from the Wikipedia article ', h('a', { href: '#', 'data-ext': Wiki.pageUrl(canon) }, `“${name}”`),
       ', which is released under the Creative Commons Attribution-ShareAlike 4.0 License. Retrieved ', new Date().toLocaleDateString('en-US'), '.');
     pg.text.replaceChildren(...nodes, attrib);
+    // Sounds often have no caption of their own, so borrow the title the article's "Listen" box gives them.
+    const soundNames = [...pg.text.querySelectorAll('.aslot')].map((s) => [s.dataset.file, s.dataset.label]).filter(([, l]) => l);
+    const mediaP = articleMedia(canon).then((items) => {
+      for (const m of items) if (!m.caption) m.caption = soundNames.find(([f]) => sameFile(f, m.file))?.[1] || '';
+      return items;
+    });
+    mediaP.catch(() => {});
+    current.media = mediaP;
+    mediaSlots(pg.text, mediaP);
 
     // contents rail
     const tocLinks = [railLink('Introduction', () => pg.content.scrollTo({ top: 0, behavior: 'smooth' }), 'on')];
@@ -580,7 +630,7 @@
     if (related.length) {
       pg.railIn.append(railSection('Related articles', `${related.length} articles`, related.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub'))));
     }
-    mediaBox(canon, token).then((box) => { if (box && live(token)) tocSec.after(box); }, () => {});
+    mediaBox(mediaP, token).then((box) => { if (box && live(token)) tocSec.after(box); }, () => {});
     pg.content.addEventListener('scroll', () => {
       const y = pg.content.scrollTop + 40;
       let active = 0;
@@ -621,8 +671,13 @@
     else if (a.dataset.file) {
       const img = a.querySelector('img');
       if (img) {
+        // Pictures open in the media viewer, with the rest of the article's media; the plain lightbox is the fallback.
         const fw = Number(img.getAttribute('data-file-width')) || 0;
-        lightbox(sized(img.src, originalOf(img.src), fw, 1280), img.closest('figure')?.querySelector('figcaption')?.textContent || '');
+        const plain = () => lightbox(sized(img.src, originalOf(img.src), fw, 1280), img.closest('figure')?.querySelector('figcaption')?.textContent || '');
+        (current?.media || Promise.reject()).then((items) => {
+          const i = items.findIndex((m) => sameFile(m.file, a.dataset.file));
+          if (i >= 0) mediaViewer(items, i); else plain();
+        }, plain);
       }
     } else if ((a.getAttribute('href') || '').startsWith('#') && a.getAttribute('href').length > 1) {
       const t = view.querySelector('#' + CSS.escape(a.getAttribute('href').slice(1)));
@@ -1073,7 +1128,7 @@
   function videoSource(sources) {
     const webm = sources.filter((s) => /webm/.test(s.mime)).map((s) => {
       const url = noUtm(s.url);
-      return { url, px: Number(/\.(\d+)p\.webm$/.exec(url)?.[1] || s.height) || 0 };
+      return { url, px: Number(/\.(\d+)p\.[\w.]*webm$/.exec(url)?.[1] || s.height) || 0 };
     }).sort((a, b) => b.px - a.px);
     return (webm.find((s) => s.px <= 720) || webm[webm.length - 1])?.url || '';
   }
@@ -1138,8 +1193,8 @@
   }
 
   // The Media box in an article's rail: counts, nine tiles, and "See all".
-  async function mediaBox(title, token) {
-    const items = await articleMedia(title);
+  async function mediaBox(mediaP, token) {
+    const items = await mediaP;
     if (!live(token)) return null;
     const of = (type) => items.filter((m) => m.type === type);
     const [pictures, videos, sounds] = [of('image'), of('video'), of('audio')];
@@ -1178,19 +1233,82 @@
     return railSection('Media', `${items.length} items`, [h('div', { class: 'mcount' }, counts), grid, all]);
   }
 
+  // Connects a video or sound to a play button, progress bar, and times. Only one thing plays at a time, and
+  // playing stops Read Aloud. Returns a function that plays or pauses it.
+  function wireMedia(el, { pb, bar, fill, cur, tot, duration = 0, onState }) {
+    el.volume = E2KAudio.level();
+    const len = () => (isFinite(el.duration) && el.duration) || duration;
+    const tick = () => { cur.textContent = clock(el.currentTime); fill.style.width = len() ? (100 * el.currentTime / len()) + '%' : '0'; };
+    const state = () => {
+      const playing = !el.paused && !el.ended;
+      pb.querySelector('use').setAttribute('href', '#i-' + (playing ? 'pause' : 'play'));
+      pb.title = playing ? 'Pause' : 'Play';
+      onState?.(playing);
+    };
+    const toggle = () => { if (el.paused || el.ended) el.play().catch(() => {}); else el.pause(); };
+    const seek = (e) => {
+      const r = bar.getBoundingClientRect();
+      if (len()) el.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * len();
+    };
+    pb.addEventListener('click', toggle);
+    bar.addEventListener('pointerdown', (e) => { bar.setPointerCapture(e.pointerId); seek(e); });
+    bar.addEventListener('pointermove', (e) => { if (bar.hasPointerCapture(e.pointerId)) seek(e); });
+    el.addEventListener('timeupdate', tick);
+    el.addEventListener('loadedmetadata', () => { if (len()) tot.textContent = clock(len()); });
+    el.addEventListener('play', () => { speechStop(); $$('video, audio').forEach((o) => { if (o !== el) o.pause(); }); state(); });
+    el.addEventListener('pause', state);
+    el.addEventListener('ended', state);
+    tot.textContent = clock(duration);
+    tick();
+    state();
+    return toggle;
+  }
+  const playerParts = () => {
+    const fill = h('i');
+    return { pb: h('button', { class: 'pb' }, icon('play')), fill, bar: h('div', { class: 'bar' }, fill), cur: h('span', {}, '0:00'), tot: h('span', {}, '0:00') };
+  };
+
+  // A small sound player for the article text: play, title, progress, and times.
+  function soundPlayer({ file = '', dur = 0, label = '', src = '[]' }) {
+    const au = h('audio', { preload: 'none' });
+    try { for (const [u, type] of JSON.parse(src)) au.append(h('source', { src: noUtm(u), type })); } catch {}
+    const name = label || fileName(file);
+    const parts = playerParts();
+    const box = h('div', { class: 'aud' }, parts.pb,
+      h('div', { class: 'info' }, h('b', { title: name }, name), parts.bar, h('div', { class: 'tm' }, parts.cur, parts.tot)), au);
+    wireMedia(au, { ...parts, duration: Number(dur) || 0, onState: (on) => box.classList.toggle('playing', on) });
+    au.addEventListener('error', () => { box.classList.add('err'); parts.pb.title = 'This sound can’t be played right now.'; }, true);
+    return box;
+  }
+
+  // Brings the article's video and sound placeholders (made in cleanArticle) to life. Videos open in the viewer.
+  const sameFile = (a, b) => a.replace(/^(File|Image):/i, '').replace(/_/g, ' ') === b.replace(/^(File|Image):/i, '').replace(/_/g, ' ');
+  function mediaSlots(root, mediaP) {
+    root.querySelectorAll('.vslot').forEach((s) => {
+      const { file, dur, poster, src } = s.dataset;
+      const caption = s.closest('figure')?.querySelector('figcaption')?.textContent.trim() || '';
+      const open = async () => {
+        const items = await mediaP.catch(() => []);
+        const i = items.findIndex((m) => sameFile(m.file, file));
+        if (i >= 0) mediaViewer(items, i, true);
+        else if (src) mediaViewer([{ type: 'video', file, caption, thumb: poster, src, duration: Number(dur) || 0 }], 0, true);
+      };
+      s.replaceWith(h('button', { class: 'vthumb', title: 'Play video', onclick: open },
+        poster ? h('img', { src: poster, alt: caption, loading: 'lazy' }) : null,
+        h('span', { class: 'play' }, icon('play')),
+        Number(dur) ? h('span', { class: 'dur' }, clock(dur)) : null));
+    });
+    root.querySelectorAll('.aslot').forEach((s) => s.replaceWith(soundPlayer(s.dataset)));
+  }
+
   // The viewer: one picture, video, or sound at a time, with a strip of the article's other media.
   function mediaViewer(items, start, autoplay = false) {
     closeOverlays();
-    let at = -1, el = null;
+    let at = -1, toggle = null;
     const kind = h('span', { class: 'vt' });
     const pos = h('span', { class: 'pos' });
     const stage = h('div', { class: 'mstage' });
-    const playBtn = h('button', { class: 'pb', title: 'Play', onclick: () => playPause() }, icon('play'));
-    const cur = h('span', {}, '0:00'), dur = h('span', {}, '0:00');
-    const fill = h('i');
-    const bar = h('div', { class: 'bar' }, fill);
-    const volB = h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol'));
-    const controls = h('div', { class: 'ctl' }, playBtn, cur, bar, dur, volB);
+    const controls = h('div', { class: 'ctl' });
     const credit = h('div', { class: 'credit' });
     const strip = h('div', { class: 'mstrip' }, items.map((m, i) => mediaTile(m, () => show(i, true))));
     const prev = h('button', { class: 'nav prev', title: 'Previous', onclick: () => show(at - 1) }, '‹');
@@ -1199,18 +1317,6 @@
       h('div', { class: 'mviewer', role: 'dialog' },
         h('div', { class: 'dt' }, kind, pos, h('button', { class: 'x', title: 'Close', onclick: () => ov.remove() }, '✕')),
         h('div', { class: 'stagewrap' }, stage, prev, next), controls, credit, strip));
-
-    function playPause() {
-      if (!el) return;
-      if (el.paused || el.ended) el.play().catch(() => {}); else el.pause();
-    }
-    function seek(e) {
-      const r = bar.getBoundingClientRect();
-      const d = el?.duration || items[at].duration;
-      if (el && d) el.currentTime = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)) * d;
-    }
-    bar.addEventListener('pointerdown', (e) => { bar.setPointerCapture(e.pointerId); seek(e); });
-    bar.addEventListener('pointermove', (e) => { if (bar.hasPointerCapture(e.pointerId)) seek(e); });
 
     function show(i, play = false) {
       if (i < 0 || i >= items.length) return;
@@ -1226,41 +1332,27 @@
       strip.children[i].scrollIntoView({ block: 'nearest', inline: 'nearest' });
       stage.className = 'mstage ' + m.type;
       stage.replaceChildren();
-      el = null;
+      controls.replaceChildren();
+      toggle = null;
       if (m.type === 'image') {
         stage.append(h('img', { src: m.large, alt: label }));
       } else {
-        el = h(m.type, { src: m.src, preload: play ? 'auto' : 'none', poster: m.type === 'video' ? m.thumb : null });
-        el.volume = E2KAudio.level();
-        const tick = () => {
-          const d = el.duration || m.duration;
-          cur.textContent = clock(el.currentTime);
-          fill.style.width = d ? (100 * el.currentTime / d) + '%' : '0';
-        };
-        const state = () => {
-          const playing = !el.paused && !el.ended;
-          playBtn.querySelector('use').setAttribute('href', '#i-' + (playing ? 'pause' : 'play'));
-          playBtn.title = playing ? 'Pause' : 'Play';
-          stage.classList.toggle('playing', playing);
-        };
-        el.addEventListener('timeupdate', tick);
-        el.addEventListener('loadedmetadata', () => { if (el.duration && isFinite(el.duration)) dur.textContent = clock(el.duration); });
-        el.addEventListener('play', () => { speechStop(); state(); });
-        el.addEventListener('pause', state);
-        el.addEventListener('ended', state);
+        const el = h(m.type, { src: m.src, preload: play ? 'auto' : 'none', poster: m.type === 'video' ? m.thumb : null });
+        const parts = playerParts();
+        controls.append(parts.pb, parts.cur, parts.bar, parts.tot, h('button', { class: 'vb', onclick: () => toggleMute() }, icon('vol')));
+        toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => stage.classList.toggle('playing', on) });
         el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
+        const big = h('button', { class: 'big', title: 'Play', onclick: toggle }, icon('play'));
         if (m.type === 'video') {
-          el.addEventListener('click', playPause);
-          stage.append(el, h('button', { class: 'big', title: 'Play', onclick: playPause }, icon('play')));
+          el.addEventListener('click', toggle);
+          stage.append(el, big);
         } else {
-          stage.append(waveform(m.file, 48), h('div', { class: 'lbl' }, label), h('button', { class: 'big', title: 'Play', onclick: playPause }, icon('play')), el);
+          stage.append(waveform(m.file, 48), h('div', { class: 'lbl' }, label), big, el);
         }
-        dur.textContent = clock(m.duration);
-        tick();
-        state();
         if (play) el.play().catch(() => {});
       }
-      controls.hidden = !el;
+      controls.hidden = !toggle;
+      updateVolume();
       credit.textContent = m.credit || '';
       if (m.credit === undefined) {
         m.credit = '';
@@ -1272,11 +1364,10 @@
       if (!ov.isConnected) { document.removeEventListener('keydown', onKey); return; }
       if (e.key === 'ArrowLeft') { e.preventDefault(); show(at - 1); }
       else if (e.key === 'ArrowRight') { e.preventDefault(); show(at + 1); }
-      else if (e.key === ' ' && el && !e.target.closest('button')) { e.preventDefault(); playPause(); }
+      else if (e.key === ' ' && toggle && !e.target.closest('button')) { e.preventDefault(); toggle(); }
     };
     document.addEventListener('keydown', onKey);
     document.body.append(ov);
-    updateVolume();
     show(start, autoplay);
   }
 
