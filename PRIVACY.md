@@ -1,6 +1,6 @@
 # Encyclopedia 2000 Privacy Policy
 
-**Effective October 17, 2026**
+**Effective October 18, 2026**
 
 Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
@@ -44,9 +44,15 @@ Some buttons open web pages in your own browser instead of inside the app, such 
 
 encyclopedia2000.com uses no cookies and no advertising or cross-site trackers. It uses **Cloudflare Web Analytics** to count visits: which pages are viewed, which site you came from, and your general country and type of device. It doesn't use cookies, doesn't follow you across other sites, and doesn't collect personal information. The site is hosted on GitHub Pages and served through Cloudflare. These analytics apply only to the website; the Encyclopedia 2000 app itself has none.
 
+## Beta sign-up emails
+
+If you ask for the download link on our beta sign-up page, we use **Kit** (kit.com), an email service, to send it. Kit stores your email address and the date you signed up, and whether you asked for beta news. We use your address only to send the download link and, if you ticked the box, beta news. We never sell or share it, and the app itself never sees it.
+
+If you didn't ask for beta news, we delete your address within 90 days. If you did, we keep it until you unsubscribe with the link at the bottom of every email, and delete it within 90 days after that. Kit's [privacy policy](https://kit.com/privacy) also applies. Sign-up is for people 13 and older.
+
 ## Children
 
-Encyclopedia 2000 doesn't collect personal information from anyone, including children.
+The Encyclopedia 2000 app doesn't collect personal information from anyone, including children. The beta sign-up page is for people 13 and older.
 
 ## Changes
 
