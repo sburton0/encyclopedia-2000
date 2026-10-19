@@ -10,13 +10,16 @@ window.E2KTime = {
   },
 };
 
-// Units follow the Metric or Imperial setting in Tools > Options > Appearance (saved as e2k.units). Until someone
-// chooses, US-style system settings get Imperial and everyone else Metric.
+// Units follow the Metric or Imperial setting in Tools > Options > Appearance, also switchable inside the Solar System
+// and World Explorer (saved as e2k.units). Until someone chooses, the computer's regional format decides: the US,
+// Liberia, and Myanmar get Imperial, everyone else Metric.
 window.E2KUnits = {
   system() {
     try { const v = JSON.parse(localStorage.getItem('e2k.units')); if (v === 'metric' || v === 'imperial') return v; } catch {}
-    return /-(US|LR|MM)/i.test(navigator.language || '') ? 'imperial' : 'metric';
+    const locale = (window.e2k && window.e2k.systemLocale) || navigator.language || '';
+    return /[-_](US|LR|MM)$/i.test(locale) ? 'imperial' : 'metric';
   },
+  set(system) { try { localStorage.setItem('e2k.units', JSON.stringify(system)); } catch {} },
   imperial() { return this.system() === 'imperial'; },
   // "12,742 km" or "7,918 mi"
   length(km) { const v = this.imperial() ? km / 1.609344 : km; return `${Math.round(v).toLocaleString('en-US')} ${this.imperial() ? 'mi' : 'km'}`; },

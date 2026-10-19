@@ -8,8 +8,13 @@ window.addEventListener('DOMContentLoaded', () => {
   if (platform !== 'win32') document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'fonts/fonts.css' }));
 });
 
+// The regional format setting (not the display language), for the default units. Read once; nothing leaves the computer.
+let systemLocale = '';
+try { systemLocale = ipcRenderer.sendSync('app:locale') || ''; } catch {}
+
 contextBridge.exposeInMainWorld('e2k', {
   platform,
+  systemLocale,
   // macOS shows the app's menus in the menu bar at the top of the screen; the page sends their contents here.
   setMenu: (template) => ipcRenderer.send('menu:set', template),
   onMenu: (cb) => ipcRenderer.on('menu:run', (_e, id) => cb(id)),

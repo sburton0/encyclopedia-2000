@@ -115,11 +115,17 @@
     const speedBtns = SPEEDS.map(([label, v]) => h('button', { class: 'act-chip', onclick: () => { speed = v; speedBtns.forEach((b, i) => b.classList.toggle('on', SPEEDS[i][1] === v)); if (!playing) setPlaying(true); } }, label));
     speedBtns[1].classList.add('on');
     const card = h('div', { class: 'act-card ss-card' });
+    // The same choice as Tools > Options > Units: switching here is saved, and redraws the card.
+    const unitBtns = [['metric', 'Metric'], ['imperial', 'Imperial']].map(([v, label]) => h('button', { class: 'act-chip', title: v === 'metric' ? 'Kilometers, kilograms, °C' : 'Miles, pounds, °F',
+      onclick: () => { E2KUnits.set(v); markUnits(); if (selected) select(selected); } }, label));
+    const markUnits = () => unitBtns.forEach((b, i) => b.classList.toggle('on', ['metric', 'imperial'][i] === E2KUnits.system()));
+    markUnits();
     root.append(
       h('div', { class: 'ss-map' }, map),
       h('div', { class: 'act-head ss-head' }, h('div', {}, h('h1', {}, 'The Solar System'), dateEl)),
       h('div', { class: 'ss-ctl' }, playBtn, h('span', { class: 'lbl' }, 'Speed'), speedBtns,
-        h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today')),
+        h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today'),
+        h('span', { class: 'lbl' }, 'Units'), unitBtns),
       card);
 
     // ---------- the card ----------
