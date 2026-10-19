@@ -122,8 +122,8 @@
       h('div', { class: 'ss-map' }, map),
       h('div', { class: 'act-head ss-head' }, h('div', {}, h('h1', {}, 'The Solar System'), dateEl)),
       h('div', { class: 'ss-ctl' }, playBtn, h('span', { class: 'lbl' }, 'Speed'), speedBtns,
-        h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today'),
-        h('div', { class: 'unit-seg' }, unitMenu)),
+        h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today')),
+      h('div', { class: 'ss-units' }, unitMenu),
       card);
 
     // ---------- the card ----------
