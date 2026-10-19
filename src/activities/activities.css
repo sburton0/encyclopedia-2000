@@ -297,11 +297,20 @@
 .ac-loading { padding: 6px 0; font: 12px "Segoe UI"; color: var(--sky); }
 .ac-art { width: 100%; height: 100%; }
 
-/* Units (Solar System, World Explorer): a label and two joined buttons in one control, set off by a divider. */
-.unit-seg { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 14px; border-left: 1px solid rgba(var(--edge), .3); font: 12px "Segoe UI"; color: var(--sky); }
-.unit-seg.solo { margin-left: 0; padding-left: 0; border-left: 0; }
-.unit-seg .seg { display: inline-flex; border: 1px solid rgba(var(--edge), .35); background: rgba(var(--deep), .45); }
-.unit-seg .seg button { height: 22px; padding: 0 10px 2px; background: none; border: 0; color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
-.unit-seg .seg button + button { border-left: 1px solid rgba(var(--edge), .35); }
-.unit-seg .seg button:hover { color: #fff; }
-.unit-seg .seg button.on { background: rgba(245, 166, 35, .22); box-shadow: inset 0 0 0 1px var(--orange); color: #fff; font-weight: 600; }
+/* Units (Solar System, World Explorer): a "Units: Metric ▴" button whose menu opens upward. In the Solar System a
+   divider sets it off from the time controls. */
+.unit-seg { display: inline-flex; align-items: center; margin-left: 12px; padding-left: 14px; border-left: 1px solid rgba(var(--edge), .3); }
+.unit-menu { position: relative; }
+.unit-btn { height: 24px; padding: 0 10px 2px; background: rgba(var(--deep), .45); border: 1px solid rgba(var(--edge), .35); color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
+.unit-btn:hover, .unit-menu:has(.unit-pop:not([hidden])) .unit-btn { border-color: var(--orange); color: #fff; }
+.unit-pop { position: absolute; bottom: calc(100% + 4px); right: 0; min-width: 180px; padding: 4px; z-index: 20; background: #0e1830; border: 1px solid rgba(var(--edge), .45); box-shadow: 0 8px 24px rgba(0, 0, 0, .5); }
+/* The open menu sits above the activity's cards. */
+.ss-ctl:has(.unit-pop:not([hidden])), .wx-units:has(.unit-pop:not([hidden])) { z-index: 30; }
+.unit-pop .ui { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 10px; background: none; border: 0; color: #dbe5f7; font: 12px "Segoe UI"; text-align: left; white-space: nowrap; }
+.unit-pop .ui:hover { background: rgba(245, 166, 35, .16); color: #fff; }
+.unit-pop .ui em { font-style: normal; color: #8f9dbd; }
+.unit-pop .ui .rb { width: 10px; height: 10px; border-radius: 50%; border: 1px solid #8f9dbd; flex: none; }
+.unit-pop .ui.on .rb { border-color: var(--orange); background: radial-gradient(circle, var(--orange) 0 45%, transparent 50%); }
+.unit-pop .ui.on { color: #fff; font-weight: 600; }
+.unit-pop .ui .ic { width: 12px; height: 12px; fill: currentColor; flex: none; }
+.unit-pop hr { margin: 4px 6px; border: 0; border-top: 1px solid rgba(var(--edge), .3); }

@@ -38,6 +38,7 @@
 
   function mount(root, api) {
     const { h, svg } = api;
+    const U = E2KUnits.in('solar');   // formatting in this activity's units (version.js loads after the activities)
     root.classList.add('act', 'ss');
     let simDays = (Date.now() - J2000) / 864e5;
     let speed = 30.44;
@@ -115,17 +116,14 @@
     const speedBtns = SPEEDS.map(([label, v]) => h('button', { class: 'act-chip', onclick: () => { speed = v; speedBtns.forEach((b, i) => b.classList.toggle('on', SPEEDS[i][1] === v)); if (!playing) setPlaying(true); } }, label));
     speedBtns[1].classList.add('on');
     const card = h('div', { class: 'act-card ss-card' });
-    // The same choice as Tools > Options > Units: switching here is saved, and redraws the card.
-    const unitBtns = [['metric', 'Metric'], ['imperial', 'Imperial']].map(([v, label]) => h('button', { title: v === 'metric' ? 'Kilometers, kilograms, °C' : 'Miles, pounds, °F',
-      onclick: () => { E2KUnits.set(v); markUnits(); if (selected) select(selected); } }, label));
-    const markUnits = () => unitBtns.forEach((b, i) => b.classList.toggle('on', ['metric', 'imperial'][i] === E2KUnits.system()));
-    markUnits();
+    // Units for this activity (see E2KUnits.menu); switching redraws the card.
+    const unitMenu = E2KUnits.menu(h, api.icon, 'solar', () => { if (selected) select(selected); });
     root.append(
       h('div', { class: 'ss-map' }, map),
       h('div', { class: 'act-head ss-head' }, h('div', {}, h('h1', {}, 'The Solar System'), dateEl)),
       h('div', { class: 'ss-ctl' }, playBtn, h('span', { class: 'lbl' }, 'Speed'), speedBtns,
         h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today'),
-        h('div', { class: 'unit-seg' }, h('span', {}, 'Units'), h('div', { class: 'seg' }, unitBtns))),
+        h('div', { class: 'unit-seg' }, unitMenu)),
       card);
 
     // ---------- the card ----------
@@ -142,8 +140,8 @@
       const sum = h('p', { class: 'act-sum' });
       const row = (k, v) => h('tr', {}, h('td', {}, k), h('td', {}, v));
       const facts = p === SUN
-        ? [row('Type', 'Yellow dwarf star'), row('Diameter', E2KUnits.length(1392700)), row('Mass', '333,000 × Earth'), row('Age', 'About 4.6 billion years'), row('Surface', `About ${E2KUnits.temp(5500)}`)]
-        : [row('Distance from Sun', `${E2KUnits.far(p.distKm)} (${p.au} AU)`), row('Diameter', E2KUnits.length(p.diam)), row('Mass', p.mass === 1 ? (E2KUnits.imperial() ? '1.32 × 10²⁵ lb' : '5.97 × 10²⁴ kg') : `${p.mass} × Earth`),
+        ? [row('Type', 'Yellow dwarf star'), row('Diameter', U.length(1392700)), row('Mass', '333,000 × Earth'), row('Age', 'About 4.6 billion years'), row('Surface', `About ${U.temp(5500)}`)]
+        : [row('Distance from Sun', `${U.far(p.distKm)} (${p.au} AU)`), row('Diameter', U.length(p.diam)), row('Mass', p.mass === 1 ? (U.imperial() ? '1.32 × 10²⁵ lb' : '5.97 × 10²⁴ kg') : `${p.mass} × Earth`),
           row('Year', p.year), row('Day', p.day), row('Moons', p.moons ? `${p.moons} known` : 'None')];
       const notes = p === SUN
         ? ['Over 99.8% of the Solar System’s mass is in the Sun.', 'Its light takes about 8 minutes to reach Earth.']

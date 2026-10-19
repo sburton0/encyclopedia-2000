@@ -74,7 +74,7 @@ window.E2KWorld = (() => {
     if (!km) return '';
     const metric = `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString('en-US')} km²`;
     const mi = km / 2.58999, imperial = `${mi < 10 ? mi.toFixed(1) : Math.round(mi).toLocaleString('en-US')} sq mi`;
-    return E2KUnits.imperial() ? `${imperial} (${metric})` : `${metric} (${imperial})`;
+    return E2KUnits.in('world').imperial() ? `${imperial} (${metric})` : `${metric} (${imperial})`;
   }
   const join = (xs, n = 3) => xs.slice(0, n).join(', ') + (xs.length > n ? ', and others' : '');
 
@@ -114,11 +114,8 @@ window.E2KWorld = (() => {
     const sugBox = h('div', { class: 'wx-sug', hidden: true });
     const regionBtns = REGIONS.map((r) => h('button', { class: 'wx-chip', onclick: () => chooseRegion(r) }, r));
     const card = h('div', { class: 'wx-card' });
-    // The same choice as Tools > Options > Units: switching here is saved, and redraws the card.
-    const unitBtns = [['metric', 'Metric'], ['imperial', 'Imperial']].map(([v, label]) => h('button', { title: v === 'metric' ? 'Square kilometers first' : 'Square miles first',
-      onclick: () => { E2KUnits.set(v); markUnits(); if (state.sel) showCard(byId[state.sel]); else showHome(); } }, label));
-    const markUnits = () => unitBtns.forEach((b, i) => b.classList.toggle('on', ['metric', 'imperial'][i] === E2KUnits.system()));
-    markUnits();
+    // Units for this activity (see E2KUnits.menu); switching redraws the card.
+    const unitMenu = E2KUnits.menu(h, api.icon, 'world', () => { if (state.sel) showCard(byId[state.sel]); else showHome(); });
     const el = h('div', { class: 'wx' },
       h('div', { class: 'wx-head' },
         h('div', {}, h('h1', {}, 'Countries of the World')),
@@ -130,7 +127,7 @@ window.E2KWorld = (() => {
         h('button', { title: 'Zoom in', onclick: () => zoomBy(1 / 1.6) }, '+'),
         h('button', { title: 'Zoom out', onclick: () => zoomBy(1.6) }, '−')),
       h('div', { class: 'wx-hint' }, 'Click a country to learn about it. Scroll to zoom, drag to move.'),
-      h('div', { class: 'wx-units' }, h('div', { class: 'unit-seg solo' }, h('span', {}, 'Units'), h('div', { class: 'seg' }, unitBtns))),
+      h('div', { class: 'wx-units' }, unitMenu),
       card);
     root.append(el);
 
