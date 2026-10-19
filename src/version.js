@@ -10,6 +10,25 @@ window.E2KTime = {
   },
 };
 
+// Units follow the Metric or Imperial setting in Tools > Options > Appearance (saved as e2k.units). Until someone
+// chooses, US-style system settings get Imperial and everyone else Metric.
+window.E2KUnits = {
+  system() {
+    try { const v = JSON.parse(localStorage.getItem('e2k.units')); if (v === 'metric' || v === 'imperial') return v; } catch {}
+    return /-(US|LR|MM)/i.test(navigator.language || '') ? 'imperial' : 'metric';
+  },
+  imperial() { return this.system() === 'imperial'; },
+  // "12,742 km" or "7,918 mi"
+  length(km) { const v = this.imperial() ? km / 1.609344 : km; return `${Math.round(v).toLocaleString('en-US')} ${this.imperial() ? 'mi' : 'km'}`; },
+  // "57.9 million km" or "36.0 million mi"
+  far(km) {
+    const v = this.imperial() ? km / 1.609344 : km, u = this.imperial() ? 'mi' : 'km';
+    return v >= 1e9 ? `${(v / 1e9).toFixed(2)} billion ${u}` : `${(v / 1e6).toFixed(1)} million ${u}`;
+  },
+  // "5,500 °C" or "9,900 °F", rounded to the nearest 100 like the figures it shows
+  temp(c) { const v = this.imperial() ? c * 9 / 5 + 32 : c; return `${(Math.round(v / 100) * 100).toLocaleString('en-US')} °${this.imperial() ? 'F' : 'C'}`; },
+};
+
 window.E2KVersion = {
   pretty(v = '') {
     const m = /^(\d+)\.(\d+)\.(\d+)(?:-beta(?:\.(\d+))?)?/.exec(v);
