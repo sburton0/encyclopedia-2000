@@ -115,7 +115,7 @@ window.E2KWorld = (() => {
     const regionBtns = REGIONS.map((r) => h('button', { class: 'wx-chip', onclick: () => chooseRegion(r) }, r));
     const card = h('div', { class: 'wx-card' });
     // The same choice as Tools > Options > Units: switching here is saved, and redraws the card.
-    const unitBtns = [['metric', 'Metric'], ['imperial', 'Imperial']].map(([v, label]) => h('button', { class: 'wx-chip', title: v === 'metric' ? 'Square kilometers first' : 'Square miles first',
+    const unitBtns = [['metric', 'Metric'], ['imperial', 'Imperial']].map(([v, label]) => h('button', { title: v === 'metric' ? 'Square kilometers first' : 'Square miles first',
       onclick: () => { E2KUnits.set(v); markUnits(); if (state.sel) showCard(byId[state.sel]); else showHome(); } }, label));
     const markUnits = () => unitBtns.forEach((b, i) => b.classList.toggle('on', ['metric', 'imperial'][i] === E2KUnits.system()));
     markUnits();
@@ -130,7 +130,7 @@ window.E2KWorld = (() => {
         h('button', { title: 'Zoom in', onclick: () => zoomBy(1 / 1.6) }, '+'),
         h('button', { title: 'Zoom out', onclick: () => zoomBy(1.6) }, '−')),
       h('div', { class: 'wx-hint' }, 'Click a country to learn about it. Scroll to zoom, drag to move.'),
-      h('div', { class: 'wx-units' }, h('span', {}, 'Units'), unitBtns),
+      h('div', { class: 'wx-units' }, h('div', { class: 'unit-seg solo' }, h('span', {}, 'Units'), h('div', { class: 'seg' }, unitBtns))),
       card);
     root.append(el);
 

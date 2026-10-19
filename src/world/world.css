@@ -47,8 +47,7 @@
 .wx-zoom button { width: 26px; height: 24px; padding: 0 0 2px; background: rgba(var(--deep), .6); border: 1px solid rgba(var(--edge), .35); color: #fff; font: 600 15px/1 "Segoe UI"; }
 .wx-zoom button:hover { border-color: var(--orange); }
 .wx-hint { position: absolute; left: 62px; bottom: 46px; font: 12px "Segoe UI"; color: var(--sky); z-index: 3; }
-.wx-units { position: absolute; right: 386px; bottom: 44px; display: flex; align-items: center; gap: 6px; z-index: 3; font: 12px "Segoe UI"; color: var(--sky); }
-.wx-units span { margin-right: 4px; }
+.wx-units { position: absolute; right: 386px; bottom: 44px; z-index: 3; }
 
 .wx-card { position: absolute; right: 16px; top: 16px; bottom: 16px; width: 338px; display: flex; flex-direction: column; overflow: hidden; z-index: 3;
            background: linear-gradient(rgba(var(--glass), .88), rgba(var(--glass), .72)); border: 1px solid rgba(var(--edge), .3); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); }

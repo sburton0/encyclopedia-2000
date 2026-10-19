@@ -296,3 +296,12 @@
 .ac-ev:hover span { color: #fff; text-decoration: underline; }
 .ac-loading { padding: 6px 0; font: 12px "Segoe UI"; color: var(--sky); }
 .ac-art { width: 100%; height: 100%; }
+
+/* Units (Solar System, World Explorer): a label and two joined buttons in one control, set off by a divider. */
+.unit-seg { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; padding-left: 14px; border-left: 1px solid rgba(var(--edge), .3); font: 12px "Segoe UI"; color: var(--sky); }
+.unit-seg.solo { margin-left: 0; padding-left: 0; border-left: 0; }
+.unit-seg .seg { display: inline-flex; border: 1px solid rgba(var(--edge), .35); background: rgba(var(--deep), .45); }
+.unit-seg .seg button { height: 22px; padding: 0 10px 2px; background: none; border: 0; color: #cfdcf5; font: 12px "Segoe UI"; white-space: nowrap; }
+.unit-seg .seg button + button { border-left: 1px solid rgba(var(--edge), .35); }
+.unit-seg .seg button:hover { color: #fff; }
+.unit-seg .seg button.on { background: rgba(245, 166, 35, .22); box-shadow: inset 0 0 0 1px var(--orange); color: #fff; font-weight: 600; }
