@@ -196,15 +196,20 @@ async function meta4(url) {
 }
 
 let job = null;   // the running download: { abort, speed, eta }
+// Creates the folder if it's missing. A drive's root (D:\) already exists, and Windows refuses to "create" it.
+function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
+// Free space where the library goes: asks the folder, or the nearest folder above it that exists.
 function freeSpace(dir) {
-  try { fs.mkdirSync(dir, { recursive: true }); const s = fs.statfsSync(dir); return s.bavail * s.bsize; } catch { return 0; }
+  let d = path.resolve(dir);
+  while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
+  try { const s = fs.statfsSync(d); return s.bavail * s.bsize; } catch { return 0; }
 }
 // Room for the new pack (minus what's already downloaded), keeping the old one until the new one is done, plus 1 GB.
 // Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
 // past 4 GB (instant on other file systems, nothing is written) and deleting it.
 function bigFilesOk(dir) {
   const probe = path.join(dir, '.e2k-size-check');
-  try { fs.mkdirSync(dir, { recursive: true }); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
+  try { ensureDir(dir); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
   catch { return false; } finally { try { fs.unlinkSync(probe); } catch {} }
 }
 function spaceCheck(packId) {
@@ -238,7 +243,7 @@ async function run() {
   const d = state.download, m = await meta4(d.url);
   d.size = m.size; d.pieceLength = m.pieceLength || 4 * 1024 * 1024;
   const nPieces = Math.ceil(m.size / d.pieceLength);
-  fs.mkdirSync(libDir(), { recursive: true });
+  ensureDir(libDir());
   const part = path.join(libDir(), d.file + '.part');
   if (!fs.existsSync(part)) { fs.writeFileSync(part, ''); d.done = 0; }
   const fd = fs.openSync(part, 'r+');

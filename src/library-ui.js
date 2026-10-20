@@ -2,7 +2,7 @@
 // The work happens in the main process (library.js); this dialog shows its state, which arrives on library:update.
 window.E2KLibrary = (() => {
   const GB = 1e9;
-  const size = (b) => (!b ? '' : b >= 10 * GB ? `${Math.round(b / GB)} GB` : b >= GB ? `${(b / GB).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
+  const size = (b) => (!b ? '0 MB' : b >= 10 * GB ? `${Math.round(b / GB)} GB` : b >= GB ? `${(b / GB).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
   const edition = (d) => (d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '');
   const left = (s) => (s < 90 ? 'less than 2 minutes left' : s < 3600 ? `about ${Math.round(s / 60)} minutes left` : `about ${(s / 3600).toFixed(s < 36000 ? 1 : 0)} hours left`);
   const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
