@@ -199,13 +199,18 @@ let job = null;   // the running download: { abort, speed, eta }
 // Creates the folder if it's missing. A drive's root (D:\) already exists, and Windows refuses to "create" it.
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 // Free space where the library goes: asks the folder, or the nearest folder above it that exists.
+// The drive's whole size, for telling "too small" apart from "too full".
+function driveSize(dir) {
+  let d = path.resolve(dir);
+  while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
+  try { const s = fs.statfsSync(d); return s.blocks * s.bsize; } catch { return 0; }
+}
 function freeSpace(dir) {
   if (process.env.E2K_FAKE_FREE) return +process.env.E2K_FAKE_FREE;   // development: pretend this much is free
   let d = path.resolve(dir);
   while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
   try { const s = fs.statfsSync(d); return s.bavail * s.bsize; } catch { return 0; }
 }
-// Room for the new pack (minus what's already downloaded), keeping the old one until the new one is done, plus 1 GB.
 // Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
 // past 4 GB (instant on other file systems, nothing is written) and deleting it.
 function bigFilesOk(dir) {
@@ -213,13 +218,23 @@ function bigFilesOk(dir) {
   try { ensureDir(dir); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
   catch { return false; } finally { try { fs.unlinkSync(probe); } catch {} }
 }
+// Whether a pack can go where the library is saved, checking the most basic problem first: a drive too small for it
+// at all, then a FAT32 drive (which can't hold a file over 4 GB, though reformatting would fix that), then not enough
+// free space right now. Also reports what would fit, so the dialog can suggest a smaller library.
 function spaceCheck(packId) {
   const c = state.catalog?.[packId]; if (!c) return { ok: false, reason: 'catalog' };
-  if (c.size > 4 * 1024 ** 3 && !bigFilesOk(libDir())) return { ok: false, fat32: true, size: c.size };
+  const dir = libDir(), total = process.env.E2K_FAKE_FREE ? Math.max(+process.env.E2K_FAKE_FREE, 8e9) : driveSize(dir);
+  const free = freeSpace(dir), fat32 = !bigFilesOk(dir), old = state.current ? state.current.size || 0 : 0;
   const have = state.download?.pack === packId ? (state.download.done || 0) * (state.download.pieceLength || 0) : 0;
-  const need = Math.max(0, c.size - have) + 1e9, free = freeSpace(libDir());
-  const old = state.current ? state.current.size || 0 : 0;
-  return { ok: free >= need, need, free, freeIfRemoved: free + old, canRemoveOld: !!state.current && free + old >= need };
+  // A little room to spare: 5% of the pack, between 200 MB and 1 GB.
+  const spare = (n) => Math.min(1e9, Math.max(2e8, n * 0.05));
+  const need = Math.max(0, c.size - have) + spare(c.size);
+  const fits = packs().filter((p) => { const s = state.catalog?.[p.id]?.size; return s && s + spare(s) <= free + old && !(fat32 && s > 4 * 1024 ** 3); })
+    .map((p) => p.id);
+  const info = { need, free, total, fat32, size: c.size, fits };
+  if (total && c.size + spare(c.size) > total) return { ok: false, tooSmall: true, ...info };
+  if (fat32 && c.size > 4 * 1024 ** 3) return { ok: false, ...info };
+  return { ok: free >= need, ...info, freeIfRemoved: free + old, canRemoveOld: !!state.current && free + old >= need };
 }
 
 async function startDownload(packId, { removeOld = false } = {}) {
@@ -227,7 +242,8 @@ async function startDownload(packId, { removeOld = false } = {}) {
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
   const sp = spaceCheck(packId);
-  if (sp.fat32) return { error: 'fat32', ...sp };
+  if (sp.tooSmall) return { error: 'too-small', ...sp };
+  if (sp.fat32 && c.size > 4 * 1024 ** 3) return { error: 'fat32', ...sp };
   if (!sp.ok && !(removeOld && sp.canRemoveOld)) return { error: 'space', ...sp };
   if (removeOld && !sp.ok) removeCurrent();
   if (!state.download || state.download.pack !== packId || state.download.file !== c.file) {

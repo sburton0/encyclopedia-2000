@@ -127,7 +127,11 @@ window.E2KLibrary = (() => {
     async function start(p, resume = false) {
       if (!resume && st.current && !(await confirmSwitch(p))) return;
       let r = await L.download(p.id);
-      if (r.error === 'fat32') return showErr(`${p.label} is ${size(r.size)}, and this drive can’t hold files over 4 GB (it’s formatted FAT32, common on USB sticks). Choose another drive with Change…, reformat this one as exFAT, or pick Essentials, text only (${size(packOf('top_nopic')?.size)}).`);
+      // Suggest the biggest library that does fit this drive, if any.
+      const alt = r.fits && st.packs.filter((x) => r.fits.includes(x.id) && x.id !== p.id).sort((a, b) => b.size - a.size)[0];
+      const orAlt = alt ? `, or pick ${alt.label} (${size(alt.size)})` : '';
+      if (r.error === 'too-small') return showErr(`${p.label} is ${size(r.size)}, which is too big for this drive (it holds ${size(r.total)}). Choose a bigger drive with Change…${orAlt}.`);
+      if (r.error === 'fat32') return showErr(`${p.label} is ${size(r.size)}, and this drive can’t hold files over 4 GB (it’s formatted FAT32, common on USB sticks). Choose another drive with Change…, reformat this one as exFAT${orAlt}.`);
       if (r.error === 'space') {
         const cur = st.current && packOf(st.current.pack);
         if (r.canRemoveOld && cur) {
