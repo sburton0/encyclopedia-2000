@@ -125,7 +125,6 @@ window.E2KLibrary = (() => {
       return new Promise((res) => dialog('Offline Library', heading, body, [[heading.replace('?', ''), () => res(true), true], ['Cancel', () => res(false)]]));
     }
     async function start(p, resume = false) {
-      showErr('');
       if (!resume && st.current && !(await confirmSwitch(p))) return;
       let r = await L.download(p.id);
       if (r.error === 'fat32') return showErr(`${p.label} is ${size(r.size)}, and this drive can’t hold files over 4 GB (it’s formatted FAT32, common on USB sticks). Choose another drive with Change…, reformat this one as exFAT, or pick Essentials, text only (${size(packOf('top_nopic')?.size)}).`);
@@ -138,9 +137,10 @@ window.E2KLibrary = (() => {
           [[`Remove ${cur.label} and download`, () => res(true), true], ['Cancel', () => res(false)]]));
           if (!ok) return;
           r = await L.download(p.id, { removeOld: true });
-        } else return showErr(`${p.label} needs ${size(r.need)} free, and ${size(r.free)} is free here. Free up space, or choose another drive with Change….`);
+        } else return showErr(`${p.label} needs ${size(r.need)} free, and ${size(r.free)} is free here. Free up space, or choose another drive with Change…`);
       }
-      if (r.error && r.error !== 'busy') showErr(r.error);
+      // The error stays up until there's a new outcome, so clicking again doesn't make it flash.
+      showErr(r.error && r.error !== 'busy' ? r.error : '');
       st = await L.state(); draw();
     }
     async function cancel(p) {
@@ -157,6 +157,12 @@ window.E2KLibrary = (() => {
 
     document.body.append(ov);
     draw();
+    // Pin the dialog's top edge where it first appears, so it grows and shrinks at the bottom (an error, a download's
+    // progress, the other packs) instead of re-centering and jumping around the screen.
+    const box = ov.querySelector('.dialog.offline'), top = Math.max(20, Math.round(box.getBoundingClientRect().top));
+    ov.style.alignItems = 'flex-start';
+    box.style.marginTop = top + 'px';
+    box.style.maxHeight = `calc(100vh - ${top + 20}px)`;
     // Fresh sizes and editions from Kiwix's catalog.
     L.catalog().then((s) => { if (dlg) { if (s.error && !s.packs.some((p) => p.size)) showErr(s.error); dlg(s); } });
   }

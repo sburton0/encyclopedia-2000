@@ -200,6 +200,7 @@ let job = null;   // the running download: { abort, speed, eta }
 function ensureDir(dir) { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); }
 // Free space where the library goes: asks the folder, or the nearest folder above it that exists.
 function freeSpace(dir) {
+  if (process.env.E2K_FAKE_FREE) return +process.env.E2K_FAKE_FREE;   // development: pretend this much is free
   let d = path.resolve(dir);
   while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
   try { const s = fs.statfsSync(d); return s.bavail * s.bsize; } catch { return 0; }
