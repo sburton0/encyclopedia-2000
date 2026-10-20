@@ -44,6 +44,8 @@
       "main.js",
       "preload.js",
       "updater.js",
+      "library.js",
+      "zim-reader.js",
       "src/**/*",
       "build/icon.ico",
       "build/icon.png",
