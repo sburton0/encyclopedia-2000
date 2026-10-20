@@ -40,7 +40,7 @@ window.E2KLibrary = (() => {
           status, list, err,
           h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); if (st.error) showErr(st.error); draw(); } }, 'Change…'), freeTxt),
           h('div', { class: 'opts' },
-            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster, and articles in your library don’t need the internet)')), pics),
+            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster; articles in your library don’t need the internet)')), pics),
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
             h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),
