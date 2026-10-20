@@ -118,6 +118,7 @@ window.E2KLibrary = (() => {
       showErr('');
       if (!resume && st.current && !(await confirmSwitch(p))) return;
       let r = await L.download(p.id);
+      if (r.error === 'fat32') return showErr(`${p.label} is ${size(r.size)}, and this drive can’t hold files over 4 GB (it’s formatted FAT32, common on USB sticks). Choose another drive with Change…, reformat this one as exFAT, or pick Essentials, text only (${size(packOf('top_nopic')?.size)}).`);
       if (r.error === 'space') {
         const cur = st.current && packOf(st.current.pack);
         if (r.canRemoveOld && cur) {

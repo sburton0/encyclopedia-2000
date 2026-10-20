@@ -39,7 +39,11 @@ let state = { dir: '', current: null, download: null, catalog: null, checked: 0 
 // state.current:  { pack, file, date, size }      the installed library
 // state.download: { pack, file, url, date, size, pieces, done, status }   status: downloading | paused | error
 const stateFile = () => path.join(app.getPath('userData'), 'library.json');
-const libDir = () => state.dir || path.join(app.getPath('userData'), 'Library');
+// A folder inside the app's data folder is saved relative to it, so a portable copy on a USB drive keeps finding its
+// library when the drive gets a different letter.
+const dataDir = () => app.getPath('userData');
+const libDir = () => (state.dir ? path.resolve(dataDir(), state.dir) : path.join(dataDir(), 'Library'));
+const storeDir = (dir) => { const rel = path.relative(dataDir(), dir); return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : dir; };
 function save() { try { fs.writeFileSync(stateFile(), JSON.stringify({ ...state, catalog: undefined }, null, 2)); } catch {} }
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
 
@@ -127,8 +131,16 @@ function freeSpace(dir) {
   try { fs.mkdirSync(dir, { recursive: true }); const s = fs.statfsSync(dir); return s.bavail * s.bsize; } catch { return 0; }
 }
 // Room for the new pack (minus what's already downloaded), keeping the old one until the new one is done, plus 1 GB.
+// Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
+// past 4 GB (instant on other file systems, nothing is written) and deleting it.
+function bigFilesOk(dir) {
+  const probe = path.join(dir, '.e2k-size-check');
+  try { fs.mkdirSync(dir, { recursive: true }); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
+  catch { return false; } finally { try { fs.unlinkSync(probe); } catch {} }
+}
 function spaceCheck(packId) {
   const c = state.catalog?.[packId]; if (!c) return { ok: false, reason: 'catalog' };
+  if (c.size > 4 * 1024 ** 3 && !bigFilesOk(libDir())) return { ok: false, fat32: true, size: c.size };
   const have = state.download?.pack === packId ? (state.download.done || 0) * (state.download.pieceLength || 0) : 0;
   const need = Math.max(0, c.size - have) + 1e9, free = freeSpace(libDir());
   const old = state.current ? state.current.size || 0 : 0;
@@ -140,6 +152,7 @@ async function startDownload(packId, { removeOld = false } = {}) {
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
   const sp = spaceCheck(packId);
+  if (sp.fat32) return { error: 'fat32', ...sp };
   if (!sp.ok && !(removeOld && sp.canRemoveOld)) return { error: 'space', ...sp };
   if (removeOld && !sp.ok) removeCurrent();
   if (!state.download || state.download.pack !== packId || state.download.file !== c.file) {
@@ -265,9 +278,9 @@ async function chooseDir(win) {
     const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
     if (lib && !override) { try { lib.close(); } catch {} lib = null; }
     try { fs.renameSync(from, to); } catch { try { fs.copyFileSync(from, to); fs.unlinkSync(from); } catch (e) { if (!override) openFile(from); return { ...publicState(), error: 'The library couldn’t be moved there.' }; } }
-    state.dir = dir;
+    state.dir = storeDir(dir);
     if (!override) openFile(to);
-  } else state.dir = dir;
+  } else state.dir = storeDir(dir);
   save(); broadcast();
   return publicState();
 }
