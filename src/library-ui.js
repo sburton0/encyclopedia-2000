@@ -107,7 +107,7 @@ window.E2KLibrary = (() => {
             : h('button', { class: 'go primary', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Download'));
         }
         const off = p.fit && !p.fit.ok && !p.fit.canRemoveOld && !(st.current && st.current.pack === p.id) && !(d && d.pack === p.id);
-        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') },
+        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') },
           h('h3', {}, p.label, ...tags), h('div', { class: 'acts' }, acts), h('p', {}, desc), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
       dirCode.textContent = st.dir;
