@@ -69,10 +69,12 @@ window.E2KWorld = (() => {
     const n = p.n >= 1e9 ? `${(p.n / 1e9).toFixed(2)} billion` : p.n >= 1e6 ? `${(p.n / 1e6).toFixed(1)} million` : p.n.toLocaleString('en-US');
     return p.year ? `${n} (${p.year})` : n;
   }
+  // In the chosen units, with the other in parentheses: "357,022 km² (137,847 sq mi)" or the reverse.
   function areaText(km) {
     if (!km) return '';
-    const r = (x) => Math.round(x).toLocaleString('en-US');
-    return km < 10 ? `${km.toFixed(1)} km² (${(km / 2.59).toFixed(1)} sq mi)` : `${r(km)} km² (${r(km / 2.58999)} sq mi)`;
+    const metric = `${km < 10 ? km.toFixed(1) : Math.round(km).toLocaleString('en-US')} km²`;
+    const mi = km / 2.58999, imperial = `${mi < 10 ? mi.toFixed(1) : Math.round(mi).toLocaleString('en-US')} sq mi`;
+    return E2KUnits.in('world').imperial() ? `${imperial} (${metric})` : `${metric} (${imperial})`;
   }
   const join = (xs, n = 3) => xs.slice(0, n).join(', ') + (xs.length > n ? ', and others' : '');
 
@@ -112,6 +114,8 @@ window.E2KWorld = (() => {
     const sugBox = h('div', { class: 'wx-sug', hidden: true });
     const regionBtns = REGIONS.map((r) => h('button', { class: 'wx-chip', onclick: () => chooseRegion(r) }, r));
     const card = h('div', { class: 'wx-card' });
+    // Units for this activity (see E2KUnits.menu); switching redraws the card.
+    const unitMenu = E2KUnits.menu(h, api.icon, 'world', () => { if (state.sel) showCard(byId[state.sel]); else showHome(); });
     const el = h('div', { class: 'wx' },
       h('div', { class: 'wx-head' },
         h('div', {}, h('h1', {}, 'Countries of the World')),
@@ -123,6 +127,7 @@ window.E2KWorld = (() => {
         h('button', { title: 'Zoom in', onclick: () => zoomBy(1 / 1.6) }, '+'),
         h('button', { title: 'Zoom out', onclick: () => zoomBy(1.6) }, '−')),
       h('div', { class: 'wx-hint' }, 'Click a country to learn about it. Scroll to zoom, drag to move.'),
+      h('div', { class: 'wx-units' }, unitMenu),
       card);
     root.append(el);
 

@@ -1,12 +1,19 @@
 // Tools > Options: a tabbed settings dialog with OK, Cancel, and Apply.
 // Changes are staged in `draft` and only saved on OK or Apply. "Clear" and "Reset" act immediately.
 window.E2KOptions = (() => {
-  const RENDERER_KEYS = ['theme', 'clock24', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
+  const RENDERER_KEYS = ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
 
-  async function open(api, tab) {
+  // Scrolls an Options group (by its title, such as 'Units') into view, for links straight to one setting.
+  function reveal(root, section) {
+    if (!section) return;
+    const g = [...root.querySelectorAll('.ogroup legend')].find((l) => l.textContent === section)?.parentElement;
+    if (g) setTimeout(() => g.scrollIntoView({ block: 'nearest' }), 0);
+  }
+
+  async function open(api, tab, section) {
     const { h, store } = api;
     const openDlg = document.querySelector('.options');
-    if (openDlg) { if (tab) [...openDlg.querySelectorAll('.otab')].find((b) => b.textContent === tab)?.click(); return; }
+    if (openDlg) { if (tab) [...openDlg.querySelectorAll('.otab')].find((b) => b.textContent === tab)?.click(); reveal(openDlg, section); return; }
     const main = await window.e2k.settings.get();
 
     const read = () => ({
@@ -16,6 +23,7 @@ window.E2KOptions = (() => {
       autoUpdate: main.autoUpdate !== false,
       theme: store.get('theme', 'bloom'),
       clock24: store.get('clock24', false),
+      units: E2KUnits.system(),
       startupSound: store.get('startupSound', true),
       startOn: store.get('startOn', 'home'),
       volume: Math.round(E2KAudio.getVolume() * 100),
@@ -121,7 +129,7 @@ window.E2KOptions = (() => {
         h('div', { class: 'orow end' }, testBtn)));
 
     // ---------- Reading ----------
-    const sample = h('p', { class: 'osample' }, 'The Moon is Earth’s only natural satellite. It orbits at an average distance of 384,400 km, about 30 times the diameter of Earth.');
+    const sample = h('p', { class: 'osample' }, 'The Moon is Earth’s only natural satellite. It orbits at an average distance of ' + (E2KUnits.system() === 'imperial' ? '238,900 miles' : '384,400 km') + ', about 30 times the diameter of Earth.');
     const [sizeSlider, sizeOut] = slider('fontScale', 0.8, 1.5, 0.1, (v) => Math.round(v * 100) + '%');
     refreshers.push(() => {
       sample.style.fontSize = 15 * draft.fontScale + 'px';
@@ -183,7 +191,9 @@ window.E2KOptions = (() => {
       group('Theme', h('div', { class: 'themes' }, picks), themeNote,
         h('p', { class: 'onote' }, 'Themes change the colors, the Home screen, and the startup screen. Articles always stay easy to read.')),
       group('Clock', radios('clock24', 'o-clock', [[false, '12-hour (9:30 PM)'], [true, '24-hour (21:30)']]),
-        h('p', { class: 'onote' }, 'For the clock in the status bar, the World Clock, and sunrise and sunset times.')));
+        h('p', { class: 'onote' }, 'For the clock in the status bar, the World Clock, and sunrise and sunset times.')),
+      group('Units', radios('units', 'o-units', [['metric', 'Metric (km, kg, °C)'], ['imperial', 'Imperial (miles, pounds, °F)']]),
+        h('p', { class: 'onote' }, 'The default for the Solar System and World Explorer; each also has a Units menu to switch until you close the app. Facts in articles come from Wikipedia, which shows both.')));
 
     const TABS = [['Startup', startup], ['Appearance', appearance], ['Sound', sound], ['Reading', reading], ['Privacy', privacy]];
     const tabBtns = TABS.map(([label], i) => h('button', { class: 'otab', role: 'tab', onclick: () => show(i) }, label));
@@ -200,7 +210,8 @@ window.E2KOptions = (() => {
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
       main.autoUpdate = draft.autoUpdate;
-      ['theme', 'clock24', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
+      if (draft.units !== E2KUnits.system()) E2KUnits.clearPicks();
+      ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);
       E2KAudio.setMuted(draft.muted);
@@ -224,6 +235,7 @@ window.E2KOptions = (() => {
         h('div', { class: 'df' }, okBtn, cancelBtn, applyBtn)));
     document.body.append(ov);
     show(Math.max(0, TABS.findIndex(([label]) => label === tab)));
+    reveal(ov, section);
     refresh();
     okBtn.focus();
   }

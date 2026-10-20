@@ -149,8 +149,9 @@
     const before = E2KThemes.current();
     E2KThemes.apply(store.get('theme', 'bloom'));
     // A new theme redraws the screen you're on, since its artwork is drawn when a screen opens.
-    // So does switching between 12-hour and 24-hour time, so every clock on the screen updates at once.
-    const clock = E2KTime.is24();
+    // So does switching between 12-hour and 24-hour time, so every clock on the screen updates at once, and switching
+    // between metric and imperial units.
+    const clock = E2KTime.is24() + E2KUnits.system();
     if ((E2KThemes.current() !== before || (clockShown !== null && clock !== clockShown)) && nav.idx >= 0) setTimeout(() => reload(), 0);
     clockShown = clock;
     if (typeof tick === 'function') tick();

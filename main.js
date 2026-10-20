@@ -252,6 +252,8 @@ function systemName() {
   return `${major === 10 && build >= 22000 ? 'Windows 11' : major === 10 ? 'Windows 10' : 'Windows'} (build ${build || os.release()})`;
 }
 ipcMain.handle('app:info', () => ({ version: app.getVersion(), windows: systemName() }));
+// The system's regional format ("en-GB", "en-US"), read once by the preload: it picks the default units.
+ipcMain.on('app:locale', (e) => { e.returnValue = (app.getSystemLocale && app.getSystemLocale()) || app.getLocale(); });
 
 // ---------- macOS menu bar ----------
 // The page sends its menus (the same ones it draws inside the window on Windows and Linux). Items carry either a
