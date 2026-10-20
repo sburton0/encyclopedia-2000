@@ -133,7 +133,11 @@ function preview(articlePath) {
       if (w >= 60 && h >= 60 && !/infobox-signature/.test(m[0])) { src = (/src="([^"]+)"/.exec(img) || [])[1]; break; }
     }
     if (src && !/^(data:|https?:)/.test(src)) {
-      const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), src));
+      // The HTML has the name URL-encoded ("Schr%C3%B6dinger"), but the library stores it plain ("Schrödinger"),
+      // so it's decoded before being encoded once for the URL.
+      let rel = src.replace(/&amp;/g, '&');
+      try { rel = decodeURIComponent(rel); } catch {}
+      const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), rel));
       thumb = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
     }
     // The first real paragraph of the lead (not inside a table or box), without footnote marks or styles.
