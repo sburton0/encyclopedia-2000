@@ -103,7 +103,8 @@
     }
     function setPlaying(on) {
       playing = on;
-      playBtn.replaceChildren(on ? '❚❚ Pause' : '▶ Play');
+      playBtn.classList.toggle('paused', !on);
+      playBtn.title = on ? 'Pause' : 'Play';
       cancelAnimationFrame(raf);
       last = 0;
       if (on) raf = requestAnimationFrame(tick);
@@ -111,7 +112,8 @@
 
     // ---------- controls ----------
     const dateEl = h('div', { class: 'ss-date' });
-    const playBtn = h('button', { class: 'act-chip', onclick: () => setPlaying(!playing) });
+    // Both labels share one spot so the button is always as wide as the longer one, and the row doesn't shift.
+    const playBtn = h('button', { class: 'act-chip ss-play', onclick: () => setPlaying(!playing) }, h('span', { class: 'p' }, '❚❚ Pause'), h('span', { class: 'r' }, '▶ Play'));
     const speedBtns = SPEEDS.map(([label, v]) => h('button', { class: 'act-chip', onclick: () => { speed = v; speedBtns.forEach((b, i) => b.classList.toggle('on', SPEEDS[i][1] === v)); if (!playing) setPlaying(true); } }, label));
     speedBtns[1].classList.add('on');
     const card = h('div', { class: 'act-card ss-card' });
