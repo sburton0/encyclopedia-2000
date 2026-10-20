@@ -16,7 +16,9 @@
 /* Games are night skies, so each theme supplies a dark version of its background (--night). */
 .game-root { position: absolute; inset: 0; overflow: hidden; background: var(--night, var(--scene)); }
 .sc-holder { position: absolute; inset: 0; }
-.sc-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%) scale(var(--s, 1)); color: #fff; }
+/* Enlarged with zoom rather than a scale transform: under a scale, Chromium paints the sky's SVG labels at their unscaled
+   positions and only partly while the next-star rings pulse. */
+.sc-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%); zoom: var(--s, 1); color: #fff; }
 .sc-canvas > svg { position: absolute; inset: 0; width: 1024px; height: 610px; overflow: visible; }
 .sc-canvas h1 { margin: 0; font: 300 40px/1.1 "Segoe UI"; }
 .sc-canvas small { font: 600 10.5px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
