@@ -42,8 +42,8 @@ window.E2KLibrary = (() => {
       return h('label', { class: 'opt sub' }, r, h('span', {}, label));
     };
     const pics = h('div', { class: 'subopts' },
-      pic('online', 'Load high-resolution pictures from the internet when connected (recommended)'),
-      pic('library', 'Use the library’s pictures only (lower resolution; nothing is loaded from the internet)'));
+      pic('online', 'Load high-resolution images from the internet when connected (recommended)'),
+      pic('library', 'Use the library’s images only (lower resolution; nothing is loaded from the internet)'));
     const picChoice = () => { pics.classList.toggle('off', !first.checked); pics.querySelectorAll('input').forEach((i) => { i.disabled = !first.checked; }); };
     picChoice();
 
@@ -59,7 +59,7 @@ window.E2KLibrary = (() => {
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
             h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),
-          h('p', { class: 'fine' }, 'Pictures in offline libraries are lower resolution than online. Downloads come from download.kiwix.org and its mirrors. Articles are under CC BY-SA.')),
+          h('p', { class: 'fine' }, 'Images in offline libraries are lower resolution than online. Downloads come from download.kiwix.org and its mirrors. Articles are under CC BY-SA.')),
         h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => close() }, 'Close'))));
     const close = () => { dlg = null; ov.remove(); };
     const showErr = (msg) => { err.textContent = msg || ''; err.hidden = !msg; };
@@ -104,7 +104,7 @@ window.E2KLibrary = (() => {
         } else {
           const covered = cur && cur.covers.includes(p.id);
           if (covered) tags.push(h('span', { class: 'tag inc' }, 'INCLUDED IN YOUR LIBRARY'));
-          if (covered) desc = `${cur.label} already has ${/nopic/.test(p.id) && !/nopic/.test(cur.id) ? 'these articles (with pictures).' : 'all of these articles.'}`;
+          if (covered) desc = `${cur.label} already has ${/nopic/.test(p.id) && !/nopic/.test(cur.id) ? 'these articles (with images).' : 'all of these articles.'}`;
           if (p.recommended && !st.current) tags.push(h('span', { class: 'tag' }, 'RECOMMENDED'));
           // The size's line is always there (blank until Kiwix's catalog answers), so the button doesn't move when it arrives.
           acts.push(h('span', { class: 'size' }, p.size ? size(p.size) : ''));
@@ -142,7 +142,7 @@ window.E2KLibrary = (() => {
       let heading, body;
       if (cur.covers.includes(p.id)) {
         heading = `Switch to ${p.label}?`;
-        body = [pics ? `${p.label} has ${/all/.test(p.id) === /all/.test(cur.id) ? 'the same articles' : 'fewer articles'} without pictures.` : `Your library will have fewer articles: ${p.label} instead of ${cur.label}.`,
+        body = [pics ? `${p.label} has ${/all/.test(p.id) === /all/.test(cur.id) ? 'the same articles' : 'fewer articles'} without images.` : `Your library will have fewer articles: ${p.label} instead of ${cur.label}.`,
           `${cur.label} (${size(st.current.size)}) will be removed once ${p.label} finishes downloading. Until then, ${cur.label} stays available.`];
       } else if (p.covers.includes(cur.id)) {
         heading = `Download ${p.label}?`;
