@@ -69,17 +69,16 @@ class Zim {
     const off = (k) => (ext ? Number(data.readBigUInt64LE(k * w)) : data.readUInt32LE(k * w));
     return data.subarray(off(e.blob), off(e.blob + 1));
   }
-  // Title search: binary search the title-sorted list for the first title >= prefix, then walk forward.
-  titlePrefix(prefix, limit = 8, ns = 'C') {
-    const key = ns + '/' + prefix;
-    const n = this.titleList().length;
+  // Entries whose title starts with prefix, in title order: binary search the title list, then walk forward.
+  titleEntries(prefix, limit = 8, ns = 'C') {
+    const key = ns + '/' + prefix, n = this.titleList().length;
     let lo = 0, hi = n;
     while (lo < hi) { const mid = (lo + hi) >> 1, e = this.entry(this.titleIdx(mid)); if (e.ns + '/' + e.title < key) lo = mid + 1; else hi = mid; }
     const out = [];
     for (let i = lo; i < n && out.length < limit; i++) {
       const e = this.entry(this.titleIdx(i));
       if (e.ns !== ns || !e.title.startsWith(prefix)) break;
-      out.push(e.title + (e.redirect !== undefined ? ' (redirect)' : ''));
+      out.push(e);
     }
     return out;
   }

@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld('e2k', {
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  // The offline library (library.js): its details, an article's path by title, title suggestions, a random article.
+  library: {
+    info: () => ipcRenderer.invoke('library:info'),
+    find: (title) => ipcRenderer.invoke('library:find', title),
+    titles: (q, limit) => ipcRenderer.invoke('library:titles', q, limit),
+    random: () => ipcRenderer.invoke('library:random'),
+  },
   update: {
     state: () => ipcRenderer.invoke('update:state'),
     check: () => ipcRenderer.invoke('update:check'),
