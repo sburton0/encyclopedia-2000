@@ -125,20 +125,21 @@ function preview(articlePath) {
     // The lead picture: the first one in the infobox (or else the article) that's a real picture shown at a decent
     // size. Infoboxes also hold small icons (a "current season" baseball, rating stars) and signatures.
     const start = Math.max(0, html.indexOf('class="infobox')), body = html.slice(start);
-    let src = '';
     // The image sits in a file frame (an inline <span> or a captioned <figure>), sometimes inside a link or an extra
     // <span> (it varies between libraries).
     for (const m of body.matchAll(/<(?:span|figure)[^>]*typeof="mw:File[^"]*"[^>]*>\s*(?:<(?:a|span)\b[^>]*>\s*)*(<img[^>]+>)/g)) {
       const img = m[1], w = +((/\swidth="(\d+)"/.exec(img) || [])[1] || 0), h = +((/\sheight="(\d+)"/.exec(img) || [])[1] || 0);
-      if (w >= 60 && h >= 60 && !/infobox-signature/.test(m[0])) { src = (/src="([^"]+)"/.exec(img) || [])[1]; break; }
-    }
-    if (src && !/^(data:|https?:)/.test(src)) {
+      if (w < 60 || h < 60 || /infobox-signature/.test(m[0])) continue;
+      const src = (/src="([^"]+)"/.exec(img) || [])[1];
+      if (!src || /^(data:|https?:)/.test(src)) continue;
       // The HTML has the name URL-encoded ("Schr%C3%B6dinger"), but the library stores it plain ("Schrödinger"),
       // so it's decoded before being encoded once for the URL.
       let rel = src.replace(/&amp;/g, '&');
       try { rel = decodeURIComponent(rel); } catch {}
       const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), rel));
+      if (!lib.find('C', p)) continue;   // some libraries leave out large images (animated GIFs): try the next one
       thumb = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
+      break;
     }
     // The first real paragraph of the lead (not inside a table or box), without footnote marks or styles.
     const lead = html.slice(html.indexOf('mw-parser-output'));
