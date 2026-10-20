@@ -41,6 +41,9 @@ contextBridge.exposeInMainWorld('e2k', {
     chooseDir: () => ipcRenderer.invoke('library:choose-dir'),
     openDir: () => ipcRenderer.invoke('library:open-dir'),
     onUpdate: (cb) => ipcRenderer.on('library:update', (_e, s) => cb(s)),
+    // Closing mid-download: the main process asks the page to confirm, and quit() goes ahead.
+    onConfirmQuit: (cb) => ipcRenderer.on('library:confirm-quit', (_e, info) => cb(info)),
+    quit: () => ipcRenderer.send('library:quit'),
   },
   update: {
     state: () => ipcRenderer.invoke('update:state'),

@@ -103,6 +103,14 @@ function createMain(route) {
   // macOS hides the window buttons in full screen, so the title bar drops the space it keeps for them.
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
+  // Closing while an offline library is downloading asks first (the page shows the question); the download pauses and
+  // picks up again next time.
+  win.on('close', (e) => {
+    if (library.downloading() && !quitConfirmed && !win.webContents.isCrashed()) {
+      e.preventDefault();
+      win.webContents.send('library:confirm-quit', library.quitInfo());
+    }
+  });
   win.on('close', () => {
     if (settings.windowMode !== 'remember') return;
     // Display scaling can round the size by a pixel or two each launch; ignore that so the window doesn't creep.
@@ -153,10 +161,18 @@ function captureLater(win) {
       const img = await target.webContents.capturePage();
       fs.writeFileSync(env.E2K_CAPTURE, img.toPNG());
     } finally {
+      quitConfirmed = true;   // a test run never stops to ask about downloads
       app.quit();
     }
   }, Number(env.E2K_DELAY || 6000));
 }
+
+let quitConfirmed = false;
+ipcMain.on('library:quit', (e) => {
+  quitConfirmed = true;
+  library.pauseForQuit();
+  BrowserWindow.fromWebContents(e.sender)?.close();
+});
 
 ipcMain.on('win', (e, cmd) => {
   const win = BrowserWindow.fromWebContents(e.sender);

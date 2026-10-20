@@ -153,5 +153,14 @@ window.E2KLibrary = (() => {
 
   // Keep the open dialog (and the rest of the app) up to date.
   if (window.e2k && window.e2k.library) window.e2k.library.onUpdate((s) => { if (dlg) dlg(s); });
+  // Closing the app mid-download: say what happens, with Keep downloading as the default.
+  if (window.e2k && window.e2k.library) window.e2k.library.onConfirmQuit((info) => {
+    if (!window.E2K || document.querySelector('.dialog.quitdl')) return;
+    const pct = info && info.size ? Math.floor((100 * info.received) / info.size) : 0;
+    E2K.dialog('Encyclopedia 2000', 'Your offline library is still downloading', [
+      `${info.label} is ${pct}% done (${size(info.received) || '0 MB'} of ${size(info.size)}). If you quit now, the download will pick up where it left off next time you open Encyclopedia 2000.`],
+    [['Keep downloading', null, true], ['Quit anyway', () => window.e2k.library.quit()]]);
+    document.querySelector('.overlay:last-of-type .dialog')?.classList.add('quitdl');
+  });
   return { open };
 })();

@@ -159,6 +159,7 @@ async function startDownload(packId, { removeOld = false } = {}) {
     state.download = { pack: packId, file: c.file, url: c.url, date: c.date, size: c.size, done: 0, status: 'downloading' };
   }
   state.download.status = 'downloading';
+  state.download.resume = false;
   save(); broadcast();
   run().catch((e) => { if (state.download) { state.download.status = 'error'; state.download.error = e.message; } job = null; save(); broadcast(); });
   return { ok: true };
@@ -255,7 +256,21 @@ async function finish(part) {
   save(); broadcast();
 }
 
-function pause() { if (job) { job.abort(); job = null; } if (state.download) state.download.status = 'paused'; save(); broadcast(); }
+function pause() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = false; } save(); broadcast(); }
+// Quitting mid-download: pause it, and pick it up again automatically next time the app opens.
+function pauseForQuit() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = true; } save(); }
+const downloading = () => !!(job && state.download && state.download.status === 'downloading');
+function quitInfo() {
+  const d = state.download, p = d && packs().find((x) => x.id === d.pack);
+  return d && { label: p ? p.label : d.file, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), size: d.size };
+}
+// Starts an unfinished download again: one that was interrupted by quitting (or by the app closing unexpectedly).
+function resumeInterrupted() {
+  const d = state.download;
+  if (!d || job || d.status === 'error' || (d.status === 'paused' && !d.resume)) return;
+  d.status = 'downloading'; d.resume = false; save(); broadcast();
+  run().catch((e) => { if (state.download) { state.download.status = 'error'; state.download.error = e.message; } job = null; save(); broadcast(); });
+}
 function cancel() {
   if (job) { job.abort(); job = null; }
   if (state.download) { try { fs.unlinkSync(path.join(libDir(), state.download.file + '.part')); } catch {} }
@@ -302,7 +317,10 @@ function setup() {
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
   else if (state.current) openFile(path.join(libDir(), state.current.file));
-  if (state.download && state.download.status === 'downloading') state.download.status = 'paused';   // resumes when asked
+  // A download that was running when the app last closed (quit mid-download, or closed unexpectedly) carries on a few
+  // seconds after startup; one the user paused stays paused.
+  if (state.download && state.download.status === 'downloading') state.download.resume = true;
+  if (state.download && state.download.resume) { state.download.status = 'paused'; setTimeout(resumeInterrupted, 4000); }
   protocol.handle('e2k-zim', (req) => {
     if (!lib) return new Response('No offline library', { status: 404 });
     const [ns, ...rest] = decodeURIComponent(new URL(req.url).pathname).slice(1).split('/');
@@ -327,4 +345,4 @@ function setup() {
   if (Date.now() - (state.checked || 0) > MONTH) setTimeout(() => fetchCatalog().then(broadcast, () => {}), 15000);
 }
 
-module.exports = { setup };
+module.exports = { setup, downloading, pauseForQuit, quitInfo };
