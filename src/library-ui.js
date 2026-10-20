@@ -5,6 +5,21 @@ window.E2KLibrary = (() => {
   const size = (b) => (!b ? '0 MB' : b >= 10 * GB ? `${Math.round(b / GB)} GB` : b >= GB ? `${(b / GB).toFixed(1)} GB` : `${Math.max(1, Math.round(b / 1e6))} MB`);
   const edition = (d) => (d ? new Date(d + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : '');
   const left = (s) => (s < 90 ? 'less than 2 minutes left' : s < 3600 ? `about ${Math.round(s / 60)} minutes left` : `about ${(s / 3600).toFixed(s < 36000 ? 1 : 0)} hours left`);
+  // Shortens a path in the middle to fit a width, like classic Windows: the drive, "…", and as many of the last
+  // folders as fit ("C:\Users\…\Wikipedia\Library").
+  function fitPath(full, el) {
+    const cs = getComputedStyle(el), room = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const g = fitPath.ctx || (fitPath.ctx = document.createElement('canvas').getContext('2d'));
+    g.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+    if (room <= 0 || g.measureText(full).width <= room) return full;
+    const sep = full.includes('\\') ? '\\' : '/', parts = full.split(sep).filter(Boolean);
+    const head = full.startsWith(sep) ? '' : parts.shift();
+    for (let keep = parts.length - 1; keep >= 1; keep--) {
+      const t = `${head}${sep}…${sep}${parts.slice(-keep).join(sep)}`;
+      if (g.measureText(t).width <= room) return t;
+    }
+    return `${head}${sep}…${sep}${parts[parts.length - 1] || ''}`;   // still too long: the box's own "…" trims the end
+  }
   const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
 
   let dlg = null;   // the open dialog's redraw function
@@ -112,8 +127,8 @@ window.E2KLibrary = (() => {
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
           h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
-      // One line: a long path shows its end (the folder name), with the whole path on hover.
-      dirCode.replaceChildren(h("span", { dir: "ltr" }, st.dir));
+      // One line: a long path is shortened in the middle, with the whole path on hover.
+      dirCode.textContent = fitPath(st.dir, dirCode);
       dirCode.title = st.dir;
       freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
     }
