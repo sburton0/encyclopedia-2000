@@ -90,7 +90,7 @@ window.Wiki = (() => {
   }
   // Offline results get the article's first sentence as their snippet (escaped, since the results page reads it as HTML).
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const libTitles = async (q, n) => (await lib.titles(q, n)).map((t) => ({ title: t.title, description: '', excerpt: esc(t.extract || ''), thumbnail: t.thumb ? { url: t.thumb } : null }));
+  const libTitles = async (q, n, deep) => (await lib.titles(q, n, deep)).map((t) => ({ title: t.title, description: '', excerpt: esc(t.extract || ''), thumbnail: t.thumb ? { url: t.thumb } : null }));
 
   return {
     library,
@@ -113,7 +113,7 @@ window.Wiki = (() => {
     random: () => search(() => get(`${BASE}/api/rest_v1/page/random/summary`), async () => { const r = await lib.random(); if (!r) throw new Error('The library is empty'); return libSummary(r); }),
     searchTitles: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`), async () => ({ pages: await libTitles(q, 8) })),
     // Offline, results are titles that start with what was typed (the library's word search isn't readable here yet).
-    searchPages: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=20`), async () => ({ pages: await libTitles(q, 20) })),
+    searchPages: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=20`), async () => ({ pages: await libTitles(q, 20, true) })),
     // Wikipedia's spelling suggestion for a search ("napolean" -> "napoleon"), or '' if it has none.
     spelling: (q) => (libraryFirst() ? Promise.resolve('') : get(`${BASE}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srinfo=suggestion&srprop=&srlimit=1&format=json&formatversion=2&origin=*`)
       .then((r) => r.query?.searchinfo?.suggestion || '', () => '')),

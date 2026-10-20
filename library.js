@@ -71,8 +71,8 @@ function find(title) {
 // Suggestions for what's been typed. The title list is case-sensitive, so it's searched as typed, with a capital
 // first letter, and in title case. Many matches are redirects to other articles ("Los Angeles 1932" leads to "1932
 // Summer Olympics"), so results are ranked: an exact match first, then articles whose own title starts with what was
-// typed (shortest first), then articles reached only through a redirect.
-function titles(q, limit = 8) {
+// typed (shortest first), then articles reached only through a redirect, then partial-phrase matches (below).
+function titles(q, limit = 8, deep = false) {
   if (!lib || !String(q).trim()) return [];
   const t = String(q).trim(), lower = t.toLowerCase(), best = new Map();
   for (const v of new Set([t, cap(t), t.replace(/\b\w/g, (c) => c.toUpperCase())])) {
@@ -84,6 +84,27 @@ function titles(q, limit = 8) {
       const item = { title: r.title, path: r.path, rank, key: rank === 2 ? e.title : r.title };
       const had = best.get(r.path);
       if (!had || rank < had.rank) best.set(r.path, item);
+    }
+  }
+  // Too few? Search with fewer words ("Los Angeles" for "Los Angeles Olympics") and keep the results that also contain
+  // the other words in their title or a redirect's name, or (on the results page, since it reads each article) in
+  // their first sentence.
+  const words = t.split(/\s+/);
+  for (let k = words.length - 1; k >= 1 && best.size < limit; k--) {
+    const start = words.slice(0, k).join(' '), rest = words.slice(k).map((w) => w.toLowerCase());
+    const has = (text) => rest.every((w) => text.toLowerCase().includes(w));
+    const later = [];
+    for (const v of new Set([start, cap(start), start.replace(/\b\w/g, (c) => c.toUpperCase())])) {
+      for (const e of lib.titleEntries(v, 400)) {
+        const r = lib.resolve(e);
+        if (!r || r.mime !== 'text/html' || r.path === 'index' || best.has(r.path)) continue;
+        if (has(r.title + ' ' + e.title)) best.set(r.path, { title: r.title, path: r.path, rank: 3, key: r.title });
+        else if (deep && later.length < 60) later.push(r);
+      }
+    }
+    for (const r of later) {
+      if (best.size >= limit) break;
+      if (!best.has(r.path) && has(preview(r.path).extract)) best.set(r.path, { title: r.title, path: r.path, rank: 4, key: r.title });
     }
   }
   return [...best.values()]
@@ -373,7 +394,7 @@ function setup() {
   });
   ipcMain.handle('library:info', () => (lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: lib.titleList().length } : null));
   ipcMain.handle('library:find', (_e, title) => find(title));
-  ipcMain.handle('library:titles', (_e, q, limit) => titles(q, limit));
+  ipcMain.handle('library:titles', (_e, q, limit, deep) => titles(q, limit, deep));
   ipcMain.handle('library:random', () => random());
   ipcMain.handle('library:state', () => publicState());
   ipcMain.handle('library:catalog', async () => { try { await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });

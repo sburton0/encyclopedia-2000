@@ -29,7 +29,7 @@ contextBridge.exposeInMainWorld('e2k', {
   library: {
     info: () => ipcRenderer.invoke('library:info'),
     find: (title) => ipcRenderer.invoke('library:find', title),
-    titles: (q, limit) => ipcRenderer.invoke('library:titles', q, limit),
+    titles: (q, limit, deep) => ipcRenderer.invoke('library:titles', q, limit, deep),
     random: () => ipcRenderer.invoke('library:random'),
     state: () => ipcRenderer.invoke('library:state'),
     catalog: () => ipcRenderer.invoke('library:catalog'),
