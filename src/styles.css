@@ -673,18 +673,19 @@ button { font-family: inherit; cursor: default; }
 .offline .packs { display: grid; gap: 8px; }
 /* Every pack box is the same height: the title and description sit centered, and move up to make room for a red
    reason line instead of the box growing. A pack that's downloading grows to show its progress. */
-.offline .pack { display: grid; grid-template-columns: 1fr auto; gap: 3px 14px; align-items: center; align-content: center; height: 78px; padding: 8px 12px;
+.offline .pack { display: grid; grid-template-columns: 1fr auto; gap: 6px 14px; align-items: center; align-content: center; height: 78px; padding: 8px 12px;
   background: rgba(255, 255, 255, .035); border: 1px solid var(--ink-3); }
 .offline .pack.dl { height: auto; padding: 10px 12px; }
 .offline .pack.rec { border-color: rgba(245, 166, 35, .6); background: rgba(245, 166, 35, .06); }
-.offline .pack h3 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 14px "Segoe UI"; color: #fff; }
-.offline .pack .tag { padding: 2px 6px; font: 600 10px "Segoe UI"; letter-spacing: 1px; color: #1a1406; background: var(--orange); }
+.offline .pack .txt { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.offline .pack h3 { margin: 0; display: flex; align-items: center; gap: 8px; height: 18px; font: 600 14px/18px "Segoe UI"; color: #fff; }
+.offline .pack .tag { padding: 0 6px; line-height: 16px; font: 600 10px "Segoe UI"; letter-spacing: 1px; color: #1a1406; background: var(--orange); }
 .offline .pack .tag.ok { background: #5fbf6a; color: #08200b; }
 .offline .pack .tag.inc { background: none; color: #9fe0a8; border: 1px solid rgba(95, 191, 106, .6); }
-.offline .pack p { margin: 0; font-size: 12px; color: #b9c6e0; }
+.offline .pack p { margin: 0; font-size: 12px; line-height: 16px; color: #b9c6e0; }
 .offline .pack.off h3, .offline .pack.off p:not(.why), .offline .pack.off .size { opacity: .5; }
-.offline .pack p.why { grid-column: 1 / -1; margin: 0; font-size: 12px; line-height: 1.25; color: #ff9d8f; }
-.offline .pack .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.offline .pack p.why { margin: 0; font-size: 12px; line-height: 16px; color: #ff9d8f; }
+.offline .pack .acts { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .offline .pack .size { font: 600 13px "Segoe UI"; color: #fff; }
 .offline .bar { grid-column: 1 / -1; height: 8px; margin-top: 6px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
 .offline .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0); box-shadow: 0 0 8px #f5a623; transition: width .4s; }

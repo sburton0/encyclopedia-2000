@@ -69,7 +69,7 @@ window.E2KLibrary = (() => {
       const toggle = st.current ? h('button', { class: 'linkbtn', onclick: () => { showAll = !showAll; draw(); } }, showAll ? 'Hide other libraries' : '') : null;
       list.replaceChildren(...visible.map((p) => {
         const tags = [], acts = [];
-        let desc = p.desc, extra = null;
+        let desc = p.desc, extra = null, why = null;
         if (st.current && st.current.pack === p.id) {
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
@@ -97,10 +97,10 @@ window.E2KLibrary = (() => {
           // current library is removed stays clickable, and asks first).
           const f = p.fit, blocked = f && !f.ok && !f.canRemoveOld;
           if (blocked) {
-            extra = [h('p', { class: 'why' }, f.noWrite ? 'Can’t save files in this folder. Choose another with Change…'
+            why = h('p', { class: 'why' }, f.noWrite ? 'Can’t save files in this folder. Choose another with Change…'
               : f.tooSmall ? `Too big for this drive (it holds ${size(f.total)}).`
               : f.fat32 && f.size > 4 * 1024 ** 3 ? 'FAT32 drives can’t hold files over 4 GB. Reformat as exFAT or use another drive.'
-                : `Needs ${size(f.need)} free; ${size(f.free)} is free here.`)];
+                : `Needs ${size(f.need)} free; ${size(f.free)} is free here.`);
           }
           acts.push(st.current
             ? h('button', { class: 'go quiet', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Switch to this…')
@@ -108,7 +108,8 @@ window.E2KLibrary = (() => {
         }
         const off = p.fit && !p.fit.ok && !p.fit.canRemoveOld && !(st.current && st.current.pack === p.id) && !(d && d.pack === p.id);
         return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') },
-          h('h3', {}, p.label, ...tags), h('div', { class: 'acts' }, acts), h('p', {}, desc), ...(extra || []));
+          // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
+          h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
       dirCode.textContent = st.dir;
       freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
