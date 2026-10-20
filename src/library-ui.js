@@ -20,7 +20,17 @@ window.E2KLibrary = (() => {
     const err = h('p', { class: 'oerr', hidden: true });
     const dirCode = h('code');
     const freeTxt = h('span');
-    const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)) });
+    const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => { localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)); picChoice(); } });
+    // Under "library first": sharp pictures from the internet when connected, or the library's own (smaller) pictures.
+    const pic = (value, label) => {
+      const r = h('input', { type: 'radio', name: 'libpics', value, checked: pref('libraryPictures', 'online') === value, onchange: () => localStorage.setItem('e2k.libraryPictures', JSON.stringify(value)) });
+      return h('label', { class: 'opt sub' }, r, h('span', {}, label));
+    };
+    const pics = h('div', { class: 'subopts' },
+      pic('online', 'Load sharp pictures from the internet when connected (recommended)'),
+      pic('library', 'Use the library’s pictures only (smaller, and nothing is loaded from the internet)'));
+    const picChoice = () => { pics.classList.toggle('off', !first.checked); pics.querySelectorAll('input').forEach((i) => { i.disabled = !first.checked; }); };
+    picChoice();
 
     const ov = h('div', { class: 'overlay' },
       h('div', { class: 'dialog offline', role: 'dialog', 'aria-label': 'Offline Library' },
@@ -30,7 +40,7 @@ window.E2KLibrary = (() => {
           status, list, err,
           h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); if (st.error) showErr(st.error); draw(); } }, 'Change…'), freeTxt),
           h('div', { class: 'opts' },
-            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster, and articles in your library don’t need the internet)'))),
+            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster, and articles in your library don’t need the internet)')), pics),
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
             h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),

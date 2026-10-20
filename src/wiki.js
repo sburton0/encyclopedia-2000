@@ -38,6 +38,22 @@ window.Wiki = (() => {
   // A library installed, swapped, or removed: forget what's cached about the old one.
   if (lib && lib.onUpdate) lib.onUpdate(() => { libInfo = undefined; pages.clear(); });
 
+  // Sharp pictures: with "library first" on and the computer online, library articles can swap their pictures for
+  // Wikipedia's full-size versions (the library keeps small copies). Off when the user picks the library's pictures
+  // only (and, later, in Offline mode).
+  const sharp = () => pref('libraryFirst', false) && pref('libraryPictures', 'online') === 'online' && navigator.onLine;
+  // The same picture on Wikipedia, by its file name, at a standard thumbnail width. The library names a picture after
+  // its file (an SVG drawing as "Name.svg.png", a comma as "%2C"), and Special:FilePath finds it on Commons or, for
+  // pictures like team logos, on English Wikipedia.
+  const WIDTHS = [250, 330, 500, 960, 1280];
+  function sharpUrl(libSrc, px) {
+    let name = libSrc.split('/').pop();
+    try { name = decodeURIComponent(decodeURIComponent(name)); } catch { try { name = decodeURIComponent(name); } catch {} }
+    name = name.replace(/\.svg\.png$/i, '.svg');
+    const w = WIDTHS.find((x) => x >= px) || WIDTHS[WIDTHS.length - 1];
+    return `${BASE}/wiki/Special:FilePath/${encodeURIComponent(name)}?width=${w}`;
+  }
+
   // Library pages, parsed once per article (the article and its summary are asked for together).
   const pages = new Map();
   function libPage(found) {
@@ -52,7 +68,12 @@ window.Wiki = (() => {
   // links pointing where the app expects them.
   async function libHtml(found) {
     const doc = await libPage(found), out = doc.querySelector('.mw-parser-output').cloneNode(true), base = libUrl(found.path);
-    out.querySelectorAll('img[src]').forEach((img) => { img.setAttribute('src', new URL(img.getAttribute('src'), base).href); img.removeAttribute('srcset'); });
+    const hi = sharp();
+    out.querySelectorAll('img[src]').forEach((img) => {
+      const src = new URL(img.getAttribute('src'), base).href;
+      img.setAttribute('src', src); img.removeAttribute('srcset');
+      if (hi && +img.getAttribute('width') >= 60) img.dataset.sharp = sharpUrl(src, 2 * +img.getAttribute('width'));
+    });
     out.querySelectorAll('a[href]').forEach((a) => { const h = a.getAttribute('href'); if (!/^(#|[a-z][a-z0-9+.-]*:|\/\/|\.\/)/i.test(h)) a.setAttribute('href', './' + h); });
     return `<!doctype html><html><head></head><body>${out.innerHTML}</body></html>`;
   }
@@ -67,7 +88,7 @@ window.Wiki = (() => {
     const img = [...doc.querySelectorAll('.infobox img')].find(big) || [...doc.querySelectorAll('.mw-parser-output img')].find(big);
     const extract = p ? p.textContent.replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim() : '';
     return { titles: { normalized: found.title, canonical: found.path }, title: found.title, description: '', extract, fromLibrary: true,
-      thumbnail: img ? { source: new URL(img.getAttribute('src'), base).href } : undefined };
+      thumbnail: img ? { source: new URL(img.getAttribute('src'), base).href, sharp: sharp() ? sharpUrl(img.getAttribute('src'), 500) : '' } : undefined };
   }
   // The article's pictures, in the shape of Wikipedia's media list (the library has no videos or sounds).
   async function libMedia(found) {
@@ -76,7 +97,9 @@ window.Wiki = (() => {
       const img = fig.querySelector('img');
       if (!img || (+img.getAttribute('width') || 100) < 60) return null;
       const src = new URL(img.getAttribute('src'), base).href;
-      return { type: 'image', title: 'File:' + decodeURIComponent(src.split('/').pop()), showInGallery: true, srcset: [{ src }], caption: { text: fig.querySelector('figcaption')?.textContent || '' } };
+      // The viewer shows the last size listed, so with sharp pictures it gets Wikipedia's large one.
+      const sizes = sharp() ? [{ src }, { src: sharpUrl(src, 1280) }] : [{ src }];
+      return { type: 'image', title: 'File:' + decodeURIComponent(src.split('/').pop()), showInGallery: true, srcset: sizes, caption: { text: fig.querySelector('figcaption')?.textContent || '' } };
     }).filter(Boolean) };
   }
   // Runs online() or the library version for an article, following the rules above.
@@ -95,8 +118,19 @@ window.Wiki = (() => {
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const libTitles = async (q, n, deep) => (await lib.titles(q, n, deep)).map((t) => ({ title: t.title, description: '', excerpt: esc(t.extract || ''), thumbnail: t.thumb ? { url: t.thumb } : null }));
 
+  // Swaps each picture marked with a sharp version once that version has loaded, as it scrolls into view. A picture
+  // that can't be loaded keeps the library's copy.
+  function sharpen(root) {
+    const imgs = [...root.querySelectorAll('img[data-sharp]')];
+    if (!imgs.length) return;
+    const swap = (img) => { const pre = new Image(); pre.onload = () => { img.src = pre.src; }; pre.src = img.dataset.sharp; delete img.dataset.sharp; };
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { io.unobserve(e.target); swap(e.target); } }), { rootMargin: '600px' });
+    imgs.forEach((img) => io.observe(img));
+  }
+
   return {
     library,
+    sharpen,
     featured: (date) =>
       get(`${BASE}/api/rest_v1/feed/featured/${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
     onThisDay: (date, type = 'all') =>

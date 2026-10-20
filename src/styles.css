@@ -689,6 +689,9 @@ button { font-family: inherit; cursor: default; }
 .offline .opts { margin-top: 10px; display: grid; gap: 4px; }
 .offline .opt { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #dbe5f7; }
 .offline .opt input { margin-top: 3px; accent-color: var(--orange); }
+.offline .subopts { display: grid; gap: 3px; margin: 2px 0 0 24px; }
+.offline .subopts.off { opacity: .45; }
+.offline .opt.sub { font-size: 12px; color: #cfdcf5; }
 .offline .kiwix { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 9px 12px; background: rgba(0, 0, 0, .22); border-left: 3px solid var(--orange); font-size: 12px; color: #cfdcf5; }
 .offline .kiwix b { color: #fff; }
 .offline .kiwix .go { flex: none; }

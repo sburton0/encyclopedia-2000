@@ -19,10 +19,10 @@ const UA = `Encyclopedia 2000/${app.getVersion()} (+https://encyclopedia2000.com
 // The packs offered, smallest content last within each size; `covers` lists packs whose articles it includes.
 const PACKS = [
   { id: 'top_maxi', name: 'wikipedia_en_top', flavour: 'maxi', label: 'Essentials', recommended: true,
-    desc: 'The best 50,000 Wikipedia articles, with pictures. The best place to start.', covers: ['top_nopic'] },
+    desc: 'The best 50,000 Wikipedia articles, with pictures (smaller than online). The best place to start.', covers: ['top_nopic'] },
   { id: 'top_nopic', name: 'wikipedia_en_top', flavour: 'nopic', label: 'Essentials, text only', desc: 'The same 50,000 articles without pictures, for smaller drives.', covers: [] },
   { id: 'all_nopic', name: 'wikipedia_en_all', flavour: 'nopic', label: 'Everything, text only', desc: 'All of English Wikipedia, about 7 million articles, without pictures.', covers: ['top_nopic'] },
-  { id: 'all_maxi', name: 'wikipedia_en_all', flavour: 'maxi', label: 'Everything', desc: 'All of English Wikipedia, about 7 million articles, with pictures. Needs a lot of space.',
+  { id: 'all_maxi', name: 'wikipedia_en_all', flavour: 'maxi', label: 'Everything', desc: 'All of English Wikipedia, about 7 million articles, with pictures (smaller than online). Needs a lot of space.',
     covers: ['top_maxi', 'top_nopic', 'all_nopic'] },
 ];
 // E2K_LIBRARY_TEST=1 adds the tiny Ray Charles library (3 MB); E2K_LIBRARY_TEST=<catalog name> adds another, such as

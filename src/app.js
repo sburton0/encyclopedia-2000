@@ -634,6 +634,7 @@
       'This article uses material from the Wikipedia article ', h('a', { href: '#', 'data-ext': Wiki.pageUrl(canon) }, `“${name}”`),
       ', which is released under the Creative Commons Attribution-ShareAlike 4.0 License. Retrieved ', new Date().toLocaleDateString('en-US'), '.');
     pg.text.replaceChildren(...nodes, attrib);
+    Wiki.sharpen(pg.text);
     // Sounds often have no caption of their own, so borrow the title the article's "Listen" box gives them.
     const soundNames = [...pg.text.querySelectorAll('.aslot')].map((s) => [s.dataset.file, s.dataset.label]).filter(([, l]) => l);
     const mediaP = articleMedia(canon).then((items) => {
@@ -679,7 +680,16 @@
       // Offline libraries often keep only a small copy of the lead picture (Essentials stores many logos at 100 px).
       // Rather than stretch it to fill the frame, show it at up to 1.5 times its real size, centered.
       const leadImg = h('img', { src: shown, alt: name, onclick: () => lightbox(large, name),
-        onload: () => { if (leadImg.naturalWidth * 1.5 < leadImg.clientWidth) { leadImg.classList.add('small'); leadImg.style.width = leadImg.naturalWidth * 1.5 + 'px'; } } });
+        onload: () => {
+          leadImg.classList.remove('small'); leadImg.style.width = '';
+          if (leadImg.naturalWidth * 1.5 < leadImg.clientWidth) { leadImg.classList.add('small'); leadImg.style.width = leadImg.naturalWidth * 1.5 + 'px'; }
+        } });
+      // A library picture with a sharp version on Wikipedia: show the library's copy now, then swap (and enlarge the sharp one).
+      if (sum.thumbnail?.sharp) {
+        const hi = sum.thumbnail.sharp, pre = new Image();
+        pre.onload = () => { leadImg.src = hi; leadImg.onclick = () => lightbox(hi.replace(/width=\d+/, 'width=1280'), name); };
+        pre.src = hi;
+      }
       pg.media.append(h('div', { class: 'frame' }, leadImg),
         h('div', { class: 'cap' }, sum.description ? `${name}, ${sum.description}` : name));
     }
