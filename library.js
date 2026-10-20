@@ -126,7 +126,9 @@ function preview(articlePath) {
     // size. Infoboxes also hold small icons (a "current season" baseball, rating stars) and signatures.
     const start = Math.max(0, html.indexOf('class="infobox')), body = html.slice(start);
     let src = '';
-    for (const m of body.matchAll(/<span[^>]*typeof="mw:File[^"]*"[^>]*>\s*(?:<a[^>]*>\s*)?(<img[^>]+>)/g)) {
+    // The image sits in a file frame (an inline <span> or a captioned <figure>), sometimes inside a link or an extra
+    // <span> (it varies between libraries).
+    for (const m of body.matchAll(/<(?:span|figure)[^>]*typeof="mw:File[^"]*"[^>]*>\s*(?:<(?:a|span)\b[^>]*>\s*)*(<img[^>]+>)/g)) {
       const img = m[1], w = +((/\swidth="(\d+)"/.exec(img) || [])[1] || 0), h = +((/\sheight="(\d+)"/.exec(img) || [])[1] || 0);
       if (w >= 60 && h >= 60 && !/infobox-signature/.test(m[0])) { src = (/src="([^"]+)"/.exec(img) || [])[1]; break; }
     }
