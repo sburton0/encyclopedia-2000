@@ -97,7 +97,8 @@ window.E2KLibrary = (() => {
           // current library is removed stays clickable, and asks first).
           const f = p.fit, blocked = f && !f.ok && !f.canRemoveOld;
           if (blocked) {
-            extra = [h('p', { class: 'why' }, f.tooSmall ? `Too big for this drive (it holds ${size(f.total)}).`
+            extra = [h('p', { class: 'why' }, f.noWrite ? 'Can’t save files in this folder. Choose another with Change…'
+              : f.tooSmall ? `Too big for this drive (it holds ${size(f.total)}).`
               : f.fat32 && f.size > 4 * 1024 ** 3 ? 'FAT32 drives can’t hold files over 4 GB. Reformat as exFAT or use another drive.'
                 : `Needs ${size(f.need)} free; ${size(f.free)} is free here.`)];
           }

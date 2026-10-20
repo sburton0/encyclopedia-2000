@@ -213,24 +213,36 @@ function freeSpace(dir) {
 }
 // Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
 // past 4 GB (instant on other file systems, nothing is written) and deleting it.
-const bigFilesCache = new Map();
-function bigFilesOk(dir) {
-  if (bigFilesCache.has(dir)) return bigFilesCache.get(dir);
-  const ok = probeBigFiles(dir);
-  bigFilesCache.set(dir, ok);
-  return ok;
-}
-function probeBigFiles(dir) {
+// What a folder allows, found by creating a scratch file there and sizing it just past 4 GB (instant, nothing is
+// written), then deleting it: { write } is false when files can't be created there at all (the root of C:, for
+// example), and { big } is false on drives formatted FAT32, which can't hold a file over 4 GB. Remembered per folder.
+const probeCache = new Map();
+function probeDir(dir) {
+  if (probeCache.has(dir)) return probeCache.get(dir);
   const probe = path.join(dir, '.e2k-size-check');
-  try { ensureDir(dir); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
-  catch { return false; } finally { try { fs.unlinkSync(probe); } catch {} }
+  let r;
+  try {
+    ensureDir(dir);
+    const fd = fs.openSync(probe, 'w');
+    try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); r = { write: true, big: true }; }
+    // Sizing fails on FAT32; on a drive with under about 4 GB free it fails too, but that's a space problem, which
+    // the free-space check reports.
+    catch { r = { write: true, big: freeSpace(dir) < 4.3e9 }; }
+    finally { fs.closeSync(fd); }
+  } catch { r = { write: false, big: true }; }
+  finally { try { fs.unlinkSync(probe); } catch {} }
+  probeCache.set(dir, r);
+  return r;
 }
+const bigFilesOk = (dir) => probeDir(dir).big;
+const writable = (dir) => probeDir(dir).write;
 // Whether a pack can go where the library is saved, checking the most basic problem first: a drive too small for it
 // at all, then a FAT32 drive (which can't hold a file over 4 GB, though reformatting would fix that), then not enough
 // free space right now. Also reports what would fit, so the dialog can suggest a smaller library.
 function spaceCheck(packId) {
   const c = state.catalog?.[packId]; if (!c) return { ok: false, reason: 'catalog' };
   const dir = libDir(), total = process.env.E2K_FAKE_FREE ? Math.max(+process.env.E2K_FAKE_FREE, 8e9) : driveSize(dir);
+  if (!writable(dir)) return { ok: false, noWrite: true, size: c.size };
   const free = freeSpace(dir), fat32 = !bigFilesOk(dir), old = state.current ? state.current.size || 0 : 0;
   const have = state.download?.pack === packId ? (state.download.done || 0) * (state.download.pieceLength || 0) : 0;
   // A little room to spare: 5% of the pack, between 200 MB and 1 GB.
@@ -249,6 +261,7 @@ async function startDownload(packId, { removeOld = false } = {}) {
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
   const sp = spaceCheck(packId);
+  if (sp.noWrite) return { error: 'Encyclopedia 2000 can’t save files in this folder. Choose another with Change…' };
   if (sp.tooSmall) return { error: 'too-small', ...sp };
   if (sp.fat32 && c.size > 4 * 1024 ** 3) return { error: 'fat32', ...sp };
   if (!sp.ok && !(removeOld && sp.canRemoveOld)) return { error: 'space', ...sp };
@@ -386,6 +399,9 @@ async function chooseDir(win) {
   if (r.canceled || !r.filePaths[0]) return publicState();
   const dir = r.filePaths[0];
   if (path.resolve(dir) === path.resolve(libDir())) return publicState();
+  // Somewhere files can't be created (the root of C:, for example): say so instead of choosing it.
+  probeCache.delete(dir);
+  if (!writable(dir)) return { ...publicState(), error: `Encyclopedia 2000 can’t save files in ${dir}. Choose a folder inside it, such as Documents.` };
   // An installed library over 4 GB can't go on a FAT32 drive; say so before copying anything.
   if (state.current && (state.current.size || 0) > 4 * 1024 ** 3 && !bigFilesOk(dir)) {
     return { ...publicState(), error: 'Your library is over 4 GB, and that drive can’t hold files that big (it’s formatted FAT32, common on USB sticks). Choose another drive, or reformat this one as exFAT.' };
