@@ -35,6 +35,8 @@ window.Wiki = (() => {
   const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   const libraryFirst = () => pref('libraryFirst', false) || !navigator.onLine;
   const libUrl = (p) => LIB + p.split('/').map(encodeURIComponent).join('/');
+  // A library installed, swapped, or removed: forget what's cached about the old one.
+  if (lib && lib.onUpdate) lib.onUpdate(() => { libInfo = undefined; pages.clear(); });
 
   // Library pages, parsed once per article (the article and its summary are asked for together).
   const pages = new Map();

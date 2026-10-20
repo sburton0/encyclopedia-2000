@@ -660,3 +660,38 @@ button { font-family: inherit; cursor: default; }
 .options .osample { margin: 8px 0 2px; padding: 10px 12px; background: #fbfcfe; color: #1c1c1c; border: 1px solid #9fb0d0; font-family: Georgia, "Times New Roman", serif; line-height: 1.6; }
 .options .osample[data-font="sans"] { font-family: "Segoe UI", Tahoma, sans-serif; }
 .options .df .go:disabled { opacity: .45; }
+
+/* ---------- Offline Library (library-ui.js) ---------- */
+.dialog.offline { width: 600px; max-height: calc(100vh - 40px); display: flex; flex-direction: column; }
+.offline .ob { padding: 14px 18px 6px; overflow: auto; font: 13px/1.45 "Segoe UI"; color: #e6eefc; }
+.offline .intro { margin: 0 0 12px; color: #cfdcf5; }
+.offline .status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 9px 12px; background: rgba(0, 0, 0, .28); border: 1px solid var(--ink-3); }
+.offline .status b { color: #fff; }
+.offline .status .upd { color: var(--gold, #ffd27a); }
+.offline .dotc { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.offline .packs { display: grid; gap: 8px; }
+.offline .pack { display: grid; grid-template-columns: 1fr auto; gap: 4px 14px; align-items: center; padding: 10px 12px; background: rgba(255, 255, 255, .035); border: 1px solid var(--ink-3); }
+.offline .pack.rec { border-color: rgba(245, 166, 35, .6); background: rgba(245, 166, 35, .06); }
+.offline .pack h3 { margin: 0; display: flex; align-items: center; gap: 8px; font: 600 14px "Segoe UI"; color: #fff; }
+.offline .pack .tag { padding: 2px 6px; font: 600 10px "Segoe UI"; letter-spacing: 1px; color: #1a1406; background: var(--orange); }
+.offline .pack .tag.ok { background: #5fbf6a; color: #08200b; }
+.offline .pack .tag.inc { background: none; color: #9fe0a8; border: 1px solid rgba(95, 191, 106, .6); }
+.offline .pack p { margin: 0; font-size: 12px; color: #b9c6e0; }
+.offline .pack .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.offline .pack .size { font: 600 13px "Segoe UI"; color: #fff; }
+.offline .bar { grid-column: 1 / -1; height: 8px; margin-top: 6px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
+.offline .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0); box-shadow: 0 0 8px #f5a623; transition: width .4s; }
+.offline .prog { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: #b9c6e0; }
+.offline .oerr { margin: 10px 0 0; padding: 8px 12px; border-left: 3px solid #e0604a; background: rgba(224, 96, 74, .12); font-size: 12.5px; color: #ffd8cf; }
+.offline .where { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #b9c6e0; }
+.offline .where code { flex: 1; min-width: 0; padding: 4px 7px; overflow-wrap: anywhere; background: rgba(0, 0, 0, .35); border: 1px solid var(--ink-3); font: 11.5px Consolas, "DejaVu Sans Mono", monospace; color: #fff; }
+.offline .opts { margin-top: 10px; display: grid; gap: 4px; }
+.offline .opt { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #dbe5f7; }
+.offline .opt input { margin-top: 3px; accent-color: var(--orange); }
+.offline .kiwix { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 9px 12px; background: rgba(0, 0, 0, .22); border-left: 3px solid var(--orange); font-size: 12px; color: #cfdcf5; }
+.offline .kiwix b { color: #fff; }
+.offline .kiwix .go { flex: none; }
+.offline .fine { margin: 8px 0 0; font-size: 11px; color: #8f9dbd; }
+.offline .go.primary, .dialog .go.default.primary { background: linear-gradient(#ffc14d, #f5a623 55%, #d4860f); border-color: #b06f0c; color: #1a1406; font-weight: 600; }
+.offline .go.quiet { font-weight: 400; color: #cfdcf5; }
+.offline .go:disabled { opacity: .45; cursor: default; }

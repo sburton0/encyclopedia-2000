@@ -65,7 +65,7 @@
     const file = m.File.filter((it) => it[1] !== 'exit');
     if (file[file.length - 1] === '-') file.pop();
     const template = [
-      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Themes…', 'themes']), '-',
+      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library']), item(['Themes…', 'themes']), '-',
         { role: 'services' }, '-', { role: 'hide', label: 'Hide Encyclopedia 2000' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit', label: 'Quit Encyclopedia 2000' }] },
       { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
       { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find an Article', 'find', 'Ctrl+F'])] },
@@ -1850,6 +1850,7 @@
     activities: () => orb('activities').run(),
     about,
     options: () => E2KOptions.open(E2K),
+    library: () => E2KLibrary.open(E2K),
     themes: () => E2KOptions.open(E2K, 'Appearance'),
     exit: () => window.e2k.win('close'),
   };
@@ -1880,7 +1881,7 @@
       ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
-      ['Tools', [['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
+      ['Tools', [['Offline Library…', 'library'], ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
