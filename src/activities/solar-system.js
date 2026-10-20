@@ -1,17 +1,17 @@
 // The Solar System: an animated orrery with the planets where they really are, and a fact card for each world.
 (() => {
-  // name, article, kind, distance (AU), distance text, diameter (km), mass (Earths), year, day, moons, color, size on screen,
+  // name, article, kind, distance (AU), distance (km), diameter (km), mass (Earths), year, day, moons, color, size on screen,
   // mean longitude at 1 Jan 2000 (degrees), orbital period (days). Moon counts are as of 2025.
   const PLANETS = [
-    ['Mercury', 'Mercury (planet)', 'Rocky planet', 0.387, '57.9 million km', 4879, 0.055, '88 Earth days', '176 Earth days, sunrise to sunrise', 0, '#b9b2a8', 4, 252.25, 87.969],
-    ['Venus', 'Venus', 'Rocky planet', 0.723, '108.2 million km', 12104, 0.815, '225 Earth days', '117 Earth days, sunrise to sunrise', 0, '#e8c98a', 6, 181.98, 224.701],
-    ['Earth', 'Earth', 'Rocky planet', 1, '149.6 million km', 12742, 1, '365.25 days', '24 hours', 1, '#4f8fe0', 6.5, 100.46, 365.256],
-    ['Mars', 'Mars', 'Rocky planet', 1.524, '227.9 million km', 6779, 0.107, '687 Earth days', '24 hours 40 minutes', 2, '#d0663a', 5, 355.45, 686.98],
-    ['Jupiter', 'Jupiter', 'Gas giant', 5.203, '778.5 million km', 139820, 317.8, '11.9 Earth years', '9 hours 56 minutes', 97, '#d9b38a', 15, 34.40, 4332.59],
-    ['Saturn', 'Saturn', 'Gas giant', 9.537, '1.43 billion km', 116460, 95.2, '29.4 Earth years', '10 hours 34 minutes', 274, '#e6cf98', 13, 49.94, 10759.22],
-    ['Uranus', 'Uranus', 'Ice giant', 19.19, '2.87 billion km', 50724, 14.5, '84 Earth years', '17 hours 14 minutes', 29, '#9fdde6', 9.5, 313.23, 30688.5],
-    ['Neptune', 'Neptune', 'Ice giant', 30.07, '4.50 billion km', 49244, 17.1, '165 Earth years', '16 hours 6 minutes', 16, '#5a7fe0', 9, 304.88, 60182],
-  ].map(([name, article, kind, au, dist, diam, mass, year, day, moons, color, r, L0, period]) => ({ name, article, kind, au, dist, diam, mass, year, day, moons, color, r, L0, period }));
+    ['Mercury', 'Mercury (planet)', 'Rocky planet', 0.387, 57.9e6, 4879, 0.055, '88 Earth days', '176 Earth days, sunrise to sunrise', 0, '#b9b2a8', 4, 252.25, 87.969],
+    ['Venus', 'Venus', 'Rocky planet', 0.723, 108.2e6, 12104, 0.815, '225 Earth days', '117 Earth days, sunrise to sunrise', 0, '#e8c98a', 6, 181.98, 224.701],
+    ['Earth', 'Earth', 'Rocky planet', 1, 149.6e6, 12742, 1, '365.25 days', '24 hours', 1, '#4f8fe0', 6.5, 100.46, 365.256],
+    ['Mars', 'Mars', 'Rocky planet', 1.524, 227.9e6, 6779, 0.107, '687 Earth days', '24 hours 40 minutes', 2, '#d0663a', 5, 355.45, 686.98],
+    ['Jupiter', 'Jupiter', 'Gas giant', 5.203, 778.5e6, 139820, 317.8, '11.9 Earth years', '9 hours 56 minutes', 97, '#d9b38a', 15, 34.40, 4332.59],
+    ['Saturn', 'Saturn', 'Gas giant', 9.537, 1.43e9, 116460, 95.2, '29.4 Earth years', '10 hours 34 minutes', 274, '#e6cf98', 13, 49.94, 10759.22],
+    ['Uranus', 'Uranus', 'Ice giant', 19.19, 2.87e9, 50724, 14.5, '84 Earth years', '17 hours 14 minutes', 29, '#9fdde6', 9.5, 313.23, 30688.5],
+    ['Neptune', 'Neptune', 'Ice giant', 30.07, 4.50e9, 49244, 17.1, '165 Earth years', '16 hours 6 minutes', 16, '#5a7fe0', 9, 304.88, 60182],
+  ].map(([name, article, kind, au, distKm, diam, mass, year, day, moons, color, r, L0, period]) => ({ name, article, kind, au, distKm, diam, mass, year, day, moons, color, r, L0, period }));
   const SUN = { name: 'Sun', article: 'Sun', kind: 'Star' };
   const J2000 = Date.UTC(2000, 0, 1, 12);
   const SPEEDS = [['1 day/sec', 1], ['1 month/sec', 30.44], ['1 year/sec', 365.25]];
@@ -38,6 +38,7 @@
 
   function mount(root, api) {
     const { h, svg } = api;
+    const U = E2KUnits.in('solar');   // formatting in this activity's units (version.js loads after the activities)
     root.classList.add('act', 'ss');
     let simDays = (Date.now() - J2000) / 864e5;
     let speed = 30.44;
@@ -117,11 +118,14 @@
     const speedBtns = SPEEDS.map(([label, v]) => h('button', { class: 'act-chip', onclick: () => { speed = v; speedBtns.forEach((b, i) => b.classList.toggle('on', SPEEDS[i][1] === v)); if (!playing) setPlaying(true); } }, label));
     speedBtns[1].classList.add('on');
     const card = h('div', { class: 'act-card ss-card' });
+    // Units for this activity (see E2KUnits.menu); switching redraws the card.
+    const unitMenu = E2KUnits.menu(h, api.icon, 'solar', () => { if (selected) select(selected); });
     root.append(
       h('div', { class: 'ss-map' }, map),
       h('div', { class: 'act-head ss-head' }, h('div', {}, h('h1', {}, 'The Solar System'), dateEl)),
       h('div', { class: 'ss-ctl' }, playBtn, h('span', { class: 'lbl' }, 'Speed'), speedBtns,
         h('button', { class: 'act-chip', style: 'margin-left:10px', onclick: () => { simDays = (Date.now() - J2000) / 864e5; place(); } }, 'Today')),
+      h('div', { class: 'ss-units' }, unitMenu),
       card);
 
     // ---------- the card ----------
@@ -138,8 +142,8 @@
       const sum = h('p', { class: 'act-sum' });
       const row = (k, v) => h('tr', {}, h('td', {}, k), h('td', {}, v));
       const facts = p === SUN
-        ? [row('Type', 'Yellow dwarf star'), row('Diameter', '1,392,700 km'), row('Mass', '333,000 × Earth'), row('Age', 'About 4.6 billion years'), row('Surface', 'About 5,500 °C')]
-        : [row('Distance from Sun', `${p.dist} (${p.au} AU)`), row('Diameter', `${p.diam.toLocaleString('en-US')} km`), row('Mass', p.mass === 1 ? '5.97 × 10²⁴ kg' : `${p.mass} × Earth`),
+        ? [row('Type', 'Yellow dwarf star'), row('Diameter', U.length(1392700)), row('Mass', '333,000 × Earth'), row('Age', 'About 4.6 billion years'), row('Surface', `About ${U.temp(5500)}`)]
+        : [row('Distance from Sun', `${U.far(p.distKm)} (${p.au} AU)`), row('Diameter', U.length(p.diam)), row('Mass', p.mass === 1 ? (U.imperial() ? '1.32 × 10²⁵ lb' : '5.97 × 10²⁴ kg') : `${p.mass} × Earth`),
           row('Year', p.year), row('Day', p.day), row('Moons', p.moons ? `${p.moons} known` : 'None')];
       const notes = p === SUN
         ? ['Over 99.8% of the Solar System’s mass is in the Sun.', 'Its light takes about 8 minutes to reach Earth.']
