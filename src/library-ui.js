@@ -112,7 +112,9 @@ window.E2KLibrary = (() => {
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
           h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
-      dirCode.textContent = st.dir;
+      // One line: a long path shows its end (the folder name), with the whole path on hover.
+      dirCode.replaceChildren(h("span", { dir: "ltr" }, st.dir));
+      dirCode.title = st.dir;
       freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
     }
     dlg = (s) => { st = s; draw(); fitUp(); };
