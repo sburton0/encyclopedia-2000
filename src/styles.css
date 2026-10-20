@@ -62,7 +62,7 @@ button { font-family: inherit; cursor: default; }
 .field input::placeholder { color: #5d6474; }
 .field .dd { width: 20px; border: 0; border-left: 1px solid var(--bar-edge); background: #14171d; color: #8a93a6; font-size: 8px; }
 .field .dd:hover { background: #232731; color: #fff; }
-.go { height: 24px; margin-left: 4px; padding: 0 14px; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262;
+.go { height: 24px; margin-left: 4px; padding: 0 14px 2px; line-height: 1; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262;
       color: var(--orange); font: 700 12px "Segoe UI"; }
 .go:hover { background: #333a48; border-color: var(--orange); }
 .go:active { background: #0c0e12; }
