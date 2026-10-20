@@ -122,10 +122,15 @@ function preview(articlePath) {
   try {
     const e = lib.resolve(lib.find('C', articlePath));
     const html = e ? lib.content(e).toString('utf8') : '';
-    const box = /class="infobox[\s\S]*?<img[^>]+>/.exec(html) || /<figure[\s\S]*?<img[^>]+>/.exec(html);
-    const img = box && /<img[^>]+>/.exec(box[0])[0], src = img && (/src="([^"]+)"/.exec(img) || [])[1];
-    const w = img && +((/width="(\d+)"/.exec(img) || [])[1] || 100);
-    if (src && w >= 40 && !/^(data:|https?:)/.test(src)) {
+    // The lead picture: the first one in the infobox (or else the article) that's a real picture shown at a decent
+    // size. Infoboxes also hold small icons (a "current season" baseball, rating stars) and signatures.
+    const start = Math.max(0, html.indexOf('class="infobox')), body = html.slice(start);
+    let src = '';
+    for (const m of body.matchAll(/<span[^>]*typeof="mw:File[^"]*"[^>]*>\s*(?:<a[^>]*>\s*)?(<img[^>]+>)/g)) {
+      const img = m[1], w = +((/\swidth="(\d+)"/.exec(img) || [])[1] || 0), h = +((/\sheight="(\d+)"/.exec(img) || [])[1] || 0);
+      if (w >= 60 && h >= 60 && !/infobox-signature/.test(m[0])) { src = (/src="([^"]+)"/.exec(img) || [])[1]; break; }
+    }
+    if (src && !/^(data:|https?:)/.test(src)) {
       const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), src));
       thumb = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
     }

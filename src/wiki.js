@@ -61,7 +61,10 @@ window.Wiki = (() => {
   async function libSummary(found) {
     const doc = await libPage(found), base = libUrl(found.path);
     const p = [...doc.querySelectorAll('.mw-parser-output > section > p, .mw-parser-output > p')].find((x) => x.textContent.trim().length > 40);
-    const img = doc.querySelector('.infobox img, .mw-parser-output figure img');
+    // The lead picture: the first real picture shown at a decent size, in the infobox if there is one. Infoboxes also
+    // hold small icons (a "current season" baseball, rating stars) and signatures, which this skips.
+    const big = (i) => +i.getAttribute('width') >= 60 && +i.getAttribute('height') >= 60 && i.closest('[typeof^="mw:File"]') && !i.closest('.infobox-signature');
+    const img = [...doc.querySelectorAll('.infobox img')].find(big) || [...doc.querySelectorAll('.mw-parser-output img')].find(big);
     const extract = p ? p.textContent.replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim() : '';
     return { titles: { normalized: found.title, canonical: found.path }, title: found.title, description: '', extract, fromLibrary: true,
       thumbnail: img ? { source: new URL(img.getAttribute('src'), base).href } : undefined };
