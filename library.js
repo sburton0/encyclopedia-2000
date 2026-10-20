@@ -19,10 +19,10 @@ const UA = `Encyclopedia 2000/${app.getVersion()} (+https://encyclopedia2000.com
 // The packs offered, smallest content last within each size; `covers` lists packs whose articles it includes.
 const PACKS = [
   { id: 'top_maxi', name: 'wikipedia_en_top', flavour: 'maxi', label: 'Essentials', recommended: true,
-    desc: 'The best 50,000 Wikipedia articles, with pictures (lower resolution than online). The best place to start.', covers: ['top_nopic'] },
-  { id: 'top_nopic', name: 'wikipedia_en_top', flavour: 'nopic', label: 'Essentials, text only', desc: 'The same 50,000 articles without pictures, for smaller drives.', covers: [] },
-  { id: 'all_nopic', name: 'wikipedia_en_all', flavour: 'nopic', label: 'Everything, text only', desc: 'All of English Wikipedia, about 7 million articles, without pictures.', covers: ['top_nopic'] },
-  { id: 'all_maxi', name: 'wikipedia_en_all', flavour: 'maxi', label: 'Everything', desc: 'All of English Wikipedia, about 7 million articles, with pictures (lower resolution than online). Needs a lot of space.',
+    desc: 'The best 50,000 articles, with pictures.', covers: ['top_nopic'] },
+  { id: 'top_nopic', name: 'wikipedia_en_top', flavour: 'nopic', label: 'Essentials, text only', desc: 'The same 50,000 articles, without pictures.', covers: [] },
+  { id: 'all_nopic', name: 'wikipedia_en_all', flavour: 'nopic', label: 'Everything, text only', desc: 'All 7 million articles, without pictures.', covers: ['top_nopic'] },
+  { id: 'all_maxi', name: 'wikipedia_en_all', flavour: 'maxi', label: 'Everything', desc: 'All 7 million articles, with pictures.',
     covers: ['top_maxi', 'top_nopic', 'all_nopic'] },
 ];
 // E2K_LIBRARY_TEST=1 adds the tiny Ray Charles library (3 MB); E2K_LIBRARY_TEST=<catalog name> adds another, such as
@@ -213,7 +213,14 @@ function freeSpace(dir) {
 }
 // Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
 // past 4 GB (instant on other file systems, nothing is written) and deleting it.
+const bigFilesCache = new Map();
 function bigFilesOk(dir) {
+  if (bigFilesCache.has(dir)) return bigFilesCache.get(dir);
+  const ok = probeBigFiles(dir);
+  bigFilesCache.set(dir, ok);
+  return ok;
+}
+function probeBigFiles(dir) {
   const probe = path.join(dir, '.e2k-size-check');
   try { ensureDir(dir); const fd = fs.openSync(probe, 'w'); try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); } finally { fs.closeSync(fd); } return true; }
   catch { return false; } finally { try { fs.unlinkSync(probe); } catch {} }
@@ -400,7 +407,9 @@ async function chooseDir(win) {
 function publicState() {
   const d = state.download;
   return {
-    packs: packs().map(({ id, label, desc, recommended, covers }) => ({ id, label, desc, recommended, covers, ...(state.catalog?.[id] || {}) })),
+    // Each pack's fit on the current drive (see spaceCheck), so the dialog can grey out the ones that can't go there.
+    packs: packs().map(({ id, label, desc, recommended, covers }) => ({ id, label, desc, recommended, covers, ...(state.catalog?.[id] || {}),
+      fit: state.catalog?.[id] && !(state.current && state.current.pack === id) ? spaceCheck(id) : null })),
     current: state.current, override: override ? path.basename(override) : '',
     open: lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: lib.titleList().length } : null,
     download: d && { ...d, url: undefined, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), speed: job ? job.speed : 0, eta: job ? job.eta : 0 },

@@ -44,7 +44,7 @@ window.E2KLibrary = (() => {
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
             h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),
-          h('p', { class: 'fine' }, 'Downloads come from download.kiwix.org and its mirrors. Articles are under CC BY-SA.')),
+          h('p', { class: 'fine' }, 'Pictures in offline libraries are lower resolution than online. Downloads come from download.kiwix.org and its mirrors. Articles are under CC BY-SA.')),
         h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => close() }, 'Close'))));
     const close = () => { dlg = null; ov.remove(); };
     const showErr = (msg) => { err.textContent = msg || ''; err.hidden = !msg; };
@@ -93,17 +93,26 @@ window.E2KLibrary = (() => {
           if (p.recommended && !st.current) tags.push(h('span', { class: 'tag' }, 'RECOMMENDED'));
           if (p.size) acts.push(h('span', { class: 'size' }, size(p.size)));
           const busy = d && d.status === 'downloading';
+          // A pack that can't go on this drive is greyed out, with the reason in red (one that would fit once the
+          // current library is removed stays clickable, and asks first).
+          const f = p.fit, blocked = f && !f.ok && !f.canRemoveOld;
+          if (blocked) {
+            extra = [h('p', { class: 'why' }, f.tooSmall ? `Too big for this drive (it holds ${size(f.total)}).`
+              : f.fat32 && f.size > 4 * 1024 ** 3 ? 'FAT32 drives can’t hold files over 4 GB. Reformat as exFAT or use another drive.'
+                : `Needs ${size(f.need)} free; ${size(f.free)} is free here.`)];
+          }
           acts.push(st.current
-            ? h('button', { class: 'go quiet', disabled: busy || !p.url, onclick: () => start(p) }, 'Switch to this…')
-            : h('button', { class: 'go primary', disabled: busy || !p.url, onclick: () => start(p) }, 'Download'));
+            ? h('button', { class: 'go quiet', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Switch to this…')
+            : h('button', { class: 'go primary', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Download'));
         }
-        return h('div', { class: 'pack' + (p.recommended && !st.current ? ' rec' : '') },
+        const off = p.fit && !p.fit.ok && !p.fit.canRemoveOld && !(st.current && st.current.pack === p.id) && !(d && d.pack === p.id);
+        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') },
           h('h3', {}, p.label, ...tags), h('div', { class: 'acts' }, acts), h('p', {}, desc), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
       dirCode.textContent = st.dir;
       freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
     }
-    dlg = (s) => { st = s; draw(); };
+    dlg = (s) => { st = s; draw(); fitUp(); };
 
     // What switching packs means, before anything is downloaded or removed.
     function confirmSwitch(p) {
@@ -145,7 +154,7 @@ window.E2KLibrary = (() => {
       }
       // The error stays up until there's a new outcome, so clicking again doesn't make it flash.
       showErr(r.error && r.error !== 'busy' ? r.error : '');
-      st = await L.state(); draw();
+      st = await L.state(); draw(); fitUp();
     }
     async function cancel(p) {
       const ok = await new Promise((res) => dialog('Offline Library', 'Cancel the download?', [`The part of ${p.label} downloaded so far will be deleted.`],
@@ -163,10 +172,18 @@ window.E2KLibrary = (() => {
     draw();
     // Pin the dialog's top edge where it first appears, so it grows and shrinks at the bottom (an error, a download's
     // progress, the other packs) instead of re-centering and jumping around the screen.
-    const box = ov.querySelector('.dialog.offline'), top = Math.max(20, Math.round(box.getBoundingClientRect().top));
+    // If it grows past the bottom of the window, it moves up just enough to fit (never back down while open).
+    const box = ov.querySelector('.dialog.offline');
+    let top = Math.max(20, Math.round(box.getBoundingClientRect().top));
     ov.style.alignItems = 'flex-start';
-    box.style.marginTop = top + 'px';
-    box.style.maxHeight = `calc(100vh - ${top + 20}px)`;
+    const place = () => { box.style.marginTop = top + 'px'; box.style.maxHeight = `calc(100vh - ${top + 20}px)`; };
+    const fitUp = () => {
+      const natural = box.querySelector('.ob').scrollHeight + box.offsetHeight - box.querySelector('.ob').clientHeight;
+      const room = innerHeight - 20 - natural;
+      if (room < top) { top = Math.max(20, room); place(); }
+    };
+    place();
+    fitUp();
     // Fresh sizes and editions from Kiwix's catalog.
     L.catalog().then((s) => { if (dlg) { if (s.error && !s.packs.some((p) => p.size)) showErr(s.error); dlg(s); } });
   }

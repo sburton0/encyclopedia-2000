@@ -678,6 +678,8 @@ button { font-family: inherit; cursor: default; }
 .offline .pack .tag.ok { background: #5fbf6a; color: #08200b; }
 .offline .pack .tag.inc { background: none; color: #9fe0a8; border: 1px solid rgba(95, 191, 106, .6); }
 .offline .pack p { margin: 0; font-size: 12px; color: #b9c6e0; }
+.offline .pack.off h3, .offline .pack.off p:not(.why), .offline .pack.off .size { opacity: .5; }
+.offline .pack p.why { grid-column: 1 / -1; margin-top: 2px; font-size: 12px; color: #ff9d8f; }
 .offline .pack .acts { grid-column: 2; grid-row: 1 / span 2; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .offline .pack .size { font: 600 13px "Segoe UI"; color: #fff; }
 .offline .bar { grid-column: 1 / -1; height: 8px; margin-top: 6px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
@@ -700,4 +702,5 @@ button { font-family: inherit; cursor: default; }
 .offline .go.quiet { font-weight: 400; color: #cfdcf5; }
 .offline .linkbtn { justify-self: start; padding: 2px 0; background: none; border: 0; color: #9fc4ff; font: 12px "Segoe UI"; text-decoration: underline; cursor: pointer; }
 .offline .linkbtn:hover { color: #fff; }
-.offline .go:disabled { opacity: .45; cursor: default; }
+.offline .go:disabled { opacity: .5; cursor: default; }
+.offline .go.primary:disabled { background: linear-gradient(#2b303a, #1b1e25); border-color: #4a5262; color: #8f9dbd; }
