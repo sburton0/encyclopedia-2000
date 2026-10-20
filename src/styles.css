@@ -694,4 +694,6 @@ button { font-family: inherit; cursor: default; }
 .offline .fine { margin: 8px 0 0; font-size: 11px; color: #8f9dbd; }
 .offline .go.primary, .dialog .go.default.primary { background: linear-gradient(#ffc14d, #f5a623 55%, #d4860f); border-color: #b06f0c; color: #1a1406; font-weight: 600; }
 .offline .go.quiet { font-weight: 400; color: #cfdcf5; }
+.offline .linkbtn { justify-self: start; padding: 2px 0; background: none; border: 0; color: #9fc4ff; font: 12px "Segoe UI"; text-decoration: underline; cursor: pointer; }
+.offline .linkbtn:hover { color: #fff; }
 .offline .go:disabled { opacity: .45; cursor: default; }

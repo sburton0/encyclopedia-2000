@@ -40,6 +40,8 @@ window.E2KLibrary = (() => {
     const showErr = (msg) => { err.textContent = msg || ''; err.hidden = !msg; };
 
     const packOf = (id) => st.packs.find((p) => p.id === id);
+    // With a library installed, only it (and any download in progress) shows; Change library… reveals the rest.
+    let showAll = false;
     function draw() {
       const cur = st.current && packOf(st.current.pack), d = st.download;
       // the status box
@@ -50,13 +52,19 @@ window.E2KLibrary = (() => {
           st.update ? h('span', { class: 'upd' }, ` A newer edition (${edition(st.update.date)}) is available.`) : null));
       } else status.replaceChildren(dot('#8f9dbd'), h('span', {}, h('b', {}, 'No offline library yet.'), ' Articles load from Wikipedia while you’re online.'));
       // the packs
-      list.replaceChildren(...st.packs.map((p) => {
+      const visible = !st.current || showAll ? [...st.packs] : st.packs.filter((p) => p.id === st.current.pack || (d && d.pack === p.id));
+      // The installed library first, then any download, then the rest.
+      const rank = (p) => (st.current && p.id === st.current.pack ? 0 : d && p.id === d.pack ? 1 : 2);
+      visible.sort((a, b) => rank(a) - rank(b));
+      const toggle = st.current ? h('button', { class: 'linkbtn', onclick: () => { showAll = !showAll; draw(); } }, showAll ? 'Hide other libraries' : '') : null;
+      list.replaceChildren(...visible.map((p) => {
         const tags = [], acts = [];
         let desc = p.desc, extra = null;
         if (st.current && st.current.pack === p.id) {
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
           if (st.update && !d) acts.push(h('button', { class: 'go primary', onclick: () => start(p) }, 'Update'));
+          if (!showAll) acts.push(h('button', { class: 'go', onclick: () => { showAll = true; draw(); } }, 'Change library…'));
           acts.push(h('button', { class: 'go', onclick: () => remove(p), disabled: !!(d && d.status === 'downloading') }, 'Remove…'));
         } else if (d && d.pack === p.id) {
           const pct = d.size ? Math.min(100, (100 * d.received) / d.size) : 0;
@@ -81,7 +89,7 @@ window.E2KLibrary = (() => {
         }
         return h('div', { class: 'pack' + (p.recommended && !st.current ? ' rec' : '') },
           h('h3', {}, p.label, ...tags), h('div', { class: 'acts' }, acts), h('p', {}, desc), ...(extra || []));
-      }));
+      }), ...(toggle && showAll ? [toggle] : []));
       dirCode.textContent = st.dir;
       freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
     }
