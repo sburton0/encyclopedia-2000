@@ -29,7 +29,8 @@
     "world-atlas": "^2.0.2"
   },
   "dependencies": {
-    "electron-updater": "^6.6.2"
+    "electron-updater": "^6.6.2",
+    "fzstd": "^0.1.1"
   },
   "build": {
     "appId": "com.svid.encyclopedia2000",

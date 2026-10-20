@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog, protocol } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -275,7 +275,23 @@ ipcMain.handle('open-external', (_e, url) => {
   if (typeof url === 'string' && /^https:\/\//.test(url)) return shell.openExternal(url);
 });
 
+// Offline library (in progress): e2k-zim://lib/<namespace>/<path> serves a Kiwix library file. For now a development
+// setting, E2K_ZIM=<file.zim>, chooses the file; the Offline Library dialog will replace it.
+protocol.registerSchemesAsPrivileged([{ scheme: 'e2k-zim', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+function serveLibrary() {
+  if (!env.E2K_ZIM) return;
+  const Zim = require('./zim-reader');
+  const lib = new Zim(env.E2K_ZIM);
+  protocol.handle('e2k-zim', (req) => {
+    const [ns, ...rest] = decodeURIComponent(new URL(req.url).pathname).slice(1).split('/');
+    const e = lib.resolve(lib.find(ns, rest.join('/')));
+    if (!e) return new Response('Not in the library', { status: 404 });
+    return new Response(lib.content(e), { headers: { 'content-type': e.mime || 'application/octet-stream', 'access-control-allow-origin': '*' } });
+  });
+}
+
 app.whenReady().then(() => {
+  serveLibrary();
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
   if (!MAC) Menu.setApplicationMenu(null);
   // Run from source, macOS shows Electron's icon in the Dock; the built app uses its own.
