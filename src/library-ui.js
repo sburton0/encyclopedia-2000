@@ -38,7 +38,7 @@ window.E2KLibrary = (() => {
         h('div', { class: 'ob' },
           h('p', { class: 'intro' }, 'Download Wikipedia to this computer to read, search, and explore without an internet connection.'),
           status, list, err,
-          h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); if (st.error) showErr(st.error); draw(); } }, 'Change…'), freeTxt),
+          h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); } }, 'Change…'), freeTxt),
           h('div', { class: 'opts' },
             h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster; uses less data)')), pics),
           h('div', { class: 'kiwix' },
@@ -91,7 +91,8 @@ window.E2KLibrary = (() => {
           if (covered) tags.push(h('span', { class: 'tag inc' }, 'INCLUDED IN YOUR LIBRARY'));
           if (covered) desc = `${cur.label} already has ${/nopic/.test(p.id) && !/nopic/.test(cur.id) ? 'these articles (with pictures).' : 'all of these articles.'}`;
           if (p.recommended && !st.current) tags.push(h('span', { class: 'tag' }, 'RECOMMENDED'));
-          if (p.size) acts.push(h('span', { class: 'size' }, size(p.size)));
+          // The size's line is always there (blank until Kiwix's catalog answers), so the button doesn't move when it arrives.
+          acts.push(h('span', { class: 'size' }, p.size ? size(p.size) : ''));
           const busy = d && d.status === 'downloading';
           // A pack that can't go on this drive is greyed out, with the reason in red (one that would fit once the
           // current library is removed stays clickable, and asks first).

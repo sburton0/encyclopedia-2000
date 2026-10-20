@@ -686,7 +686,7 @@ button { font-family: inherit; cursor: default; }
 .offline .pack.off h3, .offline .pack.off p:not(.why), .offline .pack.off .size { opacity: .5; }
 .offline .pack p.why { margin: 0; font-size: 12px; line-height: 16px; color: #ff9d8f; }
 .offline .pack .acts { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.offline .pack .size { font: 600 13px "Segoe UI"; color: #fff; }
+.offline .pack .size { min-height: 17px; font: 600 13px/17px "Segoe UI"; color: #fff; }
 .offline .bar { grid-column: 1 / -1; height: 8px; margin-top: 6px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
 .offline .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0); box-shadow: 0 0 8px #f5a623; transition: width .4s; }
 .offline .prog { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: #b9c6e0; }
