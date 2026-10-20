@@ -24,12 +24,23 @@ contextBridge.exposeInMainWorld('e2k', {
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
   appInfo: () => ipcRenderer.invoke('app:info'),
-  // The offline library (library.js): its details, an article's path by title, title suggestions, a random article.
+  // The offline library (library.js): reading (info, find, titles, random) and managing it (the Offline Library
+  // dialog). onUpdate hears about downloads, new editions, and library changes.
   library: {
     info: () => ipcRenderer.invoke('library:info'),
     find: (title) => ipcRenderer.invoke('library:find', title),
     titles: (q, limit) => ipcRenderer.invoke('library:titles', q, limit),
     random: () => ipcRenderer.invoke('library:random'),
+    state: () => ipcRenderer.invoke('library:state'),
+    catalog: () => ipcRenderer.invoke('library:catalog'),
+    space: (pack) => ipcRenderer.invoke('library:space', pack),
+    download: (pack, opts) => ipcRenderer.invoke('library:download', pack, opts),
+    pause: () => ipcRenderer.invoke('library:pause'),
+    cancel: () => ipcRenderer.invoke('library:cancel'),
+    remove: () => ipcRenderer.invoke('library:remove'),
+    chooseDir: () => ipcRenderer.invoke('library:choose-dir'),
+    openDir: () => ipcRenderer.invoke('library:open-dir'),
+    onUpdate: (cb) => ipcRenderer.on('library:update', (_e, s) => cb(s)),
   },
   update: {
     state: () => ipcRenderer.invoke('update:state'),

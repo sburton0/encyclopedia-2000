@@ -281,7 +281,7 @@ ipcMain.handle('open-external', (_e, url) => {
 const library = require('./library');
 
 app.whenReady().then(() => {
-  library.setup(env.E2K_ZIM);
+  library.setup();
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
   if (!MAC) Menu.setApplicationMenu(null);
   // Run from source, macOS shows Electron's icon in the Dock; the built app uses its own.

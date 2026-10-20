@@ -18,6 +18,7 @@ class Zim {
     for (let p = 0; ml[p] !== 0;) { const e = ml.indexOf(0, p); this.mimes.push(ml.toString('utf8', p, e)); p = e + 1; }
     this.cache = new Map();
   }
+  close() { fs.closeSync(this.fd); }
   read(pos, len) { const b = Buffer.alloc(len); const n = fs.readSync(this.fd, b, 0, len, pos); return b.subarray(0, n); }
   urlPtr(i) { return Number(this.read(this.urlPtrPos + i * 8, 8).readBigUInt64LE(0)); }
   // Title order: newer ZIMs (6.1+) keep it in X/listing/titleOrdered/v1 (front articles only); older ones in the header.
