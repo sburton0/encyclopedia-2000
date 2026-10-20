@@ -12,6 +12,10 @@ window.addEventListener('DOMContentLoaded', () => {
 let systemLocale = '';
 try { systemLocale = ipcRenderer.sendSync('app:locale') || ''; } catch {}
 
+// Offline mode (the status bar's connection menu). Read once at startup; the page changes it with setOffline.
+let offlineMode = false;
+try { offlineMode = !!ipcRenderer.sendSync('net:offline'); } catch {}
+
 contextBridge.exposeInMainWorld('e2k', {
   platform,
   systemLocale,
@@ -24,6 +28,10 @@ contextBridge.exposeInMainWorld('e2k', {
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),
   splashDone: () => ipcRenderer.send('splash-done'),
   appInfo: () => ipcRenderer.invoke('app:info'),
+  net: {
+    offline: () => offlineMode,
+    setOffline: (on) => { offlineMode = !!on; ipcRenderer.send('net:set-offline', offlineMode); },
+  },
   // The offline library (library.js): reading (info, find, titles, random) and managing it (the Offline Library
   // dialog). onUpdate hears about downloads, new editions, and library changes.
   library: {

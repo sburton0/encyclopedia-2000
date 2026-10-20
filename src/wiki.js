@@ -33,15 +33,17 @@ window.Wiki = (() => {
   let libInfo;   // undefined until asked, then the library's details or null
   const library = async () => (libInfo !== undefined ? libInfo : (libInfo = lib ? await lib.info().catch(() => null) : null));
   const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
-  const libraryFirst = () => pref('libraryFirst', false) || !navigator.onLine;
+  // Offline mode (the status bar's connection menu): only the library, and nothing from the internet.
+  const offlineMode = () => !!(window.e2k && window.e2k.net && window.e2k.net.offline());
+  const libraryFirst = () => offlineMode() || pref('libraryFirst', false) || !navigator.onLine;
   const libUrl = (p) => LIB + p.split('/').map(encodeURIComponent).join('/');
   // A library installed, swapped, or removed: forget what's cached about the old one.
   if (lib && lib.onUpdate) lib.onUpdate(() => { libInfo = undefined; pages.clear(); });
 
   // Sharp pictures: with "library first" on and the computer online, library articles can swap their pictures for
   // Wikipedia's full-size versions (the library keeps small copies). Off when the user picks the library's pictures
-  // only (and, later, in Offline mode).
-  const sharp = () => pref('libraryFirst', false) && pref('libraryPictures', 'online') === 'online' && navigator.onLine;
+  // only, and in Offline mode.
+  const sharp = () => pref('libraryFirst', false) && pref('libraryPictures', 'online') === 'online' && navigator.onLine && !offlineMode();
   // The same picture on Wikipedia, by its file name, at a standard thumbnail width. The library names a picture after
   // its file (an SVG drawing as "Name.svg.png", a comma as "%2C"), and Special:FilePath finds it on Commons or, for
   // pictures like team logos, on English Wikipedia.
@@ -105,6 +107,7 @@ window.Wiki = (() => {
   // Runs online() or the library version for an article, following the rules above.
   async function article(title, online, offline) {
     const found = (await library()) ? await lib.find(title).catch(() => null) : null;
+    if (!found && offlineMode()) throw Object.assign(new Error('Not in the offline library'), { notInLibrary: true });
     if (!found) return online();
     if (libraryFirst()) return offline(found);
     try { return await online(); } catch (e) { return offline(found); }

@@ -427,6 +427,12 @@ async function chooseDir(win) {
   return publicState();
 }
 
+// The number of articles: the library's own count of pages (its title list also holds redirects).
+function articleCount() {
+  const m = /(?:^|;)text\/html=(\d+)/.exec(lib.meta('Counter') || '');
+  return m ? +m[1] : lib.titleList().length;
+}
+
 function publicState() {
   const d = state.download;
   return {
@@ -434,7 +440,7 @@ function publicState() {
     packs: packs().map(({ id, label, desc, recommended, covers }) => ({ id, label, desc, recommended, covers, ...(state.catalog?.[id] || {}),
       fit: state.catalog?.[id] && !(state.current && state.current.pack === id) ? spaceCheck(id) : null })),
     current: state.current, override: override ? path.basename(override) : '',
-    open: lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: lib.titleList().length } : null,
+    open: lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: articleCount() } : null,
     download: d && { ...d, url: undefined, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), speed: job ? job.speed : 0, eta: job ? job.eta : 0 },
     dir: libDir(), free: freeSpace(libDir()), checked: state.checked,
     update: state.current && state.catalog?.[state.current.pack] && state.catalog[state.current.pack].file !== state.current.file ? state.catalog[state.current.pack] : null,
@@ -457,7 +463,7 @@ function setup() {
     if (!e) return new Response('Not in the library', { status: 404 });
     return new Response(lib.content(e), { headers: { 'content-type': e.mime || 'application/octet-stream', 'access-control-allow-origin': '*' } });
   });
-  ipcMain.handle('library:info', () => (lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: lib.titleList().length } : null));
+  ipcMain.handle('library:info', () => (lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: articleCount() } : null));
   ipcMain.handle('library:find', (_e, title) => find(title));
   ipcMain.handle('library:titles', (_e, q, limit, deep) => titles(q, limit, deep));
   ipcMain.handle('library:random', () => random());

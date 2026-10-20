@@ -116,9 +116,16 @@
     $('.statusbar').classList.toggle('busy', busy);
   }
   function setIdle(msg = 'Ready') { statusIdle = msg; setStatus(msg); }
+  // The connection light: Online (green), Online with the library first (blue), Offline mode (grey), or no connection
+  // (amber, reading from the library; red without one). It opens the connection menu (below).
+  const isOffline = () => window.e2k.net.offline();
+  let hasLib = false;
   function updateNet() {
-    $('#netdot').classList.toggle('off', !navigator.onLine);
-    $('#net').textContent = navigator.onLine ? 'Online' : 'Offline';
+    const [color, label] = isOffline() ? ['grey', 'Offline']
+      : !navigator.onLine ? (hasLib ? ['amber', 'No connection · Library'] : ['red', 'No connection'])
+      : hasLib && store.get('libraryFirst', false) ? ['blue', 'Online · Library first'] : ['green', 'Online'];
+    $('#netdot').className = 'dot ' + color;
+    $('#net').textContent = label;
   }
   addEventListener('online', updateNet);
   addEventListener('offline', updateNet);
@@ -372,8 +379,9 @@
       setIdle();
     }).catch((err) => {
       if (!live(token)) return;
-      discTitle.textContent = navigator.onLine ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';
-      discText.textContent = 'Encyclopedia 2000 retrieves its articles from Wikipedia. Check your internet connection, then press F5 to try again.';
+      discTitle.textContent = isOffline() ? 'You’re in Offline mode.' : navigator.onLine ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';
+      discText.textContent = isOffline() ? 'Today’s discovery, the picture of the day, and the almanac come from Wikipedia. Go online from the status bar to see them.'
+        : 'Encyclopedia 2000 retrieves its articles from Wikipedia. Check your internet connection, then press F5 to try again.';
       almList.replaceChildren(h('div', { class: 'muted' }, 'Unavailable'));
       dialCap.textContent = '';
       setIdle('Couldn’t reach Wikipedia (' + err.message + ')');
@@ -1126,6 +1134,18 @@
 
   // ---------- errors ----------
   function showError(err, name, arg, token) {
+    if (isOffline()) {
+      // Offline mode: the page needs the internet, or the article isn't in the library.
+      const pg = shell({ title: err.notInLibrary ? 'Not in the offline library' : 'Offline mode', railTitle: '', wide: true });
+      pg.text.append(h('div', { class: 'errbox' },
+        h('b', {}, err.notInLibrary ? `“${arg}” isn’t in the offline library` : 'This page needs the internet'),
+        'You’re in Offline mode, so only the offline library is available.',
+        h('div', {}, err.notInLibrary ? bandBtn(`Search the offline library for “${arg}”`, () => go(route('search', arg), { replace: true })) : null,
+          navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+      mount(pg.root, token);
+      setIdle('Offline mode');
+      return;
+    }
     const offline = !navigator.onLine;
     const notFound = err.status === 404;
     const pg = shell({ title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
@@ -1266,6 +1286,7 @@
   window.e2k.update.state().then(showUpdate).catch(() => {});
 
   async function checkForUpdates() {
+    if (isOffline()) return dialog('Check for Updates', 'You’re in Offline mode', ['Go online from the status bar to check for updates.']);
     setStatus('Checking for updates…', true);
     const s = await window.e2k.update.check().catch(() => ({ state: 'error' }));
     setIdle();
@@ -1944,10 +1965,10 @@
     sugItems = items;
     sugSel = -1;
     sug.replaceChildren(...(items.length ? items.map((it, i) => h('div', {
-      class: 'si',
+      class: 'si' + (it.action ? ' act' : ''),
       onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); pick(i); },
       onmouseenter: () => highlight(i),
-    }, h('i', { class: 'th', style: bg(it.thumb) }), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty' }, emptyMsg || 'No suggestions')]));
+    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : h('i', { class: 'th', style: bg(it.thumb) }), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty' }, emptyMsg || 'No suggestions')]));
     sug.hidden = false;
   }
   function highlight(i) {
@@ -1957,6 +1978,7 @@
   function pick(i) {
     const it = sugItems[i];
     if (!it) return;
+    if (it.action) return it.action();
     q.value = it.title;
     hideSuggest();
     q.blur();
@@ -1980,7 +2002,13 @@
       try {
         const r = await Wiki.searchTitles(v);
         if (t !== sugToken || document.activeElement !== q) return;
-        showSuggest((r.pages || []).map((p) => ({ title: p.title, desc: p.description, thumb: https(p.thumbnail?.url) })), 'No matching articles');
+        const items = (r.pages || []).map((p) => ({ title: p.title, desc: p.description, thumb: https(p.thumbnail?.url) }));
+        // In Offline mode only the library is searched; the last row goes back online and searches again.
+        if (isOffline() && navigator.onLine) {
+          items.push({ title: 'Go online to search all of Wikipedia', desc: 'You’re in Offline mode. Only the offline library is searched.', icon: 'globe',
+            action: () => { setOffline(false); q.dispatchEvent(new Event('input')); } });
+        }
+        showSuggest(items, 'No matching articles');
       } catch {}
     }, 180);
   });
@@ -1999,6 +2027,76 @@
     q.focus();
     showSuggest(store.get('recent', []).map((t) => ({ title: t, desc: 'Recently viewed' })), 'No recently viewed articles');
   });
+
+  // ---------- connection ----------
+  // The status bar's connection menu: Online or Offline (remembered between launches), "library first", and the
+  // offline library. Offline mode loads nothing from the internet; the main process refuses the window's requests too.
+  const netBtn = $('#netbtn');
+  let netPop = null;
+  function closeNet() { if (netPop) { netPop.remove(); netPop = null; netBtn.classList.remove('open'); } }
+  function setOffline(on) {
+    closeNet();
+    if (on === isOffline()) return;
+    window.e2k.net.setOffline(on);
+    updateNet();
+    reload();   // the page on screen comes again, from the right place
+  }
+  // Offline picked with no library: offer one. The app stays online meanwhile, and asks again once it's ready.
+  function askDownload() {
+    dialog('Encyclopedia 2000', 'Offline mode needs an offline library', ['Download one to read Wikipedia without the internet. You can keep reading online while it downloads.'],
+      [['Not now'], ['Download offline library…', () => { store.set('offlineWhenReady', true); E2KLibrary.open(E2K); }, true]]);
+  }
+  async function openNet() {
+    if (netPop) return closeNet();
+    const st = await window.e2k.library.state().catch(() => null);
+    if (netPop) return;
+    const has = !!(st && st.open), off = isOffline();
+    const cur = st && st.current && st.packs.find((p) => p.id === st.current.pack);
+    const name = st && st.override ? st.override : cur ? cur.label : st && st.open ? st.open.title : '';
+    const opt = (on, title, sub, onpick) => h('div', { class: 'it' + (on ? ' on' : ''), role: 'menuitemradio', 'aria-checked': String(on), onclick: onpick },
+      h('i', { class: 'rb' }), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
+    const first = h('input', { type: 'checkbox', checked: store.get('libraryFirst', false), disabled: off || !has,
+      onchange: () => { store.set('libraryFirst', first.checked); updateNet(); } });
+    netPop = h('div', { class: 'netpop', role: 'menu', 'aria-label': 'Connection', onmousedown: (e) => e.stopPropagation() },
+      h('div', { class: 'hd' }, 'Connection'),
+      !navigator.onLine && !off ? h('div', { class: 'note' }, has ? 'No internet connection. Reading from the offline library until it’s back.' : 'No internet connection.') : null,
+      opt(!off, 'Online', 'Uses the offline library when there’s no connection.', () => setOffline(false)),
+      opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has ? setOffline(true) : (closeNet(), askDownload()))),
+      h('hr'),
+      h('label', { class: 'cb' + (off || !has ? ' dis' : '') }, first,
+        h('span', {}, 'Use the offline library first, even when online', h('span', { class: 's' }, has ? 'Faster; uses less data.' : 'Needs an offline library.'))),
+      h('hr'),
+      has ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, name), ` · ${st.open.articles.toLocaleString('en-US')} articles`) : null,
+      h('div', { class: 'lnk', role: 'menuitem', onclick: () => { closeNet(); E2KLibrary.open(E2K); } }, icon('book'), has ? 'Manage offline library…' : 'Download offline library…'));
+    document.body.append(netPop);
+    netBtn.classList.add('open');
+    const r = netBtn.getBoundingClientRect(), pr = netPop.getBoundingClientRect();
+    netPop.style.left = Math.max(6, Math.min(innerWidth - pr.width - 6, r.right - pr.width)) + 'px';
+    netPop.style.top = (r.top - pr.height - 4) + 'px';
+  }
+  netBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); openNet(); });
+  document.addEventListener('mousedown', closeNet);
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNet(); });
+  addEventListener('resize', closeNet);
+  // The library comes and goes: the light follows it, Offline mode ends if it's removed, and a download that began
+  // from picking Offline asks once, when it's done, whether to switch.
+  function libChanged(s) {
+    hasLib = !!(s && s.open);
+    if (!hasLib && isOffline()) setOffline(false);
+    updateNet();
+    if (hasLib && !s.download && store.get('offlineWhenReady', false)) {
+      store.set('offlineWhenReady', false);
+      if (isOffline()) return;
+      const cur = s.current && s.packs.find((p) => p.id === s.current.pack);
+      dialog('Encyclopedia 2000', 'Your offline library is ready',
+        [`${cur ? cur.label : s.open.title} · ${s.open.articles.toLocaleString('en-US')} articles. Switch to Offline mode now? You can switch back any time from the status bar.`],
+        [['Stay online'], ['Switch to Offline', () => setOffline(true), true]]);
+    }
+  }
+  if (window.e2k.library) {
+    window.e2k.library.onUpdate(libChanged);
+    window.e2k.library.state().then(libChanged).catch(() => {});
+  }
 
   // ---------- volume ----------
   const volBtn = $('#volbtn');
@@ -2088,7 +2186,7 @@
     h, svg, icon, store, route, go, maxCanvas: MAX_CANVAS,
     openArticle: (t) => openArticle(t, linkFrom()),
     setCrumbs,
-    setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop,
+    setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet,
     dialog: (...args) => dialog(...args),
     soundOn: () => soundOn(),
     sfx: (kind) => { if (soundOn()) { try { E2KAudio.sfx(kind); } catch {} } },

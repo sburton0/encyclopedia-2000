@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -174,6 +174,12 @@ ipcMain.on('library:quit', (e) => {
   BrowserWindow.fromWebContents(e.sender)?.close();
 });
 
+// Offline mode, picked from the status bar's connection menu and kept between launches. While it's on, nothing the
+// window asks for leaves the computer (see the request filter below). The app's own downloads, like the offline
+// library, aren't the window's, so they carry on.
+ipcMain.on('net:offline', (e) => { e.returnValue = !!settings.offlineMode; });
+ipcMain.on('net:set-offline', (_e, on) => { settings.offlineMode = !!on; saveSettings(); });
+
 ipcMain.on('win', (e, cmd) => {
   const win = BrowserWindow.fromWebContents(e.sender);
   if (!win) return;
@@ -298,13 +304,15 @@ const library = require('./library');
 
 app.whenReady().then(() => {
   library.setup();
+  // Offline mode: the window's requests to the internet are refused. (Requests from the main process have no window.)
+  session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => cb({ cancel: !!settings.offlineMode && d.webContentsId != null }));
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
   if (!MAC) Menu.setApplicationMenu(null);
   // Run from source, macOS shows Electron's icon in the Dock; the built app uses its own.
   if (MAC && !app.isPackaged) app.dock.setIcon(ICON);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
-  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false });
+  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false && !settings.offlineMode });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));

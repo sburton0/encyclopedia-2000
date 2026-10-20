@@ -35,7 +35,7 @@ window.E2KLibrary = (() => {
     const err = h('p', { class: 'oerr', hidden: true });
     const dirCode = h('code');
     const freeTxt = h('span');
-    const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => { localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)); picChoice(); } });
+    const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => { localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)); picChoice(); api.updateNet && api.updateNet(); } });
     // Under "library first": sharp pictures from the internet when connected, or the library's own (smaller) pictures.
     const pic = (value, label) => {
       const r = h('input', { type: 'radio', name: 'libpics', value, checked: pref('libraryPictures', 'online') === value, onchange: () => localStorage.setItem('e2k.libraryPictures', JSON.stringify(value)) });
@@ -55,7 +55,7 @@ window.E2KLibrary = (() => {
           status, list, err,
           h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); } }, 'Change…'), freeTxt),
           h('div', { class: 'opts' },
-            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when I’m online (faster; uses less data)')), pics),
+            h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when online (faster; uses less data)')), pics),
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
             h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),

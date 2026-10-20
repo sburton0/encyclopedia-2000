@@ -135,7 +135,37 @@ button { font-family: inherit; cursor: default; }
 .fbver code { flex: 1; font: 12px Consolas, monospace; color: #e6eefc; }
 .fbver button { padding: 2px 10px; background: linear-gradient(#2b303a, #1b1e25); border: 1px solid #4a5262; color: var(--orange); font: 600 11.5px "Segoe UI"; }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: #3fbf4a; box-shadow: 0 0 4px #3fbf4a; }
-.dot.off { background: #d23a3a; box-shadow: 0 0 4px #d23a3a; }
+.dot.red { background: #d23a3a; box-shadow: 0 0 4px #d23a3a; }
+.dot.blue { background: #4fa3ff; box-shadow: 0 0 4px #4fa3ff; }
+.dot.grey { background: #8f9dbd; box-shadow: 0 0 4px #8f9dbd; }
+.dot.amber { background: #f5a623; box-shadow: 0 0 4px #f5a623; }
+/* the connection light and its menu */
+.statusbar .netbtn { cursor: default; padding: 0 8px; }
+.statusbar .netbtn:hover { background: rgba(255, 255, 255, .06); }
+.statusbar .netbtn.open { background: rgba(245, 166, 35, .16); box-shadow: inset 0 0 0 1px var(--orange); }
+.statusbar .netbtn .caret { margin-left: 4px; }
+.netpop { position: fixed; z-index: 200; width: 340px; padding: 6px; background: linear-gradient(var(--ink-2), var(--ink-0)); border: 1px solid var(--ink-3); box-shadow: 0 10px 30px rgba(0, 0, 0, .6); font: 12.5px "Segoe UI"; color: #dbe5f7; }
+.netpop .hd { padding: 4px 8px 6px; font: 600 10.5px "Segoe UI"; letter-spacing: 1.5px; text-transform: uppercase; color: #8f9dbd; }
+.netpop .note { margin: 0 2px 6px; padding: 7px 8px; background: rgba(245, 166, 35, .12); border-left: 2px solid var(--orange); color: #f3d9ad; font-size: 11.5px; line-height: 1.4; }
+.netpop .it { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; }
+.netpop .it:hover, .netpop .lnk:hover { background: rgba(245, 166, 35, .14); }
+.netpop .rb { width: 11px; height: 11px; margin-top: 3px; border-radius: 50%; border: 1px solid #8f9dbd; flex: none; }
+.netpop .it.on .rb { border-color: var(--orange); background: radial-gradient(circle, var(--orange) 0 45%, transparent 50%); }
+.netpop b { color: #fff; font-weight: 600; }
+.netpop .it b { display: block; }
+.netpop .s { display: block; color: #9fb0cf; font-size: 11.5px; line-height: 1.35; }
+.netpop .cb { display: flex; gap: 10px; align-items: flex-start; padding: 7px 8px; }
+.netpop .cb input { accent-color: var(--orange); margin: 2px 0 0; }
+.netpop .cb.dis { opacity: .45; }
+.netpop hr { margin: 5px 6px; border: 0; border-top: 1px solid var(--ink-3); }
+.netpop .lib { padding: 6px 8px 2px; color: #9fb0cf; font-size: 11.5px; line-height: 1.4; }
+.netpop .lnk { display: flex; align-items: center; gap: 8px; padding: 7px 8px; color: #fff; }
+.netpop .lnk .ic { width: 14px; height: 14px; fill: currentColor; }
+/* a row in the search suggestions that does something (Go online) */
+.suggest .si.act { background: #141a26; }
+.suggest .si.act .th { display: grid; place-items: center; background: none; border-color: transparent; color: var(--orange); }
+.suggest .si.act .th .ic { width: 18px; height: 18px; fill: currentColor; }
+.suggest .si.act b { color: var(--orange); }
 .statusbar.busy #status::before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%;
                                   background: var(--orange); animation: pulse .8s ease-in-out infinite alternate; vertical-align: 0; }
 @keyframes pulse { from { opacity: .25; } to { opacity: 1; } }
