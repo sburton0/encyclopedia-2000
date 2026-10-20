@@ -676,7 +676,11 @@
       const ow = sum.originalimage?.width || 0;
       const shown = sum.thumbnail?.source ? sized(sum.thumbnail.source, lead, ow, 500) : lead;
       const large = sum.thumbnail?.source ? sized(sum.thumbnail.source, lead, ow, 1280) : lead;
-      pg.media.append(h('div', { class: 'frame' }, h('img', { src: shown, alt: name, onclick: () => lightbox(large, name) })),
+      // Offline libraries often keep only a small copy of the lead picture (Essentials stores many logos at 100 px).
+      // Rather than stretch it to fill the frame, show it at up to 1.5 times its real size, centered.
+      const leadImg = h('img', { src: shown, alt: name, onclick: () => lightbox(large, name),
+        onload: () => { if (leadImg.naturalWidth * 1.5 < leadImg.clientWidth) { leadImg.classList.add('small'); leadImg.style.width = leadImg.naturalWidth * 1.5 + 'px'; } } });
+      pg.media.append(h('div', { class: 'frame' }, leadImg),
         h('div', { class: 'cap' }, sum.description ? `${name}, ${sum.description}` : name));
     }
     const factsBox = h('div', { class: 'facts' }, h('h6', {}, 'Quick facts'));
