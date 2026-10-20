@@ -16,6 +16,7 @@
     "dist": "node tools/sign-nsis-plugins.js && electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
     "release": "node tools/sign-nsis-plugins.js && electron-builder --win --publish always -c.electronDist=node_modules/electron/dist",
     "stats": "node tools/stats.mjs",
+    "offline-data": "node tools/make-onthisday.mjs && node tools/make-featured.mjs",
     "dist:mac": "electron-builder --mac --publish never",
     "release:mac": "electron-builder --mac --publish always",
     "dist:linux": "electron-builder --linux --publish never",

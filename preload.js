@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('e2k', {
     find: (title) => ipcRenderer.invoke('library:find', title),
     titles: (q, limit, deep) => ipcRenderer.invoke('library:titles', q, limit, deep),
     random: () => ipcRenderer.invoke('library:random'),
+    daily: (key) => ipcRenderer.invoke('library:daily', key),
     state: () => ipcRenderer.invoke('library:state'),
     catalog: () => ipcRenderer.invoke('library:catalog'),
     space: (pack) => ipcRenderer.invoke('library:space', pack),

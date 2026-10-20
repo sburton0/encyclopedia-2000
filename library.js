@@ -19,8 +19,8 @@ const UA = `Encyclopedia 2000/${app.getVersion()} (+https://encyclopedia2000.com
 // The packs offered, smallest content last within each size; `covers` lists packs whose articles it includes.
 const PACKS = [
   { id: 'top_maxi', name: 'wikipedia_en_top', flavour: 'maxi', label: 'Essentials', recommended: true,
-    desc: 'The best 50,000 articles, with images.', covers: ['top_nopic'] },
-  { id: 'top_nopic', name: 'wikipedia_en_top', flavour: 'nopic', label: 'Essentials, text only', desc: 'The same 50,000 articles, without images.', covers: [] },
+    desc: 'The best 220,000 articles, with images.', covers: ['top_nopic'] },
+  { id: 'top_nopic', name: 'wikipedia_en_top', flavour: 'nopic', label: 'Essentials, text only', desc: 'The same 220,000 articles, without images.', covers: [] },
   { id: 'all_nopic', name: 'wikipedia_en_all', flavour: 'nopic', label: 'Everything, text only', desc: 'All 7 million articles, without images.', covers: ['top_nopic'] },
   { id: 'all_maxi', name: 'wikipedia_en_all', flavour: 'maxi', label: 'Everything', desc: 'All 7 million articles, with images.',
     covers: ['top_maxi', 'top_nopic', 'all_nopic'] },
@@ -48,6 +48,7 @@ function save() { try { fs.writeFileSync(stateFile(), JSON.stringify({ ...state,
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
 
 function openFile(file) {
+  dailies.clear(); featuredHere = null;
   previews.clear();
   if (lib) { try { lib.close(); } catch {} lib = null; }
   try { lib = new Zim(file); return true; } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
@@ -165,6 +166,89 @@ function random() {
     if (e && e.mime === 'text/html' && e.path !== 'index') return { title: e.title, path: e.path };
   }
   return null;
+}
+
+// Home's picks for a day while offline: Today's discovery (an article with a picture and a real first paragraph) and
+// the picture for the circle (an article's photo big enough to fill it, since most library pictures are small). Both
+// come from Wikipedia's Featured Articles in the library (src/data/featured.json), as Wikipedia's own Home does
+// online; a library with none of them (a small test library) uses any article. The same all day, a new pair each day.
+const dailies = new Map();
+let featuredHere = null;   // the library's featured articles, as entries
+function featuredInLibrary() {
+  if (!featuredHere) {
+    let list = [];
+    try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'src', 'data', 'featured.json'), 'utf8')); } catch {}
+    featuredHere = list.map((t) => lib.resolve(lib.find('C', toPath(t)))).filter((e) => e && e.mime === 'text/html');
+  }
+  return featuredHere;
+}
+function imageSize(b) {
+  if (b.length < 30) return null;
+  if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {
+    const t = b.toString('ascii', 12, 16);
+    if (t === 'VP8X') return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)];
+    if (t === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+    if (t === 'VP8L') { const v = b.readUInt32LE(21); return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1]; }
+  }
+  if (b.readUInt32BE(0) === 0x89504e47) return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  if (b[0] === 0xff && b[1] === 0xd8) {
+    for (let i = 2; i + 9 < b.length;) {
+      if (b[i] !== 0xff) return null;
+      const m = b[i + 1], len = b.readUInt16BE(i + 2);
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return [b.readUInt16BE(i + 7), b.readUInt16BE(i + 5)];
+      i += 2 + len;
+    }
+  }
+  return null;
+}
+// The biggest roughly square photo among the article's first few pictures (the ones about the subject), at least 300
+// pixels on its short side, or ''. Photos only (JPEGs): drawings, diagrams, maps, flags, logos, and seals make a poor
+// picture of the day.
+function bigPicture(articlePath) {
+  const html = lib.content(lib.resolve(lib.find('C', articlePath))).toString('utf8');
+  let best = '', bestSide = 299;
+  for (const m of [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].slice(0, 4)) {
+    if (/^(data:|https?:)/.test(m[1]) || !/\.jpe?g$/i.test(m[1]) || /map|locat|flag|logo|seal|coat_of_arms|emblem|signature|diagram|chart/i.test(m[1])) continue;
+    let rel = m[1].replace(/&amp;/g, '&');
+    try { rel = decodeURIComponent(rel); } catch {}
+    const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), rel));
+    const e = lib.resolve(lib.find('C', p));
+    const size = e && imageSize(lib.content(e));
+    if (!size) continue;
+    const [w, h] = size, side = Math.min(w, h);
+    if (side > bestSide && w / h < 1.8 && h / w < 1.8) { best = p; bestSide = side; }
+  }
+  return best ? 'e2k-zim://lib/C/' + best.split('/').map(encodeURIComponent).join('/') : '';
+}
+function daily(key) {
+  if (!lib) return null;
+  if (dailies.has(key)) return dailies.get(key);
+  // Numbers that look random but are the same for the same day (a hash of the date feeding mulberry32).
+  let seed = [...key].reduce((h, c) => { h = Math.imul(h ^ c.charCodeAt(0), 3432918353); return (h << 13) | (h >>> 19); }, 1779033703);
+  const next = () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+  const fa = featuredInLibrary(), n = lib.titleList().length;
+  const pick = fa.length ? () => fa[Math.floor(next() * fa.length)]
+    : () => { const e = lib.resolve(lib.entry(lib.titleIdx(Math.floor(next() * n)))); return e && e.mime === 'text/html' && e.path !== 'index' ? e : null; };
+  let disc = null, pic = null;
+  for (let k = 0; k < 300 && !disc; k++) {
+    const e = pick(), pv = e && preview(e.path);
+    if (pv && pv.thumb && pv.extract.length >= 80) disc = { title: e.title, path: e.path };
+  }
+  for (let k = 0; k < 300 && !pic; k++) {
+    const e = pick();
+    if (!e || (disc && e.path === disc.path)) continue;
+    let src = '';
+    try { src = bigPicture(e.path); } catch {}
+    if (src) pic = { title: e.title, path: e.path, src };
+  }
+  const r = { disc, pic };
+  dailies.set(key, r);
+  return r;
 }
 
 // ---------- the catalog ----------
@@ -467,6 +551,7 @@ function setup() {
   ipcMain.handle('library:find', (_e, title) => find(title));
   ipcMain.handle('library:titles', (_e, q, limit, deep) => titles(q, limit, deep));
   ipcMain.handle('library:random', () => random());
+  ipcMain.handle('library:daily', (_e, key) => daily(key));
   ipcMain.handle('library:state', () => publicState());
   ipcMain.handle('library:catalog', async () => { try { await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });
   ipcMain.handle('library:download', (_e, packId, opts) => startDownload(packId, opts));

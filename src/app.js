@@ -331,6 +331,7 @@
     const art = svg('svg', { class: 'home-art', viewBox: '0 0 1024 610', preserveAspectRatio: 'none' });
 
     const dial = h('button', { class: 'dial', title: 'Picture of the Day', onclick: () => go('gallery') });
+    const dialHd = h('b', {}, 'PICTURE OF THE DAY');
     const dialCap = h('span', {}, 'Loading…');
     const discThumb = h('button', { class: 'thumb', style: 'padding:0' });
     const discTitle = h('b', {}, 'Loading today’s discovery…');
@@ -341,7 +342,7 @@
     const canvas = h('div', { class: 'home-canvas' },
       h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '2000'), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
       dial,
-      h('div', { class: 'dialcap' }, h('b', {}, 'PICTURE OF THE DAY'), h('br'), dialCap),
+      h('div', { class: 'dialcap' }, dialHd, h('br'), dialCap),
       h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),
         h('div', { class: 'row' }, ORBS.map((o, i) => h('button', { class: 'orb', onclick: o.run },
           h('i', { style: `--orb-bg:radial-gradient(circle at 40% 30%,${o.bg});${E2KThemes.orbStyle(i)}` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)))),
@@ -357,8 +358,14 @@
     todayFeed().then((d) => {
       if (!live(token)) return;
       const img = d.image || {};
-      dial.style.cssText = bg(sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 500));
+      dial.style.cssText = bg(img.fromLibrary ? img.thumbnail.source : sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 500));
       dialCap.textContent = strip(img.description?.text) || strip(img.title) || '';
+      // Offline, the circle shows a picture from an article in the library, and opens that article.
+      if (img.fromLibrary) {
+        dialHd.textContent = 'FROM YOUR OFFLINE LIBRARY';
+        dial.title = img.title;
+        dial.onclick = () => openArticle(img.title);
+      } else if (d.offline) dialCap.textContent = 'Back when you’re online';
 
       const tfa = d.tfa;
       if (tfa) {
@@ -367,6 +374,12 @@
         discTitle.textContent = t;
         discText.textContent = tfa.extract || '';
         discMore.onclick = discThumb.onclick = () => openArticle(t);
+      } else if (d.offline) {
+        // Offline without a library: the almanac still works, from the highlights saved with the app.
+        discTitle.textContent = navigator.onLine && !isOffline() ? 'Wikipedia couldn’t be reached.' : 'You’re offline.';
+        discText.textContent = 'With an offline library, you can keep reading without the internet. Download one from Tools › Offline Library.';
+        discMore.textContent = 'Offline Library…';
+        discMore.onclick = () => E2KLibrary.open(E2K);
       } else {
         discTitle.textContent = 'No featured article today';
       }
@@ -376,7 +389,7 @@
         return h('button', { class: 'ev', title: page ? page.titles?.normalized : '', onclick: () => (page ? openArticle(page.titles?.normalized || page.title) : go('onthisday')) },
           h('b', {}, String(o.year)), h('div', {}, o.text));
       }));
-      setIdle();
+      setIdle(d.offline ? (isOffline() ? 'Offline mode' : 'Offline') : 'Ready');
     }).catch((err) => {
       if (!live(token)) return;
       discTitle.textContent = isOffline() ? 'You’re in Offline mode.' : navigator.onLine ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';

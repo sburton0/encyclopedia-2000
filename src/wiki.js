@@ -88,7 +88,10 @@ window.Wiki = (() => {
     // hold small icons (a "current season" baseball, rating stars) and signatures, which this skips.
     const big = (i) => +i.getAttribute('width') >= 60 && +i.getAttribute('height') >= 60 && i.closest('[typeof^="mw:File"]') && !i.closest('.infobox-signature');
     const img = [...doc.querySelectorAll('.infobox img')].find(big) || [...doc.querySelectorAll('.mw-parser-output img')].find(big);
-    const extract = p ? p.textContent.replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim() : '';
+    // Without the styles some paragraphs carry inline (pronunciation labels) and footnote marks ("[1]", "[a]").
+    const para = p && p.cloneNode(true);
+    if (para) para.querySelectorAll('style, link, sup.reference, sup.mw-ref, .mw-ref').forEach((x) => x.remove());
+    const extract = para ? para.textContent.replace(/\[(\d+|[a-z])\]/g, '').replace(/\s+/g, ' ').trim() : '';
     return { titles: { normalized: found.title, canonical: found.path }, title: found.title, description: '', extract, fromLibrary: true,
       thumbnail: img ? { source: new URL(img.getAttribute('src'), base).href, sharp: sharp() ? sharpUrl(img.getAttribute('src'), 500) : '' } : undefined };
   }
@@ -121,6 +124,39 @@ window.Wiki = (() => {
   const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const libTitles = async (q, n, deep) => (await lib.titles(q, n, deep)).map((t) => ({ title: t.title, description: '', excerpt: esc(t.extract || ''), thumbnail: t.thumb ? { url: t.thumb } : null }));
 
+  // ---------- Home and the almanac offline ----------
+  // Offline (or in Offline mode, or when Wikipedia can't be reached), Home's feeds come from the library's picks for
+  // the day and the "On this day" highlights saved with the app (data/onthisday.js, loaded when first needed), in the
+  // same shapes as Wikipedia's. An event links to its article only if the library has it.
+  let saved;
+  const savedDays = () => saved || (saved = new Promise((resolve) => {
+    if (window.E2K_ONTHISDAY) return resolve(window.E2K_ONTHISDAY);
+    const s = document.createElement('script');
+    s.src = 'data/onthisday.js';
+    s.onload = () => resolve(window.E2K_ONTHISDAY || null);
+    s.onerror = () => { saved = null; resolve(null); };
+    document.head.append(s);
+  }));
+  async function savedDay(date) {
+    const d = await savedDays(), rows = (d && d.days[`${pad(date.getMonth() + 1)}-${pad(date.getDate())}`]) || [];
+    const has = await library();
+    return Promise.all(rows.map(async ([year, text, title]) => {
+      const found = has && title ? await lib.find(title).catch(() => null) : null;
+      return { year, text, pages: found ? [{ title: found.title, titles: { normalized: found.title } }] : [] };
+    }));
+  }
+  async function offlineFeatured(date) {
+    const key = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+    const pick = (await library()) ? await lib.daily(key).catch(() => null) : null;
+    const tfa = pick && pick.disc ? await libSummary(pick.disc).catch(() => null) : null;
+    const image = pick && pick.pic ? { title: pick.pic.title, fromLibrary: true, thumbnail: { source: pick.pic.src } } : null;
+    return { offline: true, tfa, image, onthisday: await savedDay(date) };
+  }
+  async function feed(online, offline) {
+    if (offlineMode() || !navigator.onLine) return offline();
+    try { return await online(); } catch (e) { return offline(); }
+  }
+
   // Swaps each picture marked with a sharp version once that version has loaded, as it scrolls into view. A picture
   // that can't be loaded keeps the library's copy.
   function sharpen(root) {
@@ -134,10 +170,10 @@ window.Wiki = (() => {
   return {
     library,
     sharpen,
-    featured: (date) =>
-      get(`${BASE}/api/rest_v1/feed/featured/${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
-    onThisDay: (date, type = 'all') =>
-      get(`${BASE}/api/rest_v1/feed/onthisday/${type}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
+    featured: (date) => feed(() => get(`${BASE}/api/rest_v1/feed/featured/${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
+      () => offlineFeatured(date)),
+    onThisDay: (date, type = 'all') => feed(() => get(`${BASE}/api/rest_v1/feed/onthisday/${type}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
+      async () => ({ offline: true, selected: await savedDay(date) })),
     summary: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/summary/${enc(title)}?redirect=true`), libSummary),
     html: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/html/${enc(title)}?redirect=true`, 'text'), libHtml),
     // Every picture, video, and sound in an article, in the order they appear.
