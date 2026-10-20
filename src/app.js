@@ -566,7 +566,8 @@
     body.querySelectorAll('a').forEach((a) => {
       const href = a.getAttribute('href') || '';
       const rel = a.getAttribute('rel') || '';
-      if (href.startsWith('./') || rel.includes('mw:WikiLink')) {
+      // Links to other wikis (Wiktionary, Wikiquote…) are marked as wiki links too, but have full web addresses.
+      if ((href.startsWith('./') || rel.includes('mw:WikiLink')) && !/^([a-z][a-z0-9+.-]*:)?\/\//i.test(href)) {
         const raw = href.replace(/^\.\//, '').split('#')[0].split('?')[0];
         let t;
         try { t = decodeURIComponent(raw).replace(/_/g, ' '); } catch { t = raw.replace(/_/g, ' '); }
