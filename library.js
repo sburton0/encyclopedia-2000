@@ -48,6 +48,7 @@ function save() { try { fs.writeFileSync(stateFile(), JSON.stringify({ ...state,
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
 
 function openFile(file) {
+  thumbs.clear();
   if (lib) { try { lib.close(); } catch {} lib = null; }
   try { lib = new Zim(file); return true; } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
 }
@@ -79,7 +80,28 @@ function titles(q, limit = 8) {
       seen.add(r.path); out.push({ title: r.title, path: r.path });
     }
   }
-  return out.sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit);
+  return out.sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit).map((t) => ({ ...t, thumb: thumb(t.path) }));
+}
+// An article's lead picture (the infobox's, or the first figure's), as an e2k-zim: address, for search results and
+// suggestions. Read from the article itself, so it's remembered per article.
+const thumbs = new Map();
+function thumb(articlePath) {
+  if (thumbs.has(articlePath)) return thumbs.get(articlePath);
+  let url = '';
+  try {
+    const e = lib.resolve(lib.find('C', articlePath));
+    const html = e ? lib.content(e).toString('utf8') : '';
+    const box = /class="infobox[\s\S]*?<img[^>]+>/.exec(html) || /<figure[\s\S]*?<img[^>]+>/.exec(html);
+    const img = box && /<img[^>]+>/.exec(box[0])[0], src = img && (/src="([^"]+)"/.exec(img) || [])[1];
+    const w = img && +((/width="(\d+)"/.exec(img) || [])[1] || 100);
+    if (src && w >= 40 && !/^(data:|https?:)/.test(src)) {
+      const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), src));
+      url = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
+    }
+  } catch {}
+  thumbs.set(articlePath, url);
+  if (thumbs.size > 500) thumbs.delete(thumbs.keys().next().value);
+  return url;
 }
 function random() {
   if (!lib) return null;

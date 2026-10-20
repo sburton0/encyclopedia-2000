@@ -88,7 +88,7 @@ window.Wiki = (() => {
     if (libraryFirst()) return offline();
     try { return await online(); } catch (e) { return offline(); }
   }
-  const libTitles = async (q, n) => (await lib.titles(q, n)).map((t) => ({ title: t.title, description: '', excerpt: '' }));
+  const libTitles = async (q, n) => (await lib.titles(q, n)).map((t) => ({ title: t.title, description: '', excerpt: '', thumbnail: t.thumb ? { url: t.thumb } : null }));
 
   return {
     library,
