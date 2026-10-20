@@ -68,19 +68,27 @@ function find(title) {
   }
   return null;
 }
-// Suggestions for what's been typed: the title list is case-sensitive, so try it as typed, with a capital first
-// letter, and in title case, then merge.
+// Suggestions for what's been typed. The title list is case-sensitive, so it's searched as typed, with a capital
+// first letter, and in title case. Many matches are redirects to other articles ("Los Angeles 1932" leads to "1932
+// Summer Olympics"), so results are ranked: an exact match first, then articles whose own title starts with what was
+// typed (shortest first), then articles reached only through a redirect.
 function titles(q, limit = 8) {
   if (!lib || !String(q).trim()) return [];
-  const t = String(q).trim(), seen = new Set(), out = [];
+  const t = String(q).trim(), lower = t.toLowerCase(), best = new Map();
   for (const v of new Set([t, cap(t), t.replace(/\b\w/g, (c) => c.toUpperCase())])) {
-    for (const e of lib.titleEntries(v, limit * 2)) {
+    for (const e of lib.titleEntries(v, limit * 4)) {
       const r = lib.resolve(e);
-      if (!r || r.mime !== 'text/html' || seen.has(r.path)) continue;
-      seen.add(r.path); out.push({ title: r.title, path: r.path });
+      if (!r || r.mime !== 'text/html' || r.path === 'index') continue;
+      const own = r.title.toLowerCase();
+      const rank = own === lower || e.title.toLowerCase() === lower ? 0 : own.startsWith(lower) ? 1 : 2;
+      const item = { title: r.title, path: r.path, rank, key: rank === 2 ? e.title : r.title };
+      const had = best.get(r.path);
+      if (!had || rank < had.rank) best.set(r.path, item);
     }
   }
-  return out.sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit).map((t) => ({ ...t, ...preview(t.path) }));
+  return [...best.values()]
+    .sort((a, b) => a.rank - b.rank || (a.rank === 1 ? a.key.length - b.key.length : 0) || a.key.localeCompare(b.key))
+    .slice(0, limit).map(({ title, path: p }) => ({ title, path: p, ...preview(p) }));
 }
 // An article's lead picture (the infobox's, or the first figure's) as an e2k-zim: address, and its first sentence,
 // for search results and suggestions. Read from the article itself, so they're remembered per article.
