@@ -274,6 +274,11 @@ button { font-family: inherit; cursor: default; }
 .home .alm .ev b { font: 600 13px "Segoe UI"; }
 .home .alm .ev div { font: 11.5px/1.35 "Segoe UI"; color: var(--sky); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .home .alm .ev:hover b, .home .alm .ev:hover div { color: var(--gold); }
+/* offline, an event whose article isn't in the library: plain, dimmer text */
+.home .alm .ev.nolink { cursor: default; }
+.home .alm .ev.nolink b, .home .alm .ev.nolink:hover b { color: rgba(255, 255, 255, .6); }
+.home .alm .ev.nolink div, .home .alm .ev.nolink:hover div { color: rgba(185, 205, 240, .55); }
+.home .alm .ev.nolink::before { background: rgba(143, 180, 255, .4); }
 .home .muted { font: 12px "Segoe UI"; color: var(--sky); }
 
 /* ---------- page shell (articles and feature pages) ---------- */
@@ -471,6 +476,10 @@ button { font-family: inherit; cursor: default; }
 .tl { max-width: 860px; }
 .tl-item { display: flex; gap: 16px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
 .tl-item:hover { background: #f1f5fc; }
+.tl-item.nolink { cursor: default; }
+.tl-item.nolink:hover { background: none; }
+.tl-item.nolink .yr { color: #e7a85a; }
+.tl-item.nolink .tx { color: #666; }
 .tl-item .yr { flex: none; width: 70px; text-align: right; font: 300 26px/1.1 "Segoe UI"; color: var(--orange); }
 .tl-item .tx { flex: 1; font: calc(14.5px * var(--fs))/1.5 var(--read-font); color: #222; }
 .tl-item .tx small { display: block; margin-top: 3px; font: 11.5px "Segoe UI"; color: #1d47a8; }

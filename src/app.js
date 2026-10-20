@@ -384,8 +384,13 @@
         discTitle.textContent = 'No featured article today';
       }
 
-      almList.replaceChildren(...(d.onthisday || []).slice(0, 6).map((o) => {
+      // Offline, an event links to its article only if the library has it: those come first (then by year), and the
+      // others are plain text.
+      let events = d.onthisday || [];
+      if (d.offline) events = [...events.filter((o) => o.pages.length), ...events.filter((o) => !o.pages.length)].slice(0, 6).sort((a, b) => b.year - a.year);
+      almList.replaceChildren(...events.slice(0, 6).map((o) => {
         const page = (o.pages || [])[0];
+        if (!page && d.offline) return h('div', { class: 'ev nolink', title: 'Not in your offline library' }, h('b', {}, String(o.year)), h('div', {}, o.text));
         return h('button', { class: 'ev', title: page ? page.titles?.normalized : '', onclick: () => (page ? openArticle(page.titles?.normalized || page.title) : go('onthisday')) },
           h('b', {}, String(o.year)), h('div', {}, o.text));
       }));
@@ -1049,7 +1054,8 @@
       list.replaceChildren(...data[k].map((o) => {
         const page = (o.pages || []).find((p) => p.thumbnail) || (o.pages || [])[0];
         const t = page ? page.titles?.normalized || page.title : null;
-        return h('button', { class: 'tl-item', onclick: () => (t ? openArticle(t, linkFrom()) : null) },
+        // An event without an article (offline, when the library doesn't have it) is plain text.
+        return h(t ? 'button' : 'div', t ? { class: 'tl-item', onclick: () => openArticle(t, linkFrom()) } : { class: 'tl-item nolink', title: data.offline ? 'Not in your offline library' : '' },
           h('div', { class: 'yr' }, o.year !== undefined ? String(o.year) : '•'),
           h('div', { class: 'tx' }, o.text, t ? h('small', {}, t + ' ›') : null),
           page?.thumbnail ? h('i', { class: 'th', style: bg(page.thumbnail.source) }) : null);
