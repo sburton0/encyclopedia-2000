@@ -78,8 +78,8 @@ window.E2KLibrary = (() => {
       } else status.replaceChildren(dot('#8f9dbd'), h('span', {}, h('b', {}, 'No offline library yet.'), ' Articles load from Wikipedia while you’re online.'));
       // the packs
       const visible = !st.current || showAll ? [...st.packs] : st.packs.filter((p) => p.id === st.current.pack || (d && d.pack === p.id));
-      // The installed library first, then any download, then the rest.
-      const rank = (p) => (st.current && p.id === st.current.pack ? 0 : d && p.id === d.pack ? 1 : 2);
+      // The installed library first; everything else (including a pack that's downloading) keeps its place in the list.
+      const rank = (p) => (st.current && p.id === st.current.pack ? 0 : 1);
       visible.sort((a, b) => rank(a) - rank(b));
       const toggle = st.current ? h('button', { class: 'linkbtn', onclick: () => { showAll = !showAll; draw(); } }, showAll ? 'Hide other libraries' : '') : null;
       list.replaceChildren(...visible.map((p) => {
