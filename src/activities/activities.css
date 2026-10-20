@@ -126,6 +126,10 @@
 .ss-date { margin-top: 3px; font: 12px "Segoe UI"; color: var(--sky); }
 .ss-ctl { position: absolute; left: 24px; bottom: 18px; display: flex; align-items: center; gap: 6px; z-index: 2; font: 12px "Segoe UI"; color: var(--sky); }
 .ss-ctl .lbl { margin: 0 4px 0 10px; }
+.ss-play { display: inline-grid; justify-items: center; }
+.ss-play span { grid-area: 1 / 1; }
+.ss-play .r, .ss-play.paused .p { visibility: hidden; }
+.ss-play.paused .r { visibility: visible; }
 .ss-orbit { fill: none; stroke: #9fb4e6; stroke-opacity: .22; stroke-width: 1; }
 .ss-orbit.sel { stroke: var(--orange); stroke-opacity: .75; stroke-dasharray: 3 4; }
 .ss-body { cursor: default; }
