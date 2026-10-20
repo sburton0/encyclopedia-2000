@@ -48,7 +48,7 @@ function save() { try { fs.writeFileSync(stateFile(), JSON.stringify({ ...state,
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
 
 function openFile(file) {
-  thumbs.clear();
+  previews.clear();
   if (lib) { try { lib.close(); } catch {} lib = null; }
   try { lib = new Zim(file); return true; } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
 }
@@ -80,14 +80,16 @@ function titles(q, limit = 8) {
       seen.add(r.path); out.push({ title: r.title, path: r.path });
     }
   }
-  return out.sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit).map((t) => ({ ...t, thumb: thumb(t.path) }));
+  return out.sort((a, b) => a.title.localeCompare(b.title)).slice(0, limit).map((t) => ({ ...t, ...preview(t.path) }));
 }
-// An article's lead picture (the infobox's, or the first figure's), as an e2k-zim: address, for search results and
-// suggestions. Read from the article itself, so it's remembered per article.
-const thumbs = new Map();
-function thumb(articlePath) {
-  if (thumbs.has(articlePath)) return thumbs.get(articlePath);
-  let url = '';
+// An article's lead picture (the infobox's, or the first figure's) as an e2k-zim: address, and its first sentence,
+// for search results and suggestions. Read from the article itself, so they're remembered per article.
+const previews = new Map();
+const decode = (t) => t.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n));
+function preview(articlePath) {
+  if (previews.has(articlePath)) return previews.get(articlePath);
+  let thumb = '', extract = '';
   try {
     const e = lib.resolve(lib.find('C', articlePath));
     const html = e ? lib.content(e).toString('utf8') : '';
@@ -96,12 +98,23 @@ function thumb(articlePath) {
     const w = img && +((/width="(\d+)"/.exec(img) || [])[1] || 100);
     if (src && w >= 40 && !/^(data:|https?:)/.test(src)) {
       const p = path.posix.normalize(path.posix.join(path.posix.dirname(articlePath), src));
-      url = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
+      thumb = 'e2k-zim://lib/C/' + p.split('/').map(encodeURIComponent).join('/');
+    }
+    // The first real paragraph of the lead (not inside a table or box), without footnote marks or styles.
+    const lead = html.slice(html.indexOf('mw-parser-output'));
+    for (const m of lead.matchAll(/<p\b[^>]*>([\s\S]*?)<\/p>/g)) {
+      const text = decode(m[1].replace(/<style[\s\S]*?<\/style>/g, '').replace(/<sup[\s\S]*?<\/sup>/g, '').replace(/<[^>]+>/g, '')).replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').trim();
+      if (text.length < 40) continue;
+      const end = text.slice(30).search(/[.!?](\s|$)/);
+      extract = end >= 0 ? text.slice(0, 30 + end + 1) : text;
+      if (extract.length > 220) extract = extract.slice(0, 217).replace(/\s+\S*$/, '') + '…';
+      break;
     }
   } catch {}
-  thumbs.set(articlePath, url);
-  if (thumbs.size > 500) thumbs.delete(thumbs.keys().next().value);
-  return url;
+  const r = { thumb, extract };
+  previews.set(articlePath, r);
+  if (previews.size > 500) previews.delete(previews.keys().next().value);
+  return r;
 }
 function random() {
   if (!lib) return null;
