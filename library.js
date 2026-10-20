@@ -357,6 +357,12 @@ async function chooseDir(win) {
   if (r.canceled || !r.filePaths[0]) return publicState();
   const dir = r.filePaths[0];
   if (path.resolve(dir) === path.resolve(libDir())) return publicState();
+  // An installed library over 4 GB can't go on a FAT32 drive; say so before copying anything.
+  if (state.current && (state.current.size || 0) > 4 * 1024 ** 3 && !bigFilesOk(dir)) {
+    return { ...publicState(), error: 'Your library is over 4 GB, and that drive can’t hold files that big (it’s formatted FAT32, common on USB sticks). Choose another drive, or reformat this one as exFAT.' };
+  }
+  // Enough room for the library there?
+  if (state.current && freeSpace(dir) < (state.current.size || 0) + 1e8) return { ...publicState(), error: 'There isn’t enough free space on that drive for your library.' };
   // Move the installed library along with the setting, so it keeps working.
   if (state.current && !job) {
     const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
