@@ -28,7 +28,7 @@ window.E2KLibrary = (() => {
     };
     const pics = h('div', { class: 'subopts' },
       pic('online', 'Load high-resolution pictures from the internet when connected (recommended)'),
-      pic('library', 'Use the library’s pictures only (smaller, and nothing is loaded from the internet)'));
+      pic('library', 'Use the library’s pictures only (lower resolution, and nothing is loaded from the internet)'));
     const picChoice = () => { pics.classList.toggle('off', !first.checked); pics.querySelectorAll('input').forEach((i) => { i.disabled = !first.checked; }); };
     picChoice();
 
