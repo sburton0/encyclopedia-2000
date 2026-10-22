@@ -531,7 +531,7 @@ function publicState() {
   };
 }
 
-function setup() {
+function setup({ offline = () => false } = {}) {
   load();
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
@@ -561,8 +561,9 @@ function setup() {
   ipcMain.handle('library:remove', () => { removeCurrent(); return publicState(); });
   ipcMain.handle('library:choose-dir', (e) => chooseDir(BrowserWindow.fromWebContents(e.sender)));
   ipcMain.handle('library:open-dir', () => shell.openPath(libDir()));
-  // Check for new editions at most once a month, quietly.
-  if (Date.now() - (state.checked || 0) > MONTH) setTimeout(() => fetchCatalog().then(broadcast, () => {}), 15000);
+  // Check for new editions at most once a month, quietly: only with a library installed, and never in Offline mode
+  // (people who don't use the offline library never contact Kiwix).
+  if (state.current && !offline() && Date.now() - (state.checked || 0) > MONTH) setTimeout(() => { if (!offline()) fetchCatalog().then(broadcast, () => {}); }, 15000);
 }
 
 module.exports = { setup, downloading, pauseForQuit, quitInfo };

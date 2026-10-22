@@ -303,7 +303,7 @@ ipcMain.handle('open-external', (_e, url) => {
 const library = require('./library');
 
 app.whenReady().then(() => {
-  library.setup();
+  library.setup({ offline: () => !!settings.offlineMode });
   // Offline mode: the window's requests to the internet are refused. (Requests from the main process have no window.)
   session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => cb({ cancel: !!settings.offlineMode && d.webContentsId != null }));
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
