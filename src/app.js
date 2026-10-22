@@ -1221,7 +1221,8 @@
   const about = async () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
     `Version ${prettyVersion((await window.e2k.appInfo().catch(() => ({}))).version)}.`,
     'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
-    'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
+    'Offline libraries are Wikipedia as packaged by Kiwix (kiwix.org), a nonprofit that makes Wikipedia available offline, downloaded through mirrors run by volunteers around the world.',
+    'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation, Kiwix, or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
   ], [['Donate…', () => donate()], ['OK', null, true]]);
   // ---------- keyboard shortcuts ----------
