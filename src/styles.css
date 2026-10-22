@@ -639,6 +639,8 @@ button { font-family: inherit; cursor: default; }
   .band h1 { color: #000; text-shadow: none; white-space: normal; font-size: 30px; }
   .band .pron { display: none; }
   .band .desc { color: #444; white-space: normal; }
+  /* Some themes give the title band's text a glow (Library); on white paper it would only blur. */
+  .band .t, .band .t * { text-shadow: none !important; }
   .text { max-width: none; font-size: 11.5pt; }
   .text a { color: #000; border-bottom: 0; }
   .text h2, .text h3 { break-after: avoid; }
