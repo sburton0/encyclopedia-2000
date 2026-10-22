@@ -1220,6 +1220,29 @@
     'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation or Microsoft.',
     h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
   ], [['Donate…', () => donate()], ['OK', null, true]]);
+  // ---------- keyboard shortcuts ----------
+  // Help › Keyboard Shortcuts (Ctrl+/): every shortcut in groups, as keycaps. Listed the Windows way and turned into
+  // the macOS keys there (⌘ for Ctrl, Cmd+[ for Back, and so on), the same as the menus.
+  const SHORTCUTS = [
+    [['Finding', [['Find in this article', 'Ctrl+F'], ['Find an article', 'Ctrl+E'], ['Next match', 'Enter'], ['Previous match', 'Shift+Enter']]],
+      ['Moving around', [['Home', 'Ctrl+H'], ['Back', 'Alt+Left'], ['Forward', 'Alt+Right'], ['Refresh', 'F5']]],
+      ['Reading', [['Larger text', 'Ctrl+='], ['Smaller text', 'Ctrl+-'], ['Normal text size', 'Ctrl+0'], ['Copy', 'Ctrl+C']]]],
+    [['Printing', [['Print Preview', 'Ctrl+P'], ['Print', 'Ctrl+Shift+P']]],
+      ['Favorites and sound', [['Favorites pane', 'Ctrl+I'], ['Mute', 'Ctrl+M']]],
+      ['Pictures and videos', [['Previous / next', 'Left or Right'], ['Play / pause', 'Space']]],
+      ['Encyclopedia 2000', [['Options', 'Ctrl+,'], ['Keyboard shortcuts', 'Ctrl+/'], ['Close a window or menu', 'Esc'], MAC ? ['Quit', 'Cmd+Q'] : ['Exit', 'Alt+F4']]]],
+  ];
+  const CAP = { Left: '←', Right: '→', Cmd: MAC ? '⌘' : 'Cmd', Shift: MAC ? '⇧' : 'Shift', Alt: MAC ? '⌥' : 'Alt' };
+  function shortcuts() {
+    const caps = (combo) => (MAC && /^(Ctrl|Alt|F5)/.test(combo) ? macKey(combo) : combo).split('+')
+      .flatMap((k, i) => [i ? h('span', { class: 'kplus' }, '+') : null, h('kbd', {}, CAP[k] || k)]).filter(Boolean);
+    const row = ([label, combo]) => h('div', { class: 'kr' }, h('span', {}, label),
+      h('span', {}, combo.split(' or ').flatMap((c, i) => [i ? h('span', { class: 'kplus' }, ' or ') : null, ...caps(c)]).filter(Boolean)));
+    const cols = h('div', { class: 'kcols' }, SHORTCUTS.map((col) => h('div', {}, col.map(([title, rows]) => h('div', {}, h('h3', {}, title), rows.map(row))))));
+    dialog('Keyboard Shortcuts', 'Keyboard shortcuts', [cols]);
+    $$('.overlay .dialog').at(-1).classList.add('keys');
+  }
+
   // ---------- what's new ----------
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
@@ -1889,6 +1912,7 @@
     privacy: () => window.e2k.openExternal('https://github.com/sburton0/encyclopedia-2000/blob/main/PRIVACY.md'),
     updates: () => checkForUpdates(),
     whatsnew: () => whatsNew(),
+    shortcuts: () => shortcuts(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
     copy: () => document.execCommand('copy'),
@@ -1939,7 +1963,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
       ['Tools', [['Offline Library…', 'library'], ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
-      ['Help', [['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
+      ['Help', [['Keyboard Shortcuts', 'shortcuts', 'Ctrl+/'], '-', ['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');
@@ -2295,7 +2319,7 @@
     else if (k === 'F5') { e.preventDefault(); reload(); }
     else if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'p') { e.preventDefault(); runCmd('printNow'); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { i: 'favpane', p: 'print', f: 'find', e: 'search', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { i: 'favpane', p: 'print', f: 'find', e: 'search', '/': 'shortcuts', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }

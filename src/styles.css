@@ -332,6 +332,15 @@ button { font-family: inherit; cursor: default; }
 .band.article .desc { margin-top: 5px; }
 /* Room below the line keeps descenders (g, y, p) from being clipped by overflow: hidden. */
 .band h1 { margin: 0 0 -6px; padding-bottom: 6px; font: 300 34px/1.15 "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+/* Help › Keyboard Shortcuts: two columns of groups, each key drawn as a keycap */
+.dialog.keys { width: 640px; }
+.keys .kcols { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 28px; margin-top: 6px; }
+.keys h3 { margin: 12px 0 4px; font: 600 10.5px "Segoe UI"; letter-spacing: 1.8px; text-transform: uppercase; color: var(--orange); }
+.keys .kr { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 3px 0; border-bottom: 1px solid rgba(255, 255, 255, .07); font: 12.5px "Segoe UI"; }
+.keys .kr span:first-child { color: #dbe5f7; }
+.keys kbd { display: inline-block; min-width: 18px; padding: 1px 6px; margin-left: 3px; text-align: center; font: 600 11px "Segoe UI"; color: #fff;
+  background: linear-gradient(#3a4562, #232a3d); border: 1px solid #56617f; border-bottom-width: 2px; border-radius: 3px; }
+.keys .kplus { color: #8a93a6; font-size: 11px; margin-left: 3px; }
 /* Find in article (Ctrl+F): the bar under the title band, and the highlights in the text */
 .findbar { position: fixed; z-index: 50; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px;
   background: linear-gradient(var(--ink-2), var(--ink-1)); border: 1px solid var(--ink-3); border-top: 0;
