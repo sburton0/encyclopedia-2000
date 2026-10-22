@@ -1978,6 +1978,12 @@
   let sugSel = -1;
   let sugTimer = 0;
   let sugToken = 0;
+  // Clicking into the box selects what's there, so a new search can be typed straight away (like a browser's address
+  // bar); a click while it's already active places the cursor as usual. Tabbing in selects it too.
+  let qClickFocus = false;
+  q.addEventListener('mousedown', () => { qClickFocus = document.activeElement !== q; });
+  q.addEventListener('focus', () => q.select());
+  q.addEventListener('mouseup', (e) => { if (qClickFocus) { e.preventDefault(); qClickFocus = false; } });
 
   function hideSuggest() { sug.hidden = true; sugItems = []; sugSel = -1; }
   function showSuggest(items, emptyMsg) {
