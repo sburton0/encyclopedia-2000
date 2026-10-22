@@ -332,6 +332,22 @@ button { font-family: inherit; cursor: default; }
 .band.article .desc { margin-top: 5px; }
 /* Room below the line keeps descenders (g, y, p) from being clipped by overflow: hidden. */
 .band h1 { margin: 0 0 -6px; padding-bottom: 6px; font: 300 34px/1.15 "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 4px rgba(0, 0, 0, .4); }
+/* Find in article (Ctrl+F): the bar under the title band, and the highlights in the text */
+.findbar { position: fixed; z-index: 50; display: flex; align-items: center; gap: 6px; padding: 6px 6px 6px 12px;
+  background: linear-gradient(var(--ink-2), var(--ink-1)); border: 1px solid var(--ink-3); border-top: 0;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .35); font: 12.5px "Segoe UI"; color: #dbe5f7; }
+.findbar label { color: #aac0e6; margin-right: 2px; }
+.findbar input { width: 190px; height: 24px; padding: 0 8px; border: 1px solid var(--orange); background: #0a0c10; color: #fff;
+  font: 13px "Segoe UI"; outline: none; box-shadow: 0 0 0 2px rgba(245, 166, 35, .18); }
+.findbar.none input { border-color: #d65a4a; box-shadow: 0 0 0 2px rgba(214, 90, 74, .25); }
+.findbar .n { min-width: 70px; text-align: center; color: #aac0e6; }
+.findbar button { width: 26px; height: 26px; border: 1px solid var(--ink-3); background: rgba(255, 255, 255, .06); color: #fff; font: 15px "Segoe UI"; line-height: 1; padding: 0 0 2px; }
+.findbar button:hover { border-color: var(--orange); }
+.findbar button.x { border-color: transparent; background: none; color: #aac0e6; }
+.findbar button.x:hover { color: #fff; }
+mark.fh { background: rgba(255, 210, 122, .55); color: inherit; border-radius: 2px; box-shadow: 0 0 0 1px rgba(245, 166, 35, .35); }
+mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px var(--orange), 0 0 10px rgba(245, 166, 35, .7); }
+@media print { mark.fh, mark.fh.cur { background: none; box-shadow: none; color: inherit; } }
 .band .desc { font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band .tools { position: absolute; right: 14px; top: 0; bottom: 0; display: flex; align-items: center; gap: 6px; }
 .band.article .tools { right: var(--flow-right, 14px); bottom: auto; top: 10px; align-items: flex-start; }

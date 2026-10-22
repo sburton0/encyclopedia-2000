@@ -68,7 +68,7 @@
       { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library']), item(['Themes…', 'themes']), '-',
         { role: 'services' }, '-', { role: 'hide', label: 'Hide Encyclopedia 2000' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit', label: 'Quit Encyclopedia 2000' }] },
       { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
-      { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find an Article', 'find', 'Ctrl+F'])] },
+      { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find in Article…', 'find', 'Ctrl+F', null, !findable()]), item(['Find an Article', 'search', 'Ctrl+E'])] },
       ...['View', 'Go', 'Favorites', 'Features'].map((label) => ({ label, items: conv(m[label]) })),
       { role: 'windowMenu' },
       { label: 'Help', items: conv(m.Help.filter((it) => it[1] !== 'about')) },
@@ -278,6 +278,7 @@
     speechStop();
     closeMenus();
     hideSuggest();
+    closeFind();
     current = null;
     updateToolbar();
     setTrail(r);
@@ -1894,7 +1895,9 @@
     // Print is turned off on screens without a printable page; the keyboard shortcuts quietly do nothing there.
     print: () => { if (printable()) window.e2k.printPreview(); },
     printNow: () => { if (printable()) window.e2k.win('print'); },
-    find: () => { $('#q').focus(); $('#q').select(); },
+    // Ctrl+F searches the article on screen; anywhere else (Home, games) it goes to the Find box, like Ctrl+E.
+    find: () => (findable() ? openFind() : runCmd('search')),
+    search: () => { closeFind(); $('#q').focus(); $('#q').select(); },
     bigger: () => setFontScale(store.get('fontScale', 1) + 0.1),
     smaller: () => setFontScale(store.get('fontScale', 1) - 0.1),
     normal: () => setFontScale(1),
@@ -1927,7 +1930,7 @@
     const f = favs();
     return [
       ['File', [['Home', 'home', 'Ctrl+H'], ['Random Article', 'random'], '-', ['Print Preview…', 'print', 'Ctrl+P', null, !printable()], ['Print…', 'printNow', 'Ctrl+Shift+P', null, !printable()], '-', ['Exit', 'exit', 'Alt+F4']]],
-      ['Edit', [['Copy', 'copy', 'Ctrl+C'], ['Find an Article', 'find', 'Ctrl+F']]],
+      ['Edit', [['Copy', 'copy', 'Ctrl+C'], '-', ['Find in Article…', 'find', 'Ctrl+F', null, !findable()], ['Find an Article', 'search', 'Ctrl+E']]],
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
@@ -2186,17 +2189,113 @@
   if (MAC) $$('[title]').forEach((el) => { el.title = el.title.replace(/\(((?:Ctrl|Alt)\+[^)]+)\)$/, (_, k) => `(${keyText(k)})`); });
   $('.titlebar').addEventListener('dblclick', (e) => { if (!e.target.closest('.wc')) window.e2k.win('max'); });
 
+  // ---------- find in article ----------
+  // Ctrl+F on an article: a bar under the title band finds a word in the article's text (not the rail or menus).
+  // Every match is highlighted; the current one stands out and scrolls into view. Enter and Shift+Enter (or ‹ ›) step
+  // through them; Esc or ✕ closes the bar and takes the highlights away.
+  // (Function declarations and var, since the menus and the first page are built before this part of the file runs.)
+  function articleText() { return $('#view .content.article .text'); }
+  function findable() { return !!articleText(); }
+  var findBar = null, findMarks = [], findAt = -1, findTimer = 0;
+  function clearMarks() {
+    const parents = new Set();
+    findMarks.forEach((m) => { if (m.isConnected) { parents.add(m.parentNode); m.replaceWith(m.textContent); } });
+    parents.forEach((p) => p.normalize());
+    findMarks = []; findAt = -1;
+  }
+  function placeFind() {
+    const band = $('#view .band');
+    if (!findBar || !band) return;
+    const r = band.getBoundingClientRect();
+    const right = parseFloat(getComputedStyle(band).getPropertyValue('--flow-right')) || 22;
+    findBar.style.top = r.bottom + 'px';
+    findBar.style.left = Math.max(r.left + 8, r.right - right - findBar.offsetWidth) + 'px';
+  }
+  function showMatch(i) {
+    if (!findMarks.length) return;
+    findAt = (i + findMarks.length) % findMarks.length;
+    findMarks.forEach((m, j) => m.classList.toggle('cur', j === findAt));
+    findMarks[findAt].scrollIntoView({ block: 'center' });
+  }
+  function runFind() {
+    clearMarks();
+    const text = articleText(), q = findBar.querySelector('input').value;
+    const count = findBar.querySelector('.n');
+    findBar.classList.remove('none');
+    if (!text || !q.trim()) { count.textContent = ''; return; }
+    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    const walker = document.createTreeWalker(text, NodeFilter.SHOW_TEXT,
+      { acceptNode: (n) => (n.parentElement.closest('style, script') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      const v = node.nodeValue;
+      re.lastIndex = 0;
+      if (!re.test(v)) continue;
+      const frag = document.createDocumentFragment();
+      let last = 0, m;
+      re.lastIndex = 0;
+      while ((m = re.exec(v))) {
+        frag.append(v.slice(last, m.index));
+        findMarks.push(frag.appendChild(h('mark', { class: 'fh' }, m[0])));
+        last = m.index + m[0].length;
+      }
+      frag.append(v.slice(last));
+      node.replaceWith(frag);
+    }
+    if (!findMarks.length) { count.textContent = 'No matches'; findBar.classList.add('none'); return; }
+    // Start at the first match below the top of what's on screen, so finding doesn't jump back to the beginning.
+    const top = $('#view .band').getBoundingClientRect().bottom;
+    const first = findMarks.findIndex((m) => m.getBoundingClientRect().top >= top);
+    showMatch(first < 0 ? 0 : first);
+    count.textContent = `${findAt + 1} of ${findMarks.length}`;
+  }
+  function step(d) {
+    if (!findMarks.length) return;
+    showMatch(findAt + d);
+    findBar.querySelector('.n').textContent = `${findAt + 1} of ${findMarks.length}`;
+  }
+  function openFind() {
+    // Text selected in the article becomes the search, as in a browser.
+    const sel = String(getSelection() || '').trim();
+    if (!findBar) {
+      const input = h('input', { 'aria-label': 'Find in article', spellcheck: 'false',
+        oninput: () => { clearTimeout(findTimer); findTimer = setTimeout(runFind, 150); },
+        onkeydown: (e) => {
+          if (e.key === 'Enter') { e.preventDefault(); clearTimeout(findTimer); if (!findMarks.length) runFind(); else step(e.shiftKey ? -1 : 1); }
+          else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeFind(); }
+        } });
+      findBar = h('div', { class: 'findbar', role: 'search' },
+        h('label', {}, 'Find in article'), input, h('span', { class: 'n', 'aria-live': 'polite' }),
+        h('button', { title: 'Previous (Shift+Enter)', 'aria-label': 'Previous match', onclick: () => step(-1) }, '‹'),
+        h('button', { title: 'Next (Enter)', 'aria-label': 'Next match', onclick: () => step(1) }, '›'),
+        h('button', { class: 'x', title: 'Close (Esc)', 'aria-label': 'Close', onclick: () => closeFind() }, '✕'));
+      document.body.append(findBar);
+    }
+    placeFind();
+    const input = findBar.querySelector('input');
+    if (sel && sel.length < 80 && !sel.includes('\n')) { input.value = sel; runFind(); }
+    input.focus(); input.select();
+  }
+  function closeFind() {
+    if (!findBar) return;
+    clearTimeout(findTimer);
+    clearMarks();
+    findBar.remove(); findBar = null;
+  }
+  addEventListener('resize', placeFind);
+
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
+    if (k === 'Escape') { closeFind(); closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
     if (MAC) return; // macOS shortcuts come from the menu bar.
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
     else if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'p') { e.preventDefault(); runCmd('printNow'); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { i: 'favpane', p: 'print', f: 'find', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { i: 'favpane', p: 'print', f: 'find', e: 'search', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }
