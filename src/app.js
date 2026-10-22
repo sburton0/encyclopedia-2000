@@ -543,9 +543,22 @@
         if (!th || !td) continue;
         const k = th.textContent.replace(/\s+/g, ' ').trim();
         const cell = td.cloneNode(true);
+        // Footnote marks ("[1]", "[a]") and hidden styles go; superscript numbers stay superscript ("km²", not "km2");
+        // and a one-letter code linked in parentheses ("Crewed lunar landing (G)", NASA's mission type) is dropped.
+        cell.querySelectorAll('sup.reference, .mw-ref, style, .noprint').forEach((el) => el.remove());
+        // Coordinates come in three forms (degrees, decimal, and a hidden one for maps); keep the readable first one.
+        cell.querySelectorAll('.geo-nondefault, .geo-multi-punct, .geo-dec, [style*="display:none"]').forEach((el) => el.remove());
+        const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '-': '⁻', '−': '⁻' };
+        cell.querySelectorAll('sup').forEach((el) => { if (/^[0-9\-−]{1,3}$/.test(el.textContent)) el.replaceWith([...el.textContent].map((c) => SUP[c]).join('')); });
+        cell.querySelectorAll('a').forEach((el) => {
+          const prev = el.previousSibling, next = el.nextSibling;
+          if (/^[A-Z]$/.test(el.textContent) && prev?.nodeType === 3 && /\($/.test(prev.nodeValue) && next?.nodeType === 3 && /^\)/.test(next.nodeValue)) {
+            prev.nodeValue = prev.nodeValue.replace(/\s*\($/, ''); next.nodeValue = next.nodeValue.slice(1); el.remove();
+          }
+        });
         cell.querySelectorAll('br').forEach((br) => br.replaceWith('; '));
         cell.querySelectorAll('li, div, p').forEach((el) => el.append('; '));
-        let v = cell.textContent.replace(/\[\d+\]/g, '').replace(/\s+/g, ' ').replace(/(\s*;\s*)+/g, '; ').replace(/^[;\s]+|[;\s]+$/g, '').trim();
+        let v = cell.textContent.replace(/\[(\d+|[a-z])\]/g, '').replace(/\s+/g, ' ').replace(/(\s*;\s*)+/g, '; ').replace(/^[;\s]+|[;\s]+$/g, '').trim();
         if (!k || !v || k.length > 40) continue;
         if (v.length > 90) v = v.slice(0, 87) + '…';
         facts.push([k, v]);
