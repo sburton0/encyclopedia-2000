@@ -30,11 +30,12 @@
     people: 'M3 7l4.5 4L12 4l4.5 7L21 7l-2 12H5z',
     pole: 'M12 1l2.5 8.5L23 12l-8.5 2.5L12 23l-2.5-8.5L1 12l8.5-2.5z',
   };
-  const TOTAL = ORDER.reduce((n, id) => n + SHAPES[id].stars.length, 0);
+  // Every star in the sky, the Pole Star's five included (36 in the constellations + 5 = 41).
+  const TOTAL = ORDER.reduce((n, id) => n + SHAPES[id].stars.length, 0) + SHAPES.pole.stars.length;
   const KEY = 'starchart';
   const fresh = () => ({ lit: {}, score: 0, streak: 0, best: 0, pole: 0, done: false });
   const load = (api) => Object.assign(fresh(), api.store.get(KEY, {}));
-  const starsLit = (st) => ORDER.reduce((n, id) => n + Math.min(st.lit[id] || 0, SHAPES[id].stars.length), 0);
+  const starsLit = (st) => ORDER.reduce((n, id) => n + Math.min(st.lit[id] || 0, SHAPES[id].stars.length), 0) + Math.min(st.pole || 0, SHAPES.pole.stars.length);
   const complete = (st, id) => (id === 'pole' ? st.pole : st.lit[id] || 0) >= SHAPES[id].stars.length;
   const rank = (st) => (st.done ? 'Master Astronomer' : ['Stargazer', 'Navigator', 'Cartographer', 'Astronomer'][Math.min(3, Math.floor(starsLit(st) / 9))]);
 
@@ -312,7 +313,7 @@
       const ov = overlay(medallion('pole'),
         h('small', {}, 'MASTER ASTRONOMER'),
         h('h2', {}, 'The whole sky is yours'),
-        h('p', {}, `You charted all ${TOTAL} stars and the Pole Star with ${st.score} points. Your best streak was ${st.best} in a row.`),
+        h('p', {}, `You charted all ${TOTAL} stars, the Pole Star’s included, with ${st.score} points. Your best streak was ${st.best} in a row.`),
         h('div', { class: 'sc-actions' },
           h('button', { class: 'go', onclick: () => { ov.remove(); st = fresh(); save(); overview(); } }, 'Start a New Chart'),
           h('button', { class: 'go', onclick: () => { ov.remove(); overview(); } }, 'Admire the Sky')));
