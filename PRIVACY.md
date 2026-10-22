@@ -27,6 +27,7 @@ To show you articles and keep itself up to date, the app connects to these servi
 | --- | --- |
 | **Wikipedia** (en.wikipedia.org) | Articles, search, featured content, and "On this day" events |
 | **Wikimedia Commons** (upload.wikimedia.org and commons.wikimedia.org) | Pictures, videos, and sounds, and the Media of the Day and Featured Sounds lists |
+| **Wikimedia** (wikimedia.org) | Pictures of math formulas in articles |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
 | **GitHub** (github.com) | Checking for and downloading updates |
 | **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, and otherwise at most once a month once you have a library), and the address of each download |
