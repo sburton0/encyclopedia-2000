@@ -1,6 +1,6 @@
 # Encyclopedia 2000 Privacy Policy
 
-**Effective October 18, 2026**
+**Effective [the 0.5 release date]**
 
 Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
@@ -13,10 +13,11 @@ The app saves a few things so it works the way you left it. They're stored only 
 - Game progress, such as Star Chart stars and score
 - What you enter in activities, such as the birthday in The Day You Were Born and the people in Lifelines
 - The window's size and position
+- Your offline library, if you download one: a Wikipedia file saved in the folder you choose in **Tools → Offline Library**, along with the library's settings (Online or Offline mode, "use the offline library first", and the image choice) and the progress of a download in progress
 
 The installed version keeps these in your user profile on your computer. The portable version keeps them in an "Encyclopedia 2000 Data" folder next to the program.
 
-To remove them, use **Tools → Options → Privacy → Clear Recently Viewed** or **Reset All Settings**, uninstall the app, or (for the portable version) delete the "Encyclopedia 2000 Data" folder. Uninstalling may leave your settings folder behind; you can delete it from `%APPDATA%\encyclopedia-2000`.
+To remove an offline library, use **Remove…** in **Tools → Offline Library** (or delete its file from the folder shown there). To remove the rest, use **Tools → Options → Privacy → Clear Recently Viewed** or **Reset All Settings**, uninstall the app, or (for the portable version) delete the "Encyclopedia 2000 Data" folder. Uninstalling may leave your settings folder behind; you can delete it from `%APPDATA%\encyclopedia-2000`.
 
 ## What the app connects to
 
@@ -28,10 +29,18 @@ To show you articles and keep itself up to date, the app connects to these servi
 | **Wikimedia Commons** (upload.wikimedia.org and commons.wikimedia.org) | Pictures, videos, and sounds, and the Media of the Day and Featured Sounds lists |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
 | **GitHub** (github.com) | Checking for and downloading updates |
+| **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, and otherwise at most once a month once you have a library), and the address of each download |
+| **Download mirrors** (listed by Kiwix, for example dumps.wikimedia.org and your.org) | Only while you download an offline library: the file itself, from mirror servers run by universities, companies, and volunteers. The app uses them in the order Kiwix lists |
 
-These services are covered by their own privacy policies: the [Wikimedia Foundation Privacy Policy](https://foundation.wikimedia.org/wiki/Policy:Privacy_policy) for Wikipedia, Wikimedia Commons, and Wikidata, and the [GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) for GitHub.
+These services are covered by their own privacy policies: the [Wikimedia Foundation Privacy Policy](https://foundation.wikimedia.org/wiki/Policy:Privacy_policy) for Wikipedia, Wikimedia Commons, and Wikidata, the [GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) for GitHub, and Kiwix's and each mirror operator's own policies for library downloads.
+
+When you read an article from your offline library while you're connected, the app may load sharper copies of its pictures from Wikipedia (unless you choose **Use the library's images only** in **Tools → Offline Library**).
 
 You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version only checks for updates; it never downloads them.
+
+## Offline mode
+
+In **Offline mode** (chosen from the connection light in the status bar), the app's window loads nothing from the internet: articles, search, pictures, and everything else come only from your offline library, and automatic update checks are skipped. A library download you start yourself, or one already in progress, still runs. Links you choose to open in your web browser still open there.
 
 ## Links that open in your web browser
 
@@ -60,4 +69,4 @@ If this policy changes, the new version will be posted here with a new effective
 
 ## Contact
 
-Questions about privacy? Ask on our [Discord](https://discord.encyclopedia2000.com) or use the [feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform).
+Questions about privacy? Email [hello@encyclopedia2000.com](mailto:hello@encyclopedia2000.com), ask on our [Discord](https://discord.encyclopedia2000.com), or use the [feedback form](https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform).
