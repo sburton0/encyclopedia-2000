@@ -7,8 +7,9 @@
     const key = `${m}-${d}`;
     if (!cache.has(key)) {
       const date = new Date(2000, m - 1, d);
+      // Offline, Wikipedia's birthday lists aren't available; the date's saved highlights stand in for its events.
       cache.set(key, Promise.all([Wiki.onThisDay(date, 'births'), Wiki.onThisDay(date, 'events')])
-        .then(([b, e]) => ({ births: b.births || [], events: e.events || [] }))
+        .then(([b, e]) => (b.offline ? { offline: true, births: [], events: e.selected || [] } : { births: b.births || [], events: e.events || [] }))
         .catch((err) => { cache.delete(key); throw err; }));
     }
     return cache.get(key);
@@ -76,7 +77,7 @@
           return h('button', { class: 'bd-person', title: titleOf(p), onclick: () => api.openArticle(titleOf(p)) },
             h('i', { style: `background-image:url('${p.thumbnail.source}')` }),
             h('div', {}, h('b', {}, titleOf(p).replace(/ \(.*\)$/, '')), h('span', {}, desc ? `${desc}, born ${b.year}` : `Born ${b.year}`)));
-        })) : h('p', { class: 'act-note' }, 'No famous birthdays found for this date.'));
+        })) : h('p', { class: 'act-note' }, data.offline ? 'Famous birthdays come from Wikipedia, so they need the internet. The On This Day in History tab has this date’s highlights.' : 'No famous birthdays found for this date.'));
       } else {
         const evs = data.events.filter((e) => e !== headlineOf()).sort((a, b) => b.year - a.year);
         list.replaceChildren(...evs.map((e) => {

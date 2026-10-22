@@ -86,6 +86,12 @@
       list = got.filter(Boolean);
       selected = list[0] || null;
       year = null;
+      // Dates come from Wikidata, which needs the internet; say so instead of showing an empty chart.
+      if (!list.length && api.offline && api.offline()) {
+        chart.replaceChildren(h('p', { class: 'act-note' }, 'Lifelines looks up birth and death dates on Wikidata, so it needs the internet. Go online from the status bar to use it.'));
+        api.setIdle('Lifelines needs the internet');
+        return;
+      }
       save();
       draw();
       api.setIdle(list.length ? `${list.length} ${list.length === 1 ? 'person' : 'people'} on the chart` : 'Ready');
@@ -108,7 +114,8 @@
         draw();
         api.setIdle(`Added ${p.name}`);
       } catch (e) {
-        api.setIdle(e.why === 'nodate' || e.why === 'none' ? `There’s no birth date on record for “${title}”. Lifelines works with people.` : 'Couldn’t look that up. Please try again.');
+        api.setIdle(e.why === 'nodate' || e.why === 'none' ? `There’s no birth date on record for “${title}”. Lifelines works with people.`
+          : api.offline && api.offline() ? 'Lifelines needs the internet to look up dates' : 'Couldn’t look that up. Please try again.');
       }
     }
 

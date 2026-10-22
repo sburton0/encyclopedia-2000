@@ -873,14 +873,17 @@
       if (!pics[i]) return;
       shown = i;
       const { date, img } = pics[i];
-      const full = sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 1280);
+      const full = img.fromLibrary ? img.thumbnail.source : sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 1280);
       const caption = strip(img.description?.text) || strip(img.title);
+      // Offline, each day's picture comes from an article in the offline library, not from Wikimedia Commons.
       holder.replaceChildren(
         h('figure', {}, h('img', { src: full, alt: caption, onclick: () => lightbox(full, caption) })),
         h('div', { class: 'desc' }, caption),
-        h('div', { class: 'credit' },
-          `${longDate(date)} · ${strip(img.artist?.text) || 'Unknown artist'} · ${img.license?.type || ''}`,
-          img.file_page ? bandBtn('View on Wikimedia Commons', () => window.e2k.openExternal(img.file_page), 'ext') : null));
+        img.fromLibrary
+          ? h('div', { class: 'credit' }, `${longDate(date)} · From your offline library`, bandBtn(`Read about ${img.title}`, () => openArticle(img.title)))
+          : h('div', { class: 'credit' },
+            `${longDate(date)} · ${strip(img.artist?.text) || 'Unknown artist'} · ${img.license?.type || ''}`,
+            img.file_page ? bandBtn('View on Wikimedia Commons', () => window.e2k.openExternal(img.file_page), 'ext') : null));
       tiles.forEach((b, j) => b.classList.toggle('on', j === i));
       railBtns.forEach((b, j) => b.classList.toggle('on', j === i));
       pg.content.scrollTo({ top: 0 });
@@ -889,6 +892,7 @@
       const img = (await (i === 0 ? todayFeed() : Wiki.featured(d)).catch(() => null))?.image;
       if (!live(token)) return;
       if (!img) { tiles[i].remove(); railBtns[i].remove(); return; }
+      if (img.fromLibrary) pg.root.querySelector('.band .desc').textContent = 'Pictures from your offline library (the Picture of the Day comes back when you’re online)';
       pics[i] = { date: d, img };
       tiles[i].disabled = railBtns[i].disabled = false;
       tiles[i].firstChild.style.cssText = bg(img.thumbnail?.source);
@@ -2335,6 +2339,8 @@
     openArticle: (t) => openArticle(t, linkFrom()),
     setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet,
+    // True when nothing can come from the internet: Offline mode, or no connection.
+    offline: () => isOffline() || !navigator.onLine,
     dialog: (...args) => dialog(...args),
     soundOn: () => soundOn(),
     sfx: (kind) => { if (soundOn()) { try { E2KAudio.sfx(kind); } catch {} } },

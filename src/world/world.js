@@ -373,7 +373,7 @@ window.E2KWorld = (() => {
       } catch {
         if (token !== cardToken) return;
         flag.replaceChildren(h('div', { class: 'wx-flag-ph none' }));
-        rows.replaceChildren(h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, navigator.onLine ? 'Couldn’t reach Wikidata for the facts.' : 'You’re offline, so the facts can’t be loaded.')));
+        rows.replaceChildren(h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, api.offline && api.offline() ? 'The facts come from Wikidata, so they need the internet.' : 'Couldn’t reach Wikidata for the facts.')));
       }
     }
 
