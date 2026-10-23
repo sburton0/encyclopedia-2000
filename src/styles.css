@@ -469,6 +469,30 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .text table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font: 12.5px/1.4 "Segoe UI"; }
 .text th, .text td { padding: 3px 7px; border: 1px solid #c9d3ea; vertical-align: top; }
 .text th { background: #e6ecf7; }
+/* Railway route diagrams ("routemap"): a grid of 20 px track pieces that must touch, so none of the article table look.
+   Wikipedia styles them with TemplateStyles, which articles here don't load; these are the rules that matter. */
+.text table.routemap { display: table; margin: 0 auto; border: 0; border-collapse: collapse; white-space: nowrap; line-height: 1.2; font: 12.5px/1.2 "Segoe UI"; }
+.text table.routemap > tbody > tr { line-height: 1; }
+.text table.routemap td, .text table.routemap th, .text table.RMcollapse td, .text table.RMreplace td { padding: 0; border: 0; width: auto; vertical-align: middle; text-align: center; background: none; }
+.text table.routemap .RMcollapse, .text table.routemap .RMreplace { display: table; margin: 0; border-collapse: collapse; vertical-align: middle; }
+.text table.routemap .RMreplace { position: absolute; bottom: 0; }
+.text table.routemap .RMl1 { padding: 0 3px; text-align: left; }
+.text table.routemap .RMr1 { padding: 0 3px; text-align: right; }
+.text table.routemap .RMl { text-align: right; }
+.text table.routemap .RMr { text-align: left; }
+.text table.routemap .RMl4 { padding: 0 3px 0 0; text-align: left; }
+.text table.routemap .RMr4 { padding: 0 0 0 3px; text-align: right; }
+.text table.routemap .RMsi { display: inline; font-size: 90%; }
+.text .RMir > div { display: inline-block; vertical-align: middle; padding: 0; height: 20px; min-height: 20px; }
+.text .RMir img { height: initial !important; max-width: initial !important; margin: 0; border: 0; box-shadow: none; background: none; }
+.text .RMir .RMtx { line-height: 20px; height: 20px; min-height: 20px; vertical-align: middle; text-align: center; }
+.text .RMir .RMov { position: relative; z-index: 1; }
+.text .RMir .RMov .RMic, .text .RMir .RMov .RMtx { position: absolute; left: 0; top: 0; padding: 0; }
+.text .RMir .RMf_ { height: 5px; min-height: 5px; width: 20px; min-width: 20px; }
+.text .RMir .RMo { width: 2.5px; min-width: 2.5px; } .text .RMir .RMc { width: 5px; min-width: 5px; } .text .RMir .RMd { width: 10px; min-width: 10px; }
+.text .RMir .RM_ { width: 20px; min-width: 20px; } .text .RMir .RMb { width: 40px; min-width: 40px; } .text .RMir .RMs { width: 80px; min-width: 80px; }
+.text .RMsplit { display: inline-table; vertical-align: middle; margin: -3px 0; width: initial; }
+.text .RMbox, .text .RMinline { display: table; }
 .text .hatnote, .text [role="note"] { margin: 0 0 10px; padding-left: 16px; font: italic 12.5px "Segoe UI"; color: #555; }
 .text blockquote { margin: 12px 0; padding: 2px 14px; border-left: 3px solid var(--orange); color: #333; }
 .text ul, .text ol { padding-left: 24px; margin: 0 0 11px; }
