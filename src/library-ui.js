@@ -58,7 +58,7 @@ window.E2KLibrary = (() => {
             h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when online (faster; uses less data)')), pics),
           h('div', { class: 'kiwix' },
             h('span', {}, 'Library files come from ', h('b', {}, 'Kiwix'), ', a nonprofit that packages Wikipedia for offline use, through mirrors run by volunteers around the world.'),
-            h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://kiwix.org/en/donate/') }, '♥ Support Kiwix')),
+            h('button', { class: 'go', onclick: () => window.e2k.openExternal('https://donate.kiwix.org/') }, '♥ Support Kiwix')),
           h('p', { class: 'fine' }, 'Images in offline libraries are lower resolution than online. Downloads come from download.kiwix.org and its mirrors. Articles are under CC BY-SA.')),
         h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => close() }, 'Close'))));
     const close = () => { dlg = null; ov.remove(); };

@@ -30,7 +30,7 @@ const PACKS = [
 const testName = () => (process.env.E2K_LIBRARY_TEST === '1' ? 'wikipedia_en_ray-charles' : process.env.E2K_LIBRARY_TEST);
 const packs = () => (process.env.E2K_LIBRARY_TEST ? [...PACKS, { id: 'test', name: testName(), flavour: 'maxi', label: `Test: ${testName()}`,
   desc: 'A small library for testing downloads.', covers: [] }] : PACKS);
-const MONTH = 30 * 24 * 3600 * 1000;
+const DAY = 24 * 3600 * 1000, MONTH = 30 * DAY;
 
 // ---------- state ----------
 let lib = null;            // the open library (a Zim), or null
@@ -553,7 +553,9 @@ function setup({ offline = () => false } = {}) {
   ipcMain.handle('library:random', () => random());
   ipcMain.handle('library:daily', (_e, key) => daily(key));
   ipcMain.handle('library:state', () => publicState());
-  ipcMain.handle('library:catalog', async () => { try { await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });
+  // Kiwix asks apps to go easy on its catalog (every Kiwix reader uses it), so the Offline Library window reuses what
+  // it fetched in the last day instead of asking each time it opens. (Requests are compressed, as Kiwix asks.)
+  ipcMain.handle('library:catalog', async () => { try { if (!state.catalog || Date.now() - (state.checked || 0) > DAY) await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });
   ipcMain.handle('library:download', (_e, packId, opts) => startDownload(packId, opts));
   ipcMain.handle('library:space', (_e, packId) => spaceCheck(packId));
   ipcMain.handle('library:pause', () => { pause(); return publicState(); });
