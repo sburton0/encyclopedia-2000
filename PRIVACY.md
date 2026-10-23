@@ -30,7 +30,7 @@ To show you articles and keep itself up to date, the app connects to these servi
 | **Wikimedia** (wikimedia.org) | Pictures of math formulas in articles |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
 | **GitHub** (github.com) | Checking for and downloading updates |
-| **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, and otherwise at most once a month once you have a library), and the address of each download |
+| **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, at most once a day, and otherwise at most once a month once you have a library), and the address of each download |
 | **Download mirrors** (listed by Kiwix, for example dumps.wikimedia.org and your.org) | Only while you download an offline library: the file itself, from mirror servers run by universities, companies, and volunteers. The app uses them in the order Kiwix lists |
 
 These services are covered by their own privacy policies: the [Wikimedia Foundation Privacy Policy](https://foundation.wikimedia.org/wiki/Policy:Privacy_policy) for Wikipedia, Wikimedia Commons, and Wikidata, the [GitHub Privacy Statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) for GitHub, and Kiwix's and each mirror operator's own policies for library downloads.
