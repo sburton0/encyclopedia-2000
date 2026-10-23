@@ -99,6 +99,8 @@ button { font-family: inherit; cursor: default; }
 .suggest .si { display: flex; gap: 9px; align-items: center; padding: 5px 8px; border-bottom: 1px solid #1a1e27; }
 .suggest .si.sel, .suggest .si:hover { background: var(--ink-2); }
 .suggest .si .th { width: 34px; height: 34px; flex: none; background: #1c3566 center/cover; border: 1px solid #2f3b55; }
+.suggest .si .th.ph { display: grid; place-items: center; background: linear-gradient(160deg, #1f3a6e, #152a52); color: #8ea5d6; }
+.suggest .si .th.ph svg { width: 20px; height: 20px; fill: currentColor; }
 .suggest .si b { display: block; font: 600 12.5px "Segoe UI"; color: #fff; }
 .suggest .si span { display: block; font: 11px "Segoe UI"; color: #8a93a6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 310px; }
 .suggest .empty { padding: 8px 10px; font-size: 12px; color: #8a93a6; }
@@ -551,6 +553,9 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .res { display: flex; gap: 14px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
 .res:hover { background: #f1f5fc; }
 .res .th { flex: none; width: 64px; height: 64px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }
+/* a result with no free picture: an icon for the kind of subject (kinds.js) */
+.res .th.ph { display: grid; place-items: center; background: linear-gradient(160deg, #eef2f9, #dbe3f1); color: #7b8db3; }
+.res .th.ph svg { width: 34px; height: 34px; fill: currentColor; }
 .res b { display: block; font: 600 15px "Segoe UI"; color: var(--ink-2); }
 .res span { display: block; font: 11.5px "Segoe UI"; color: #777; }
 .res p { margin: 3px 0 0; font: 13px/1.5 var(--read-font); color: #333; }

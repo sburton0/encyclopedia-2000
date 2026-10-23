@@ -803,8 +803,9 @@
           const txt = decodeHtml(part);
           ex.append(i % 2 ? h('strong', {}, txt) : txt);
         });
+        // No free picture (a logo or poster Wikipedia leaves out): an icon for the kind of subject instead of a blank.
         return h('button', { class: 'res', onclick: () => openArticle(p.title, linkFrom()) },
-          h('i', { class: 'th', style: bg(https(p.thumbnail?.url)) }),
+          p.thumbnail?.url ? h('i', { class: 'th', style: bg(https(p.thumbnail.url)) }) : h('i', { class: 'th ph' }, E2KKinds.icon(svg, p.description)),
           h('div', {}, h('b', {}, p.title), p.description ? h('span', {}, p.description) : null, ex));
       })));
     }
@@ -2038,7 +2039,7 @@
       class: 'si' + (it.action ? ' act' : ''),
       onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); pick(i); },
       onmouseenter: () => highlight(i),
-    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : h('i', { class: 'th', style: bg(it.thumb) }), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty' }, emptyMsg || 'No suggestions')]));
+    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : it.thumb || it.desc === 'Recently viewed' ? h('i', { class: 'th', style: bg(it.thumb) }) : h('i', { class: 'th ph' }, E2KKinds.icon(svg, it.desc)), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty' }, emptyMsg || 'No suggestions')]));
     sug.hidden = false;
   }
   function highlight(i) {
