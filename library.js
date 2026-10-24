@@ -345,10 +345,8 @@ function freeSpace(dir) {
   while (!fs.existsSync(d) && path.dirname(d) !== d) d = path.dirname(d);
   try { const s = fs.statfsSync(d); return s.bavail * s.bsize; } catch { return 0; }
 }
-// Drives formatted FAT32 (common on USB sticks) can't hold a file over 4 GB. Find out by sizing a scratch file just
-// past 4 GB (instant on other file systems, nothing is written) and deleting it.
-// What a folder allows, found by creating a scratch file there and sizing it just past 4 GB (instant, nothing is
-// written), then deleting it: { write } is false when files can't be created there at all (the root of C:, for
+// What a folder allows, found by creating a scratch file there and sizing it just past 4 GB (nothing is written),
+// then deleting it: { write } is false when files can't be created there at all (the root of C:, for
 // example), and { big } is false on drives formatted FAT32, which can't hold a file over 4 GB. Remembered per folder.
 const probeCache = new Map();
 function probeDir(dir) {
@@ -358,7 +356,9 @@ function probeDir(dir) {
   try {
     ensureDir(dir);
     const fd = fs.openSync(probe, 'w');
-    try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); r = { write: true, big: true }; }
+    // Sized back to nothing before it's closed: exFAT drives fill a sized file with zeros when it's closed, which took
+    // about 10 minutes on a USB stick (and locked the drive meanwhile).
+    try { fs.ftruncateSync(fd, 4 * 1024 ** 3 + 1); fs.ftruncateSync(fd, 0); r = { write: true, big: true }; }
     // Sizing fails on FAT32; on a drive with under about 4 GB free it fails too, but that's a space problem, which
     // the free-space check reports.
     catch { r = { write: true, big: freeSpace(dir) < 4.3e9 }; }
