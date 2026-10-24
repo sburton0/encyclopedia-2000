@@ -468,6 +468,10 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .text img { max-width: 100%; height: auto; }
 .text table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; margin: 12px 0; font: 12.5px/1.4 "Segoe UI"; }
 .text th, .text td { padding: 3px 7px; border: 1px solid #c9d3ea; vertical-align: top; }
+/* A second fact box (the first becomes Quick facts), or a "Part of a series" box, sits to the right of the text, as on
+   Wikipedia, below Quick facts, instead of across the top of the article. */
+.text table.infobox, .text table.sidebar { display: table; float: right; clear: right; width: 260px; max-width: 45%; margin: 4px 0 14px 24px; font-size: 11.5px; }
+.text table.infobox caption, .text table.sidebar caption { padding-bottom: 4px; font-weight: 600; }
 .text th { background: #e6ecf7; }
 /* Railway route diagrams ("routemap"): a grid of 20 px track pieces that must touch, so none of the article table look.
    Wikipedia styles them with TemplateStyles, which articles here don't load; these are the rules that matter. */
@@ -706,6 +710,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
   .content.article .flow { max-width: none; }
   .content.article .media { margin: 0 0 12px 18px; }
   .media { position: static; width: 190px; flex: none; }
+  .text table.infobox, .text table.sidebar { width: 190px; margin-left: 18px; }
   .media .frame img { max-height: 240px; cursor: auto; }
   .facts h6 { color: #000; background: none; border-bottom: 1px solid #9fb0d0; }
   .tl-item, .res { break-inside: avoid; }
