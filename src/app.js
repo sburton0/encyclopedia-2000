@@ -1305,13 +1305,13 @@
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
   const WHATS_NEW = {
-    version: '0.4',
-    name: '0.4 Beta',
+    version: '0.5',
+    name: '0.5 Beta',
     items: [
-      ['Videos and sounds', 'Watch videos and hear sounds right in articles, and browse every picture, video, and sound in the new Media box.'],
-      ['Hear it spoken', 'Hear how a subject’s name is pronounced, and listen to recordings read by Wikipedia volunteers in Read Aloud.'],
-      ['Media of the Day', 'Media now has Video and Sound tabs, with a video chosen each day and famous recordings to explore.'],
-      ['Fixes and improvements', 'Articles fill the window with slightly larger text, pages load faster, and updating on Linux is easier.'],
+      ['Offline Library', 'Download Wikipedia to your computer and read and search it without the internet. Open Tools › Offline Library to choose a library.'],
+      ['Online or Offline', 'Click the light in the status bar to go offline, or to read from your library first even when you’re online.'],
+      ['Find in Article', `Press ${MAC ? '⌘F' : 'Ctrl+F'} to find a word on the page. Help › Keyboard Shortcuts lists the rest.`],
+      ['Fixes and improvements', 'Search results without a picture show an icon for the kind of subject, and railway route diagrams draw correctly.'],
     ],
   };
   const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
