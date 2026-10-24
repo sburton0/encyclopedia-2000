@@ -788,6 +788,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .offline .oerr { margin: 10px 0 0; padding: 8px 12px; border-left: 3px solid #e0604a; background: rgba(224, 96, 74, .12); font-size: 12.5px; color: #ffd8cf; }
 .offline .where { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #b9c6e0; }
 .offline .where code { flex: 1; min-width: 0; padding: 4px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(0, 0, 0, .35); border: 1px solid var(--ink-3); font: 11.5px Consolas, "DejaVu Sans Mono", monospace; color: #fff; }
+.offline .wherenote { margin: 4px 0 0; font-size: 11.5px; color: #b9c6e0; opacity: .8; }
 .offline .opts { margin-top: 10px; display: grid; gap: 4px; }
 .offline .opt { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: #dbe5f7; }
 .offline .opt input { margin-top: 3px; accent-color: var(--orange); }

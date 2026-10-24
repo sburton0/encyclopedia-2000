@@ -9,6 +9,8 @@ const { app, protocol, ipcMain, BrowserWindow, dialog, shell } = require('electr
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { Transform } = require('stream');
+const { pipeline } = require('stream/promises');
 const Zim = require('./zim-reader');
 
 // Must run before the app is ready.
@@ -35,9 +37,11 @@ const DAY = 24 * 3600 * 1000, MONTH = 30 * DAY;
 // ---------- state ----------
 let lib = null;            // the open library (a Zim), or null
 let override = '';         // E2K_ZIM, if set
+let move = null;           // the library being copied to a folder on another drive (see chooseDir)
 let state = { dir: '', current: null, download: null, catalog: null, checked: 0 };
 // state.current:  { pack, file, date, size }      the installed library
 // state.download: { pack, file, url, date, size, pieces, done, status }   status: downloading | paused | error
+// state.moving:   the unfinished copy of a move, deleted at the next start if the app closed mid-move
 const stateFile = () => path.join(app.getPath('userData'), 'library.json');
 // A folder inside the app's data folder is saved relative to it, so a portable copy on a USB drive keeps finding its
 // library when the drive gets a different letter.
@@ -53,8 +57,8 @@ function openFile(file) {
   if (lib) { try { lib.close(); } catch {} lib = null; }
   try { lib = new Zim(file); return true; } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
 }
-function broadcast() {
-  const s = publicState();
+function broadcast(extra) {
+  const s = { ...publicState(), ...extra };
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('library:update', s);
 }
 
@@ -348,7 +352,7 @@ function spaceCheck(packId) {
 }
 
 async function startDownload(packId, { removeOld = false } = {}) {
-  if (job) return { error: 'busy' };
+  if (job || move) return { error: 'busy' };
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
   const sp = spaceCheck(packId);
@@ -460,9 +464,11 @@ async function finish(part) {
 
 function pause() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = false; } save(); broadcast(); }
 // Quitting mid-download: pause it, and pick it up again automatically next time the app opens.
-function pauseForQuit() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = true; } save(); }
-const downloading = () => !!(job && state.download && state.download.status === 'downloading');
+// Quitting mid-move stops it; the library stays where it was.
+function pauseForQuit() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = true; } cancelMove(); save(); }
+const busy = () => !!(move || (job && state.download && state.download.status === 'downloading'));
 function quitInfo() {
+  if (move) { const p = packs().find((x) => x.id === state.current.pack); return { moving: true, label: p ? p.label : state.current.file, received: move.copied, size: move.size }; }
   const d = state.download, p = d && packs().find((x) => x.id === d.pack);
   return d && { label: p ? p.label : d.file, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), size: d.size };
 }
@@ -479,13 +485,15 @@ function cancel() {
   state.download = null; save(); broadcast();
 }
 function removeCurrent() {
-  if (!state.current) return;
+  if (!state.current || move) return;
   if (lib && !override) { try { lib.close(); } catch {} lib = null; }
   try { fs.unlinkSync(path.join(libDir(), state.current.file)); } catch {}
   state.current = null; save(); broadcast();
 }
 
 async function chooseDir(win) {
+  // A download writes into the folder, so the folder stays put until it's done (the window says so).
+  if (move || state.download) return publicState();
   const r = await dialog.showOpenDialog(win, { title: 'Choose a folder for the offline library', defaultPath: libDir(), properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return publicState();
   const dir = r.filePaths[0];
@@ -493,22 +501,68 @@ async function chooseDir(win) {
   // Somewhere files can't be created (the root of C:, for example): say so instead of choosing it.
   probeCache.delete(dir);
   if (!writable(dir)) return { ...publicState(), error: `Encyclopedia 2000 can’t save files in ${dir}. Choose a folder inside it, such as Documents.` };
+  if (!state.current) { state.dir = storeDir(dir); save(); broadcast(); return publicState(); }
+  // Move the installed library along with the setting, so it keeps working. On the same drive that's an instant
+  // rename; to another drive it's a copy, which runs in the background (see startMove).
+  const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
+  let sameDrive = false;
+  try { sameDrive = fs.statSync(from).dev === fs.statSync(dir).dev; } catch {}
+  if (sameDrive) {
+    if (lib && !override) { try { lib.close(); } catch {} lib = null; }
+    try { fs.renameSync(from, to); } catch { if (!override) openFile(from); return { ...publicState(), error: 'The library couldn’t be moved there.' }; }
+    state.dir = storeDir(dir); save();
+    if (!override) openFile(to);
+    broadcast();
+    return publicState();
+  }
   // An installed library over 4 GB can't go on a FAT32 drive; say so before copying anything.
-  if (state.current && (state.current.size || 0) > 4 * 1024 ** 3 && !bigFilesOk(dir)) {
+  if ((state.current.size || 0) > 4 * 1024 ** 3 && !bigFilesOk(dir)) {
     return { ...publicState(), error: 'Your library is over 4 GB, and that drive can’t hold files that big (it’s formatted FAT32, common on USB sticks). Choose another drive, or reformat this one as exFAT.' };
   }
-  // Enough room for the library there?
-  if (state.current && freeSpace(dir) < (state.current.size || 0) + 1e8) return { ...publicState(), error: 'There isn’t enough free space on that drive for your library.' };
-  // Move the installed library along with the setting, so it keeps working.
-  if (state.current && !job) {
-    const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
-    if (lib && !override) { try { lib.close(); } catch {} lib = null; }
-    try { fs.renameSync(from, to); } catch { try { fs.copyFileSync(from, to); fs.unlinkSync(from); } catch (e) { if (!override) openFile(from); return { ...publicState(), error: 'The library couldn’t be moved there.' }; } }
-    state.dir = storeDir(dir);
-    if (!override) openFile(to);
-  } else state.dir = storeDir(dir);
-  save(); broadcast();
+  if (freeSpace(dir) < (state.current.size || 0) + 1e8) return { ...publicState(), error: 'There isn’t enough free space on that drive for your library.' };
+  startMove(from, to, dir);
   return publicState();
+}
+
+// Copies the library to another drive without holding up the app (a big library on a slow drive can take an hour).
+// Articles keep coming from the old copy until the new one is complete. The copy goes to a ".moving" file, which
+// becomes the library only at the end, so a failed or cancelled move leaves nothing half-done behind.
+function startMove(from, to, dir) {
+  const tmp = to + '.moving';
+  const size = state.current.size || fs.statSync(from).size;
+  const ac = new AbortController();
+  move = { dir, size, copied: 0, speed: 0, eta: 0, samples: [], cancelled: false, abort: () => ac.abort() };
+  state.moving = tmp; save();
+  let lastSentMove = 0;
+  const count = new Transform({
+    transform(chunk, _enc, cb) {
+      const now = Date.now();
+      move.copied += chunk.length;
+      move.samples.push([now, chunk.length]);
+      move.samples = move.samples.filter(([t]) => now - t < 8000);
+      move.speed = move.samples.reduce((a, [, b]) => a + b, 0) / Math.max(1, (now - move.samples[0][0]) / 1000);
+      move.eta = move.speed > 0 ? Math.max(0, (move.size - move.copied) / move.speed) : 0;
+      if (now - lastSentMove > 400) { lastSentMove = now; broadcast(); }
+      cb(null, chunk);
+    },
+  });
+  broadcast();
+  pipeline(fs.createReadStream(from, { highWaterMark: 4 * 1024 * 1024 }), count, fs.createWriteStream(tmp), { signal: ac.signal }).then(() => {
+    fs.renameSync(tmp, to);
+    state.dir = storeDir(dir); state.moving = null; move = null; save();
+    if (!override) openFile(to);   // closes the old copy, so it can be deleted
+    try { fs.unlinkSync(from); } catch {}
+    broadcast();
+  }).catch(() => {
+    const cancelled = move && move.cancelled;
+    try { fs.unlinkSync(tmp); } catch {}
+    state.moving = null; move = null; save();
+    broadcast(cancelled ? {} : { moveError: 'The library couldn’t be moved there (the drive may have been unplugged or filled up). It’s still in its old folder.' });
+  });
+}
+function cancelMove() {
+  if (!move) return;
+  move.cancelled = true; move.abort();
 }
 
 // The number of articles: the library's own count of pages (its title list also holds redirects).
@@ -525,6 +579,7 @@ function publicState() {
       fit: state.catalog?.[id] && !(state.current && state.current.pack === id) ? spaceCheck(id) : null })),
     current: state.current, override: override ? path.basename(override) : '',
     open: lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: articleCount() } : null,
+    move: move && { to: move.dir, copied: move.copied, size: move.size, speed: move.speed, eta: move.eta },
     download: d && { ...d, url: undefined, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), speed: job ? job.speed : 0, eta: job ? job.eta : 0 },
     dir: libDir(), free: freeSpace(libDir()), checked: state.checked,
     update: state.current && state.catalog?.[state.current.pack] && state.catalog[state.current.pack].file !== state.current.file ? state.catalog[state.current.pack] : null,
@@ -533,6 +588,8 @@ function publicState() {
 
 function setup({ offline = () => false } = {}) {
   load();
+  // A move that the app closed in the middle of: its unfinished copy is deleted (the library never left its folder).
+  if (state.moving) { try { fs.unlinkSync(state.moving); } catch {} state.moving = null; save(); }
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
   else if (state.current) openFile(path.join(libDir(), state.current.file));
@@ -561,6 +618,7 @@ function setup({ offline = () => false } = {}) {
   ipcMain.handle('library:pause', () => { pause(); return publicState(); });
   ipcMain.handle('library:cancel', () => { cancel(); return publicState(); });
   ipcMain.handle('library:remove', () => { removeCurrent(); return publicState(); });
+  ipcMain.handle('library:cancel-move', () => { cancelMove(); return publicState(); });
   ipcMain.handle('library:choose-dir', (e) => chooseDir(BrowserWindow.fromWebContents(e.sender)));
   ipcMain.handle('library:open-dir', () => shell.openPath(libDir()));
   // Check for new editions at most once a month, quietly: only with a library installed, and never in Offline mode
@@ -568,4 +626,4 @@ function setup({ offline = () => false } = {}) {
   if (state.current && !offline() && Date.now() - (state.checked || 0) > MONTH) setTimeout(() => { if (!offline()) fetchCatalog().then(broadcast, () => {}); }, 15000);
 }
 
-module.exports = { setup, downloading, pauseForQuit, quitInfo };
+module.exports = { setup, busy, pauseForQuit, quitInfo };

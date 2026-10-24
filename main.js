@@ -103,10 +103,10 @@ function createMain(route) {
   // macOS hides the window buttons in full screen, so the title bar drops the space it keeps for them.
   win.on('enter-full-screen', () => win.webContents.send('fullscreen', true));
   win.on('leave-full-screen', () => win.webContents.send('fullscreen', false));
-  // Closing while an offline library is downloading asks first (the page shows the question); the download pauses and
-  // picks up again next time.
+  // Closing while an offline library is downloading or moving asks first (the page shows the question); a download
+  // pauses and picks up again next time, and a move stops, leaving the library where it was.
   win.on('close', (e) => {
-    if (library.downloading() && !quitConfirmed && !win.webContents.isCrashed()) {
+    if (library.busy() && !quitConfirmed && !win.webContents.isCrashed()) {
       e.preventDefault();
       win.webContents.send('library:confirm-quit', library.quitInfo());
     }

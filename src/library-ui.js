@@ -34,6 +34,9 @@ window.E2KLibrary = (() => {
     const list = h('div', { class: 'packs' });
     const err = h('p', { class: 'oerr', hidden: true });
     const dirCode = h('code');
+    const whereLbl = h('span', {}, 'Save to');
+    const changeBtn = h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); fitUp(); } }, 'Change…');
+    const whereNote = h('p', { class: 'wherenote', hidden: true }, 'To change the folder, cancel the download or let it finish.');
     const freeTxt = h('span');
     const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => { localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)); picChoice(); api.updateNet && api.updateNet(); } });
     // Under "library first": sharp pictures from the internet when connected, or the library's own (smaller) pictures.
@@ -53,7 +56,7 @@ window.E2KLibrary = (() => {
         h('div', { class: 'ob' },
           h('p', { class: 'intro' }, 'Download Wikipedia to this computer to read, search, and explore without an internet connection.'),
           status, list, err,
-          h('div', { class: 'where' }, 'Save to', dirCode, h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); } }, 'Change…'), freeTxt),
+          h('div', { class: 'where' }, whereLbl, dirCode, changeBtn, freeTxt), whereNote,
           h('div', { class: 'opts' },
             h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when online (faster; uses less data)')), pics),
           h('div', { class: 'kiwix' },
@@ -68,10 +71,11 @@ window.E2KLibrary = (() => {
     // With a library installed, only it (and any download in progress) shows; Change library… reveals the rest.
     let showAll = false;
     function draw() {
-      const cur = st.current && packOf(st.current.pack), d = st.download;
+      const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
       const dot = (c) => h('span', { class: 'dotc', style: `background:${c};box-shadow:0 0 6px ${c}` });
-      if (st.override) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, 'Using a test library: '), st.override + '.'));
+      if (mv && cur) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, `Moving ${cur.label} to its new folder.`), ' Its articles keep working while it moves.'));
+      else if (st.override) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, 'Using a test library: '), st.override + '.'));
       else if (cur && st.open) {
         status.replaceChildren(dot('#5fbf6a'), h('span', {}, h('b', {}, `${cur.label} is installed.`), ' Its articles work without internet.',
           st.update ? h('span', { class: 'upd' }, ` A newer edition (${edition(st.update.date)}) is available.`) : null));
@@ -85,7 +89,16 @@ window.E2KLibrary = (() => {
       list.replaceChildren(...visible.map((p) => {
         const tags = [], acts = [];
         let desc = p.desc, extra = null, why = null;
-        if (st.current && st.current.pack === p.id) {
+        if (st.current && st.current.pack === p.id && mv) {
+          // Moving to another drive: progress like a download's, and Cancel (the library stays where it was).
+          tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
+          desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
+          const pct = mv.size ? Math.min(100, (100 * mv.copied) / mv.size) : 0;
+          acts.push(h('button', { class: 'go', onclick: async () => { st = await L.cancelMove(); draw(); } }, 'Cancel'));
+          extra = [h('div', { class: 'bar' }, h('i', { style: `width:${pct.toFixed(1)}%` })),
+            h('div', { class: 'prog' }, h('span', {}, `Moving… ${size(mv.copied) || '0 MB'} of ${size(mv.size)} (${Math.floor(pct)}%)`),
+              h('span', {}, mv.speed ? `${size(mv.speed)}/s · ${left(mv.eta)}` : ''))];
+        } else if (st.current && st.current.pack === p.id) {
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
           if (st.update && !d) acts.push(h('button', { class: 'go primary', onclick: () => start(p) }, 'Update'));
@@ -108,7 +121,7 @@ window.E2KLibrary = (() => {
           if (p.recommended && !st.current) tags.push(h('span', { class: 'tag' }, 'RECOMMENDED'));
           // The size's line is always there (blank until Kiwix's catalog answers), so the button doesn't move when it arrives.
           acts.push(h('span', { class: 'size' }, p.size ? size(p.size) : ''));
-          const busy = d && d.status === 'downloading';
+          const busy = (d && d.status === 'downloading') || !!mv;
           // A pack that can't go on this drive is greyed out, with the reason in red (one that would fit once the
           // current library is removed stays clickable, and asks first).
           const f = p.fit, blocked = f && !f.ok && !f.canRemoveOld;
@@ -123,16 +136,21 @@ window.E2KLibrary = (() => {
             : h('button', { class: 'go primary', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Download'));
         }
         const off = p.fit && !p.fit.ok && !p.fit.canRemoveOld && !(st.current && st.current.pack === p.id) && !(d && d.pack === p.id);
-        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') },
+        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') + (mv && st.current && st.current.pack === p.id ? ' dl' : '') },
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
           h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
       }), ...(toggle && showAll ? [toggle] : []));
       // One line: a long path is shortened in the middle, with the whole path on hover.
-      dirCode.textContent = fitPath(st.dir, dirCode);
-      dirCode.title = st.dir;
-      freeTxt.textContent = st.free ? `${size(st.free)} free` : '';
+      // While a library downloads, its folder can't change; while one moves, the row shows where it's going.
+      whereLbl.textContent = mv ? 'Moving to' : 'Save to';
+      const shown = mv ? mv.to : st.dir;
+      dirCode.textContent = fitPath(shown, dirCode);
+      dirCode.title = shown;
+      changeBtn.disabled = !!(d || mv);
+      whereNote.hidden = !d;
+      freeTxt.textContent = !mv && st.free ? `${size(st.free)} free` : '';
     }
-    dlg = (s) => { st = s; draw(); fitUp(); };
+    dlg = (s) => { st = s; if (s.moveError) showErr(s.moveError); draw(); fitUp(); };
 
     // What switching packs means, before anything is downloaded or removed.
     function confirmSwitch(p) {
@@ -210,11 +228,15 @@ window.E2KLibrary = (() => {
 
   // Keep the open dialog (and the rest of the app) up to date.
   if (window.e2k && window.e2k.library) window.e2k.library.onUpdate((s) => { if (dlg) dlg(s); });
-  // Closing the app mid-download: say what happens, with Keep downloading as the default.
+  // Closing the app mid-download or mid-move: say what happens, with Keep downloading (or Keep moving) as the default.
   if (window.e2k && window.e2k.library) window.e2k.library.onConfirmQuit((info) => {
     if (!window.E2K || document.querySelector('.dialog.quitdl')) return;
     const pct = info && info.size ? Math.floor((100 * info.received) / info.size) : 0;
-    E2K.dialog('Encyclopedia 2000', 'Your offline library is still downloading', [
+    if (info.moving) {
+      E2K.dialog('Encyclopedia 2000', 'Your offline library is still moving', [
+        `${info.label} is ${pct}% moved (${size(info.received) || '0 MB'} of ${size(info.size)}). If you quit now, the move stops, and your library stays where it was.`],
+      [['Keep moving', null, true], ['Quit anyway', () => window.e2k.library.quit()]]);
+    } else E2K.dialog('Encyclopedia 2000', 'Your offline library is still downloading', [
       `${info.label} is ${pct}% done (${size(info.received) || '0 MB'} of ${size(info.size)}). If you quit now, the download will pick up where it left off next time you open Encyclopedia 2000.`],
     [['Keep downloading', null, true], ['Quit anyway', () => window.e2k.library.quit()]]);
     document.querySelector('.overlay:last-of-type .dialog')?.classList.add('quitdl');

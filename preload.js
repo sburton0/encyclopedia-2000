@@ -48,9 +48,10 @@ contextBridge.exposeInMainWorld('e2k', {
     cancel: () => ipcRenderer.invoke('library:cancel'),
     remove: () => ipcRenderer.invoke('library:remove'),
     chooseDir: () => ipcRenderer.invoke('library:choose-dir'),
+    cancelMove: () => ipcRenderer.invoke('library:cancel-move'),
     openDir: () => ipcRenderer.invoke('library:open-dir'),
     onUpdate: (cb) => ipcRenderer.on('library:update', (_e, s) => cb(s)),
-    // Closing mid-download: the main process asks the page to confirm, and quit() goes ahead.
+    // Closing mid-download or mid-move: the main process asks the page to confirm, and quit() goes ahead.
     onConfirmQuit: (cb) => ipcRenderer.on('library:confirm-quit', (_e, info) => cb(info)),
     quit: () => ipcRenderer.send('library:quit'),
   },
