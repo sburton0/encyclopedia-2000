@@ -66,11 +66,24 @@ window.Wiki = (() => {
     }
     return pages.get(found.path);
   }
+  // Text-only libraries keep each picture's place with a blank drawing the same size (with the picture's name in it,
+  // when it has one). Those leave an empty box, so they go, with the figure, gallery entry, or infobox row around them.
+  const placeholder = (img) => { const s = img.getAttribute('src') || ''; return s.startsWith('data:image/svg+xml') && s.includes('fill%3D%22transparent%22'); };
+  function dropPlaceholders(root) {
+    root.querySelectorAll('img').forEach((img) => {
+      if (!root.contains(img) || !placeholder(img)) return;
+      const box = img.closest('figure, li.gallerybox, td.infobox-image, .thumb');
+      if (box && box.matches('td.infobox-image')) (box.closest('tr') || box).remove();
+      else (box || img.closest('[typeof^="mw:File"]') || img).remove();
+    });
+    root.querySelectorAll('ul.gallery').forEach((g) => { if (!g.querySelector('li')) g.remove(); });
+  }
   // The library's page is a whole Wikipedia page; the article view wants just the Parsoid body, with pictures and
   // links pointing where the app expects them.
   async function libHtml(found) {
     const doc = await libPage(found), out = doc.querySelector('.mw-parser-output').cloneNode(true), base = libUrl(found.path);
     const hi = sharp();
+    dropPlaceholders(out);
     out.querySelectorAll('img[src]').forEach((img) => {
       const src = new URL(img.getAttribute('src'), base).href;
       img.setAttribute('src', src); img.removeAttribute('srcset');
@@ -86,7 +99,7 @@ window.Wiki = (() => {
     const p = [...doc.querySelectorAll('.mw-parser-output > section > p, .mw-parser-output > p')].find((x) => x.textContent.trim().length > 40);
     // The lead picture: the first real picture shown at a decent size, in the infobox if there is one. Infoboxes also
     // hold small icons (a "current season" baseball, rating stars) and signatures, which this skips.
-    const big = (i) => +i.getAttribute('width') >= 60 && +i.getAttribute('height') >= 60 && i.closest('[typeof^="mw:File"]') && !i.closest('.infobox-signature');
+    const big = (i) => !placeholder(i) && +i.getAttribute('width') >= 60 && +i.getAttribute('height') >= 60 && i.closest('[typeof^="mw:File"]') && !i.closest('.infobox-signature');
     const img = [...doc.querySelectorAll('.infobox img')].find(big) || [...doc.querySelectorAll('.mw-parser-output img')].find(big);
     // Without the styles some paragraphs carry inline (pronunciation labels) and footnote marks ("[1]", "[a]").
     const para = p && p.cloneNode(true);
@@ -100,7 +113,7 @@ window.Wiki = (() => {
     const doc = await libPage(found), base = libUrl(found.path);
     return { items: [...doc.querySelectorAll('.mw-parser-output figure')].map((fig) => {
       const img = fig.querySelector('img');
-      if (!img || (+img.getAttribute('width') || 100) < 60) return null;
+      if (!img || placeholder(img) || (+img.getAttribute('width') || 100) < 60) return null;
       const src = new URL(img.getAttribute('src'), base).href;
       // The viewer shows the last size listed, so with sharp pictures it gets Wikipedia's large one.
       const sizes = sharp() ? [{ src }, { src: sharpUrl(src, 1280) }] : [{ src }];
