@@ -199,15 +199,28 @@ function random() {
 // come from Wikipedia's Featured Articles in the library (src/data/featured.json), as Wikipedia's own Home does
 // online; a library with none of them (a small test library) uses any article. The same all day, a new pair each day.
 const dailies = new Map();
-let featuredHere = null;   // the library's featured articles, as entries
+let featuredHere = null;   // the library's featured articles, as entries (a promise)
+// Long lookups pause now and then, so the app stays responsive meanwhile (the startup screen loads through the same
+// process, and in Offline mode Home asks for today's picks as the app starts).
+const breather = () => new Promise((r) => setImmediate(r));
 function featuredInLibrary() {
   if (!featuredHere) {
-    let list = [];
-    try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'src', 'data', 'featured.json'), 'utf8')); } catch {}
-    featuredHere = list.map((t) => lib.resolve(lib.find('C', toPath(t)))).filter((e) => e && e.mime === 'text/html');
+    featuredHere = (async () => {
+      const mine = lib, found = [];
+      let list = [];
+      try { list = JSON.parse(fs.readFileSync(path.join(__dirname, 'src', 'data', 'featured.json'), 'utf8')); } catch {}
+      for (let i = 0; i < list.length; i++) {
+        if (i % 200 === 199) { await breather(); if (lib !== mine) return []; }
+        const e = lib.resolve(lib.find('C', toPath(list[i])));
+        if (e && e.mime === 'text/html') found.push(e);
+      }
+      return found;
+    })();
   }
   return featuredHere;
 }
+// Text-only libraries (Kiwix's "nopic") have no pictures at all.
+const hasPictures = () => !/(^|;)_pictures:no(;|$)/.test(lib.meta('Tags') || '');
 function imageSize(b) {
   if (b.length < 30) return null;
   if (b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') {
@@ -248,7 +261,10 @@ function bigPicture(articlePath) {
 }
 function daily(key) {
   if (!lib) return null;
-  if (dailies.has(key)) return dailies.get(key);
+  if (!dailies.has(key)) dailies.set(key, dailyPicks(key));
+  return dailies.get(key);
+}
+async function dailyPicks(key) {
   // Numbers that look random but are the same for the same day (a hash of the date feeding mulberry32).
   let seed = [...key].reduce((h, c) => { h = Math.imul(h ^ c.charCodeAt(0), 3432918353); return (h << 13) | (h >>> 19); }, 1779033703);
   const next = () => {
@@ -257,24 +273,25 @@ function daily(key) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
-  const fa = featuredInLibrary(), n = lib.titleList().length;
+  const mine = lib, fa = await featuredInLibrary(), n = lib.titleList().length, pics = hasPictures();
   const pick = fa.length ? () => fa[Math.floor(next() * fa.length)]
     : () => { const e = lib.resolve(lib.entry(lib.titleIdx(Math.floor(next() * n)))); return e && e.mime === 'text/html' && e.path !== 'index' ? e : null; };
   let disc = null, pic = null;
+  // Today's discovery has a picture when the library has pictures; the center picture needs a library with pictures.
   for (let k = 0; k < 300 && !disc; k++) {
+    if (k % 10 === 9) { await breather(); if (lib !== mine) return null; }
     const e = pick(), pv = e && preview(e.path);
-    if (pv && pv.thumb && pv.extract.length >= 80) disc = { title: e.title, path: e.path };
+    if (pv && (pv.thumb || !pics) && pv.extract.length >= 80) disc = { title: e.title, path: e.path };
   }
-  for (let k = 0; k < 300 && !pic; k++) {
+  for (let k = 0; k < 300 && !pic && pics; k++) {
+    if (k % 10 === 9) { await breather(); if (lib !== mine) return null; }
     const e = pick();
     if (!e || (disc && e.path === disc.path)) continue;
     let src = '';
     try { src = bigPicture(e.path); } catch {}
     if (src) pic = { title: e.title, path: e.path, src };
   }
-  const r = { disc, pic };
-  dailies.set(key, r);
-  return r;
+  return { disc, pic };
 }
 
 // ---------- the catalog ----------
@@ -648,7 +665,7 @@ function setup({ offline = () => false } = {}) {
   ipcMain.handle('library:find', (_e, title) => orNone(find)(title));
   ipcMain.handle('library:titles', (_e, q, limit, deep) => orNone(titles, [])(q, limit, deep));
   ipcMain.handle('library:random', () => orNone(random)());
-  ipcMain.handle('library:daily', (_e, key) => orNone(daily)(key));
+  ipcMain.handle('library:daily', async (_e, key) => { try { return await daily(key); } catch { return null; } });
   ipcMain.handle('library:state', () => publicState());
   // Kiwix asks apps to go easy on its catalog (every Kiwix reader uses it), so the Offline Library window reuses what
   // it fetched in the last day instead of asking each time it opens. (Requests are compressed, as Kiwix asks.)
