@@ -123,13 +123,14 @@
   let libMissing = null;   // the installed library can't be found: { label, where }
   function updateNet() {
     const [color, label] = isOffline() ? (libMissing ? ['amber', 'Offline · Library not found'] : ['grey', 'Offline'])
-      : !navigator.onLine ? (hasLib ? ['amber', 'No connection · Library'] : ['red', 'No connection'])
+      : !Wiki.connected() ? (hasLib ? ['amber', 'No connection · Library'] : ['red', 'No connection'])
       : hasLib && store.get('libraryFirst', false) ? ['blue', 'Online · Library first'] : ['green', 'Online'];
     $('#netdot').className = 'dot ' + color;
     $('#net').textContent = label;
   }
   addEventListener('online', updateNet);
   addEventListener('offline', updateNet);
+  addEventListener('e2k-connection', updateNet);
   updateNet();
   const tick = () => { $('#clock').textContent = new Date().toLocaleTimeString('en-US', E2KTime.opts()); };
   tick();
@@ -383,7 +384,7 @@
         discMore.onclick = () => E2KLibrary.open(E2K);
       } else if (d.offline) {
         // Offline without a library: the almanac still works, from the highlights saved with the app.
-        discTitle.textContent = navigator.onLine && !isOffline() ? 'Wikipedia couldn’t be reached.' : 'You’re offline.';
+        discTitle.textContent = Wiki.connected() && !isOffline() ? 'Wikipedia couldn’t be reached.' : 'You’re offline.';
         discText.textContent = 'With an offline library, you can keep reading without the internet. Download one from Tools › Offline Library.';
         discMore.textContent = 'Offline Library…';
         discMore.onclick = () => E2KLibrary.open(E2K);
@@ -404,7 +405,7 @@
       setIdle(d.offline ? (isOffline() ? 'Offline mode' : 'Offline') : 'Ready');
     }).catch((err) => {
       if (!live(token)) return;
-      discTitle.textContent = isOffline() ? 'You’re in Offline mode.' : navigator.onLine ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';
+      discTitle.textContent = isOffline() ? 'You’re in Offline mode.' : Wiki.connected() ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';
       discText.textContent = isOffline() ? 'Today’s discovery, the picture of the day, and the almanac come from Wikipedia. Go online from the status bar to see them.'
         : 'Encyclopedia 2000 retrieves its articles from Wikipedia. Check your internet connection, then press F5 to try again.';
       almList.replaceChildren(h('div', { class: 'muted' }, 'Unavailable'));
@@ -1209,7 +1210,7 @@
     setIdle('Offline mode');
   }
   function onlineError(err, name, arg, token) {
-    const offline = !navigator.onLine;
+    const offline = !Wiki.connected();
     const notFound = err.status === 404;
     const pg = shell({ title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
     pg.text.append(h('div', { class: 'errbox' },
@@ -1396,7 +1397,7 @@
     else if (s.state === 'downloading') dialog(title, 'An update is on its way', [`Version ${prettyVersion(s.version)} is downloading. You’ll see a Restart Now button in the status bar when it’s ready.`]);
     else if (s.state === 'none') dialog(title, 'You’re up to date', [`Encyclopedia 2000 ${prettyVersion((await window.e2k.appInfo()).version)} is the newest version.`]);
     else if (s.state === 'dev') dialog(title, 'Updates aren’t available here', ['This copy of Encyclopedia 2000 is running from its source folder. Updates work in the installed app.']);
-    else dialog(title, 'Couldn’t check for updates', [navigator.onLine ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.']);
+    else dialog(title, 'Couldn’t check for updates', [Wiki.connected() ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.']);
   }
 
   // ---------- donate ----------
@@ -2155,7 +2156,7 @@
       onchange: () => { store.set('libraryFirst', first.checked); updateNet(); } });
     netPop = h('div', { class: 'netpop', role: 'menu', 'aria-label': 'Connection', onmousedown: (e) => e.stopPropagation() },
       h('div', { class: 'hd' }, 'Connection'),
-      !navigator.onLine && !off ? h('div', { class: 'note' }, has ? 'No internet connection. Reading from the offline library until it’s back.' : 'No internet connection.') : null,
+      !Wiki.connected() && !off ? h('div', { class: 'note' }, has ? 'No internet connection. Reading from the offline library until it’s back.' : 'No internet connection.') : null,
       opt(!off, 'Online', 'Uses the offline library when there’s no connection.', () => setOffline(false)),
       opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has || libMissing ? setOffline(true) : (closeNet(), askDownload()))),
       h('hr'),
@@ -2387,7 +2388,7 @@
     setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet,
     // True when nothing can come from the internet: Offline mode, or no connection.
-    offline: () => isOffline() || !navigator.onLine,
+    offline: () => isOffline() || !Wiki.connected(),
     dialog: (...args) => dialog(...args),
     soundOn: () => soundOn(),
     sfx: (kind) => { if (soundOn()) { try { E2KAudio.sfx(kind); } catch {} } },

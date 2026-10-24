@@ -141,7 +141,7 @@
         api.setIdle(`${MONTHS[m - 1]} ${d}, ${y}`);
       } catch {
         if (my !== token) return;
-        list.replaceChildren(h('p', { class: 'act-note' }, navigator.onLine ? 'Couldn’t reach Wikipedia. Please try again.' : 'You’re offline, so this date can’t be looked up.'));
+        list.replaceChildren(h('p', { class: 'act-note' }, Wiki.connected() ? 'Couldn’t reach Wikipedia. Please try again.' : 'You’re offline, so this date can’t be looked up.'));
         api.setIdle();
       }
     }

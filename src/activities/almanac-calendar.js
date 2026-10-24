@@ -235,7 +235,7 @@
             h('b', {}, String(e.year)), h('span', {}, e.text));
         }));
         if (!events.length) otd.replaceChildren(h('div', { class: 'ac-loading' }, 'No events listed for this date.'));
-      }).catch(() => { if (t === token) otd.replaceChildren(h('div', { class: 'ac-loading' }, navigator.onLine ? 'Couldn’t load events right now.' : 'Events need an internet connection.')); });
+      }).catch(() => { if (t === token) otd.replaceChildren(h('div', { class: 'ac-loading' }, Wiki.connected() ? 'Couldn’t load events right now.' : 'Events need an internet connection.')); });
     }
 
     draw();

@@ -7,8 +7,29 @@ window.Wiki = (() => {
   const enc = (title) => encodeURIComponent(String(title).replace(/ /g, '_'));
   const pad = (n) => String(n).padStart(2, '0');
 
+  // Whether the internet can be reached. Windows keeps reporting "online" after Wi-Fi or the cable goes while a virtual
+  // network adapter (WSL, Hyper-V, a VPN) is still up, so a request that can't reach Wikipedia at all also counts as no
+  // connection, until a check every 15 seconds gets through. ('e2k-connection' fires on window when it changes.)
+  let down = false, probe = null;
+  const connected = () => navigator.onLine && !down;
+  function setDown(v) {
+    if (down === v) return;
+    down = v;
+    if (v && !probe) {
+      probe = setInterval(() => {
+        if (offlineMode()) return;   // Offline mode sends nothing; going online checks again on the next request
+        fetch(`${BASE}/w/api.php?action=query&format=json&origin=*`, { cache: 'no-store' }).then(() => setDown(false), () => {});
+      }, 15000);
+    }
+    if (!v && probe) { clearInterval(probe); probe = null; }
+    dispatchEvent(new Event('e2k-connection'));
+  }
+  addEventListener('online', () => setDown(false));
+
   async function get(url, as = 'json') {
-    const res = await fetch(url);
+    let res;
+    try { res = await fetch(url); } catch (e) { if (!offlineMode()) setDown(true); throw e; }
+    setDown(false);
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status}`);
       err.status = res.status;
@@ -35,7 +56,7 @@ window.Wiki = (() => {
   const pref = (k, d) => { try { const v = localStorage.getItem('e2k.' + k); return v === null ? d : JSON.parse(v); } catch { return d; } };
   // Offline mode (the status bar's connection menu): only the library, and nothing from the internet.
   const offlineMode = () => !!(window.e2k && window.e2k.net && window.e2k.net.offline());
-  const libraryFirst = () => offlineMode() || pref('libraryFirst', false) || !navigator.onLine;
+  const libraryFirst = () => offlineMode() || pref('libraryFirst', false) || !connected();
   const libUrl = (p) => LIB + p.split('/').map(encodeURIComponent).join('/');
   // A library installed, swapped, or removed: forget what's cached about the old one.
   if (lib && lib.onUpdate) lib.onUpdate(() => { libInfo = undefined; pages.clear(); });
@@ -43,7 +64,7 @@ window.Wiki = (() => {
   // Sharp pictures: with "library first" on and the computer online, library articles can swap their pictures for
   // Wikipedia's full-size versions (the library keeps small copies). Off when the user picks the library's pictures
   // only, and in Offline mode.
-  const sharp = () => pref('libraryFirst', false) && pref('libraryPictures', 'online') === 'online' && navigator.onLine && !offlineMode();
+  const sharp = () => pref('libraryFirst', false) && pref('libraryPictures', 'online') === 'online' && connected() && !offlineMode();
   // The same picture on Wikipedia, by its file name, at a standard thumbnail width. The library names a picture after
   // its file (an SVG drawing as "Name.svg.png", a comma as "%2C"), and Special:FilePath finds it on Commons or, for
   // pictures like team logos, on English Wikipedia.
@@ -166,7 +187,7 @@ window.Wiki = (() => {
     return { offline: true, tfa, image, onthisday: await savedDay(date) };
   }
   async function feed(online, offline) {
-    if (offlineMode() || !navigator.onLine) return offline();
+    if (offlineMode() || !connected()) return offline();
     try { return await online(); } catch (e) { return offline(); }
   }
 
@@ -183,6 +204,7 @@ window.Wiki = (() => {
   return {
     library,
     sharpen,
+    connected,
     featured: (date) => feed(() => get(`${BASE}/api/rest_v1/feed/featured/${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
       () => offlineFeatured(date)),
     onThisDay: (date, type = 'all') => feed(() => get(`${BASE}/api/rest_v1/feed/onthisday/${type}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
