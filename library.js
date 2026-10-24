@@ -570,6 +570,10 @@ async function chooseDir(win) {
     broadcast();
     return publicState();
   }
+  // The most basic problem first, as for downloads: a drive too small for the library at all (reformatting a FAT32
+  // drive wouldn't help), then FAT32, then not enough free space right now.
+  const total = driveSize(dir), gb = (n) => `${(n / 1e9).toFixed(1)} GB`;
+  if (total && total < (state.current.size || 0) + 1e8) return { ...publicState(), error: `That drive is too small for your library (your library is ${gb(state.current.size)}; the drive holds ${gb(total)}).` };
   // An installed library over 4 GB can't go on a FAT32 drive; say so before copying anything.
   if ((state.current.size || 0) > 4 * 1024 ** 3 && !bigFilesOk(dir)) {
     return { ...publicState(), error: 'Your library is over 4 GB, and that drive can’t hold files that big (it’s formatted FAT32, common on USB sticks). Choose another drive, or reformat this one as exFAT.' };

@@ -305,8 +305,10 @@
   }
 
   // ---------- data ----------
+  // Today's feed, kept for the day: Wikipedia's, or the offline library's picks when offline (kept apart, so going
+  // offline doesn't show Wikipedia's pictures, which Offline mode can't load).
   async function todayFeed() {
-    const key = new Date().toDateString();
+    const key = new Date().toDateString() + (isOffline() || !Wiki.connected() ? ' offline' : '');
     if (feedCache && feedCache.key === key) return feedCache.data;
     const data = await Wiki.featured(new Date());
     feedCache = { key, data };
@@ -920,7 +922,7 @@
       if (!picked && (shown < 0 || i < shown)) show(i);
     }));
     if (!live(token)) return;
-    if (!pics.some(Boolean)) throw new Error('No pictures available');
+    if (!pics.some(Boolean)) throw Object.assign(new Error('No pictures available'), { noPictures: isOffline() || !Wiki.connected() });
     setIdle();
   }
 
@@ -1192,6 +1194,17 @@
     onlineError(err, name, arg, token);
   }
   function offlineError(err, arg, token) {
+    // Media's pictures offline, with a library that has none (a text-only library).
+    if (err.noPictures && hasLib) {
+      const pg = shell({ title: 'Picture of the Day', railTitle: '', wide: true });
+      pg.text.append(h('div', { class: 'errbox' },
+        h('b', {}, 'Your offline library has no pictures'),
+        'Text-only libraries leave out pictures to save space. The Picture of the Day comes back when you’re online, or with a library that includes pictures (Tools › Offline Library).',
+        h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+      mount(pg.root, token);
+      setIdle('Offline mode');
+      return;
+    }
     if (libMissing) {
       const pg = shell({ title: 'Offline library not found', railTitle: '', wide: true });
       pg.text.append(missingBox());
