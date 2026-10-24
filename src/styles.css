@@ -510,6 +510,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
           font: 13px/1.5 "Segoe UI"; color: #333; }
 .errbox b { display: block; margin-bottom: 4px; font-size: 15px; color: var(--ink-2); }
 .errbox .bbtn { margin-top: 10px; background: var(--ink-2); }
+.errbox .bbtn + .bbtn { margin-left: 8px; }
 
 /* explore cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
