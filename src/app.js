@@ -120,8 +120,9 @@
   // (amber, reading from the library; red without one). It opens the connection menu (below).
   const isOffline = () => window.e2k.net.offline();
   let hasLib = false;
+  let libMissing = null;   // the installed library can't be found: { label, where }
   function updateNet() {
-    const [color, label] = isOffline() ? ['grey', 'Offline']
+    const [color, label] = isOffline() ? (libMissing ? ['amber', 'Offline · Library not found'] : ['grey', 'Offline'])
       : !navigator.onLine ? (hasLib ? ['amber', 'No connection · Library'] : ['red', 'No connection'])
       : hasLib && store.get('libraryFirst', false) ? ['blue', 'Online · Library first'] : ['green', 'Online'];
     $('#netdot').className = 'dot ' + color;
@@ -375,6 +376,11 @@
         discTitle.textContent = t;
         discText.textContent = tfa.extract || '';
         discMore.onclick = discThumb.onclick = () => openArticle(t);
+      } else if (d.offline && libMissing) {
+        discTitle.textContent = 'Your offline library can’t be found.';
+        discText.textContent = `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own.`;
+        discMore.textContent = 'Offline Library…';
+        discMore.onclick = () => E2KLibrary.open(E2K);
       } else if (d.offline) {
         // Offline without a library: the almanac still works, from the highlights saved with the app.
         discTitle.textContent = navigator.onLine && !isOffline() ? 'Wikipedia couldn’t be reached.' : 'You’re offline.';
@@ -1171,19 +1177,38 @@
   }
 
   // ---------- errors ----------
+  // The library can't be found (its drive was disconnected, or it was moved or deleted): where it was, and what to do.
+  const missingBox = () => h('div', { class: 'errbox' },
+    h('b', {}, 'Your offline library can’t be found'),
+    `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own. You can also find it or download it again in Tools › Offline Library.`,
+    h('div', {}, bandBtn('Offline Library…', () => E2KLibrary.open(E2K)), navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null));
   function showError(err, name, arg, token) {
     if (isOffline()) {
-      // Offline mode: the page needs the internet, or the article isn't in the library.
-      const pg = shell({ title: err.notInLibrary ? 'Not in the offline library' : 'Offline mode', railTitle: '', wide: true });
-      pg.text.append(h('div', { class: 'errbox' },
-        h('b', {}, err.notInLibrary ? `“${arg}” isn’t in the offline library` : 'This page needs the internet'),
-        'You’re in Offline mode, so only the offline library is available.',
-        h('div', {}, err.notInLibrary ? bandBtn(`Search the offline library for “${arg}”`, () => go(route('search', arg), { replace: true })) : null,
-          navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+      // First, whether the library itself just went missing (its drive was disconnected, say).
+      window.e2k.library.state().then(libChanged, () => {}).finally(() => { if (live(token)) offlineError(err, arg, token); });
+      return;
+    }
+    onlineError(err, name, arg, token);
+  }
+  function offlineError(err, arg, token) {
+    if (libMissing) {
+      const pg = shell({ title: 'Offline library not found', railTitle: '', wide: true });
+      pg.text.append(missingBox());
       mount(pg.root, token);
       setIdle('Offline mode');
       return;
     }
+    // Offline mode: the page needs the internet, or the article isn't in the library.
+    const pg = shell({ title: err.notInLibrary ? 'Not in the offline library' : 'Offline mode', railTitle: '', wide: true });
+    pg.text.append(h('div', { class: 'errbox' },
+      h('b', {}, err.notInLibrary ? `“${arg}” isn’t in the offline library` : 'This page needs the internet'),
+      'You’re in Offline mode, so only the offline library is available.',
+      h('div', {}, err.notInLibrary ? bandBtn(`Search the offline library for “${arg}”`, () => go(route('search', arg), { replace: true })) : null,
+        navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+    mount(pg.root, token);
+    setIdle('Offline mode');
+  }
+  function onlineError(err, name, arg, token) {
     const offline = !navigator.onLine;
     const notFound = err.status === 404;
     const pg = shell({ title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
@@ -2132,13 +2157,14 @@
       h('div', { class: 'hd' }, 'Connection'),
       !navigator.onLine && !off ? h('div', { class: 'note' }, has ? 'No internet connection. Reading from the offline library until it’s back.' : 'No internet connection.') : null,
       opt(!off, 'Online', 'Uses the offline library when there’s no connection.', () => setOffline(false)),
-      opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has ? setOffline(true) : (closeNet(), askDownload()))),
+      opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has || libMissing ? setOffline(true) : (closeNet(), askDownload()))),
       h('hr'),
       h('label', { class: 'cb' + (off || !has ? ' dis' : '') }, first,
         h('span', {}, 'Use the offline library first, even when online', h('span', { class: 's' }, has ? 'Faster; uses less data.' : 'Needs an offline library.'))),
       h('hr'),
-      has ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, name), ` · ${st.open.articles.toLocaleString('en-US')} articles`) : null,
-      h('div', { class: 'lnk', role: 'menuitem', onclick: () => { closeNet(); E2KLibrary.open(E2K); } }, icon('book'), has ? 'Manage offline library…' : 'Download offline library…'));
+      has ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, name), ` · ${st.open.articles.toLocaleString('en-US')} articles`)
+        : libMissing ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, libMissing.label), ' · can’t be found') : null,
+      h('div', { class: 'lnk', role: 'menuitem', onclick: () => { closeNet(); E2KLibrary.open(E2K); } }, icon('book'), has || libMissing ? 'Manage offline library…' : 'Download offline library…'));
     document.body.append(netPop);
     netBtn.classList.add('open');
     const r = netBtn.getBoundingClientRect(), pr = netPop.getBoundingClientRect();
@@ -2151,10 +2177,16 @@
   addEventListener('resize', closeNet);
   // The library comes and goes: the light follows it, Offline mode ends if it's removed, and a download that began
   // from picking Offline asks once, when it's done, whether to switch.
+  // A library that can't be found keeps Offline mode on (the pages say what happened), and when it's back, the page on
+  // screen comes again from it.
   function libChanged(s) {
+    const wasMissing = !!libMissing;
     hasLib = !!(s && s.open);
-    if (!hasLib && isOffline()) setOffline(false);
+    const cur = s && s.current && s.packs.find((p) => p.id === s.current.pack);
+    libMissing = s && s.missing ? { label: cur ? cur.label : 'Your offline library', where: s.missing.where } : null;
+    if (!hasLib && !libMissing && isOffline()) setOffline(false);
     updateNet();
+    if (wasMissing && hasLib && (isOffline() || nav.stack[nav.idx] === 'home')) reload();
     if (hasLib && !s.download && store.get('offlineWhenReady', false)) {
       store.set('offlineWhenReady', false);
       if (isOffline()) return;

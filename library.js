@@ -38,6 +38,8 @@ const DAY = 24 * 3600 * 1000, MONTH = 30 * DAY;
 let lib = null;            // the open library (a Zim), or null
 let override = '';         // E2K_ZIM, if set
 let move = null;           // the library being copied to a folder on another drive (see chooseDir)
+let missing = false;       // the installed library can't be read (on a drive that was disconnected, or moved or deleted)
+let watch = null;          // while it's missing, checks every few seconds whether it's back
 let state = { dir: '', current: null, download: null, catalog: null, checked: 0 };
 // state.current:  { pack, file, date, size }      the installed library
 // state.download: { pack, file, url, date, size, pieces, done, status }   status: downloading | paused | error
@@ -55,8 +57,28 @@ function openFile(file) {
   dailies.clear(); featuredHere = null;
   previews.clear();
   if (lib) { try { lib.close(); } catch {} lib = null; }
-  try { lib = new Zim(file); return true; } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
+  try { lib = new Zim(file); } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
+  // A read that fails (its drive was disconnected) means the library is missing, until it can be opened again.
+  const read = lib.read.bind(lib);
+  lib.read = (pos, len) => { try { return read(pos, len); } catch (e) { lost(); throw e; } };
+  return true;
 }
+// The installed library can't be found. Nothing switches to Online by itself: the page says what happened, and the
+// library opens again on its own when its file is back (a drive plugged in again, or the file put back).
+function lost() {
+  if (override || !state.current) return;
+  if (lib) { try { lib.close(); } catch {} lib = null; }
+  dailies.clear(); featuredHere = null; previews.clear();
+  if (!missing) { missing = true; setImmediate(() => broadcast()); }
+  if (!watch) {
+    watch = setInterval(() => {
+      if (!state.current) return found();
+      const file = path.join(libDir(), state.current.file);
+      if (fs.existsSync(file) && openFile(file)) { found(); broadcast(); }
+    }, 3000);
+  }
+}
+function found() { missing = false; if (watch) { clearInterval(watch); watch = null; } }
 function broadcast(extra) {
   const s = { ...publicState(), ...extra };
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('library:update', s);
@@ -352,7 +374,7 @@ function spaceCheck(packId) {
 }
 
 async function startDownload(packId, { removeOld = false } = {}) {
-  if (job || move) return { error: 'busy' };
+  if (job || move || missing) return { error: 'busy' };
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
   const sp = spaceCheck(packId);
@@ -488,6 +510,8 @@ function removeCurrent() {
   if (!state.current || move) return;
   if (lib && !override) { try { lib.close(); } catch {} lib = null; }
   try { fs.unlinkSync(path.join(libDir(), state.current.file)); } catch {}
+  // Forgetting a missing library: a new download goes to the app's own folder, not a drive that isn't there.
+  if (missing) { found(); if (!fs.existsSync(libDir())) state.dir = ''; }
   state.current = null; save(); broadcast();
 }
 
@@ -502,6 +526,13 @@ async function chooseDir(win) {
   probeCache.delete(dir);
   if (!writable(dir)) return { ...publicState(), error: `Encyclopedia 2000 can’t save files in ${dir}. Choose a folder inside it, such as Documents.` };
   if (!state.current) { state.dir = storeDir(dir); save(); broadcast(); return publicState(); }
+  // A missing library: the folder chosen should be where it is now.
+  if (missing) {
+    const file = path.join(dir, state.current.file);
+    if (!fs.existsSync(file) || !openFile(file)) return { ...publicState(), error: `That folder doesn’t have your library (${state.current.file}). Choose the folder it’s in, or use Forget… to download it again.` };
+    state.dir = storeDir(dir); save(); found(); broadcast();
+    return publicState();
+  }
   // Move the installed library along with the setting, so it keeps working. On the same drive that's an instant
   // rename; to another drive it's a copy, which runs in the background (see startMove).
   const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
@@ -571,6 +602,10 @@ function articleCount() {
   return m ? +m[1] : lib.titleList().length;
 }
 
+// The open library's name and size (null if it can't be read).
+function openInfo() {
+  try { return lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: articleCount() } : null; } catch { return null; }
+}
 function publicState() {
   const d = state.download;
   return {
@@ -578,7 +613,8 @@ function publicState() {
     packs: packs().map(({ id, label, desc, recommended, covers }) => ({ id, label, desc, recommended, covers, ...(state.catalog?.[id] || {}),
       fit: state.catalog?.[id] && !(state.current && state.current.pack === id) ? spaceCheck(id) : null })),
     current: state.current, override: override ? path.basename(override) : '',
-    open: lib ? { title: lib.meta('Title'), date: lib.meta('Date'), articles: articleCount() } : null,
+    open: openInfo(),
+    missing: missing ? { where: libDir() } : null,
     move: move && { to: move.dir, copied: move.copied, size: move.size, speed: move.speed, eta: move.eta },
     download: d && { ...d, url: undefined, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), speed: job ? job.speed : 0, eta: job ? job.eta : 0 },
     dir: libDir(), free: freeSpace(libDir()), checked: state.checked,
@@ -592,7 +628,7 @@ function setup({ offline = () => false } = {}) {
   if (state.moving) { try { fs.unlinkSync(state.moving); } catch {} state.moving = null; save(); }
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
-  else if (state.current) openFile(path.join(libDir(), state.current.file));
+  else if (state.current && !openFile(path.join(libDir(), state.current.file))) lost();
   // A download that was running when the app last closed (quit mid-download, or closed unexpectedly) carries on a few
   // seconds after startup; one the user paused stays paused.
   if (state.download && state.download.status === 'downloading') state.download.resume = true;
@@ -600,15 +636,19 @@ function setup({ offline = () => false } = {}) {
   protocol.handle('e2k-zim', (req) => {
     if (!lib) return new Response('No offline library', { status: 404 });
     const [ns, ...rest] = decodeURIComponent(new URL(req.url).pathname).slice(1).split('/');
-    const e = lib.resolve(lib.find(ns, rest.join('/')));
-    if (!e) return new Response('Not in the library', { status: 404 });
-    return new Response(lib.content(e), { headers: { 'content-type': e.mime || 'application/octet-stream', 'access-control-allow-origin': '*' } });
+    try {
+      const e = lib.resolve(lib.find(ns, rest.join('/')));
+      if (!e) return new Response('Not in the library', { status: 404 });
+      return new Response(lib.content(e), { headers: { 'content-type': e.mime || 'application/octet-stream', 'access-control-allow-origin': '*' } });
+    } catch { return new Response('The offline library can’t be read', { status: 404 }); }   // its drive was disconnected (see lost)
   });
-  ipcMain.handle('library:info', () => (lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: articleCount() } : null));
-  ipcMain.handle('library:find', (_e, title) => find(title));
-  ipcMain.handle('library:titles', (_e, q, limit, deep) => titles(q, limit, deep));
-  ipcMain.handle('library:random', () => random());
-  ipcMain.handle('library:daily', (_e, key) => daily(key));
+  ipcMain.handle('library:info', () => { try { return lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: articleCount() } : null; } catch { return null; } });
+  // A library that can't be read (its drive was disconnected) answers like no library at all; see lost().
+  const orNone = (fn, none = null) => (...a) => { try { return fn(...a); } catch { return none; } };
+  ipcMain.handle('library:find', (_e, title) => orNone(find)(title));
+  ipcMain.handle('library:titles', (_e, q, limit, deep) => orNone(titles, [])(q, limit, deep));
+  ipcMain.handle('library:random', () => orNone(random)());
+  ipcMain.handle('library:daily', (_e, key) => orNone(daily)(key));
   ipcMain.handle('library:state', () => publicState());
   // Kiwix asks apps to go easy on its catalog (every Kiwix reader uses it), so the Offline Library window reuses what
   // it fetched in the last day instead of asking each time it opens. (Requests are compressed, as Kiwix asks.)

@@ -74,7 +74,10 @@ window.E2KLibrary = (() => {
       const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
       const dot = (c) => h('span', { class: 'dotc', style: `background:${c};box-shadow:0 0 6px ${c}` });
-      if (mv && cur) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, `Moving ${cur.label} to its new folder.`), ' Its articles keep working while it moves.'));
+      if (st.missing && cur) {
+        status.replaceChildren(dot('#e8a33a'), h('span', {}, h('b', {}, `${cur.label} can’t be found.`),
+          ` It isn’t in ${st.missing.where}. If it’s on a drive that was disconnected, reconnect it and it will open again on its own. If you moved it, choose its new folder with Change…`));
+      } else if (mv && cur) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, `Moving ${cur.label} to its new folder.`), ' Its articles keep working while it moves.'));
       else if (st.override) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, 'Using a test library: '), st.override + '.'));
       else if (cur && st.open) {
         status.replaceChildren(dot('#5fbf6a'), h('span', {}, h('b', {}, `${cur.label} is installed.`), ' Its articles work without internet.',
@@ -89,7 +92,12 @@ window.E2KLibrary = (() => {
       list.replaceChildren(...visible.map((p) => {
         const tags = [], acts = [];
         let desc = p.desc, extra = null, why = null;
-        if (st.current && st.current.pack === p.id && mv) {
+        if (st.current && st.current.pack === p.id && st.missing) {
+          // Missing: find it with Change… below, or Forget it (then every pack can be downloaded again).
+          tags.push(h('span', { class: 'tag miss' }, 'NOT FOUND'));
+          desc = `${edition(st.current.date)} edition · was in ${st.missing.where}`;
+          acts.push(h('button', { class: 'go', onclick: () => forget(p) }, 'Forget…'));
+        } else if (st.current && st.current.pack === p.id && mv) {
           // Moving to another drive: progress like a download's, and Cancel (the library stays where it was).
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
@@ -148,7 +156,7 @@ window.E2KLibrary = (() => {
       dirCode.title = shown;
       changeBtn.disabled = !!(d || mv);
       whereNote.hidden = !d;
-      freeTxt.textContent = !mv && st.free ? `${size(st.free)} free` : '';
+      freeTxt.textContent = !mv && !st.missing && st.free ? `${size(st.free)} free` : '';
     }
     dlg = (s) => { st = s; if (s.moveError) showErr(s.moveError); draw(); fitUp(); };
 
@@ -198,6 +206,13 @@ window.E2KLibrary = (() => {
       const ok = await new Promise((res) => dialog('Offline Library', 'Cancel the download?', [`The part of ${p.label} downloaded so far will be deleted.`],
         [['Cancel download', () => res(true)], ['Keep downloading', () => res(false), true]]));
       if (ok) { st = await L.cancel(); draw(); }
+    }
+    async function forget(p) {
+      const ok = await new Promise((res) => dialog('Offline Library', `Forget ${p.label}?`,
+        [`Encyclopedia 2000 will stop looking for it in ${st.missing.where}. If you find it later, choose its folder with Change… to use it again.`,
+          'Until you download a new library, articles load from Wikipedia, so the app goes back online.'],
+        [['Forget', () => res(true)], ['Cancel', () => res(false), true]]));
+      if (ok) { st = await L.remove(); showErr(''); draw(); fitUp(); }
     }
     async function remove(p) {
       const ok = await new Promise((res) => dialog('Offline Library', `Remove ${p.label}?`,
