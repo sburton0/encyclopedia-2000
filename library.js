@@ -79,6 +79,13 @@ function lost() {
   }
 }
 function found() { missing = false; if (watch) { clearInterval(watch); watch = null; } }
+// While a library is open, check every few seconds that its file is still there, so unplugging its drive shows in
+// the status bar right away instead of at the next read.
+function watchPresence() {
+  setInterval(() => {
+    if (lib && !override && state.current && !fs.existsSync(path.join(libDir(), state.current.file))) lost();
+  }, 3000).unref();
+}
 function broadcast(extra) {
   const s = { ...publicState(), ...extra };
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('library:update', s);
@@ -646,6 +653,7 @@ function setup({ offline = () => false } = {}) {
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
   else if (state.current && !openFile(path.join(libDir(), state.current.file))) lost();
+  watchPresence();
   // A download that was running when the app last closed (quit mid-download, or closed unexpectedly) carries on a few
   // seconds after startup; one the user paused stays paused.
   if (state.download && state.download.status === 'downloading') state.download.resume = true;
