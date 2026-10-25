@@ -51,7 +51,7 @@ async function run(win) {
     async waitFor(code, ms = 15000) {
       const end = Date.now() + ms;
       while (Date.now() < end) {
-        try { if (await t.js(`return !!(${code});`)) return true; } catch {}
+        try { if (await t.js(`return !!(await (${code}));`)) return true; } catch {}   // code may be a promise
         await sleep(150);
       }
       return false;
