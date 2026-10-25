@@ -73,7 +73,8 @@ function runOne(s) {
     };
     for (const k of ['E2K_CAPTURE', 'E2K_EVAL', 'E2K_ZIM']) delete env[k];
     const electron = require(path.join(REPO, 'node_modules', 'electron'));
-    const child = spawn(electron, [APPDIR], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+    // On Linux (WSL, CI), Electron's sandbox helper usually isn't set up for a development copy.
+    const child = spawn(electron, [APPDIR, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])], { env, stdio: ['ignore', 'pipe', 'pipe'] });
     let log = '';
     child.stdout.on('data', (d) => { log += d; });
     child.stderr.on('data', (d) => { log += d; });
