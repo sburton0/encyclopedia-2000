@@ -62,8 +62,8 @@ module.exports = [
       t.check('Quick facts are filled in', await t.waitFor('document.querySelectorAll(".facts .r").length >= 4', 8000));
       t.check('The Media box lists pictures', await t.waitFor('document.querySelectorAll(".mbox .mt").length >= 3', 10000));
       await t.shot('article');
-      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "f", ctrlKey: true, bubbles: true }));');
-      await t.sleep(300);
+      await t.command('Find in Article…', 'f');
+      t.check('The find bar opens', await t.waitFor('document.querySelector(".findbar input")', 4000));
       await t.js('const i = document.querySelector(".findbar input"); i.value = "moon"; i.dispatchEvent(new Event("input", { bubbles: true }));');
       t.check('Find in Article highlights matches', await t.waitFor('document.querySelectorAll("mark.fh").length > 3', 4000));
       await t.shot('find-in-article');
@@ -111,7 +111,7 @@ module.exports = [
     route: 'article/Mount%20Everest',
     async run(t) {
       await t.waitFor('document.querySelectorAll(".page .text p").length > 3', 20000);
-      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }));');
+      await t.command('Print Preview…', 'p');
       let preview = null;
       for (let i = 0; i < 40 && !preview; i++) { await t.sleep(250); preview = t.windows().find((w) => w !== t.win); }
       t.check('The Print Preview window opens', !!preview);
@@ -413,9 +413,8 @@ module.exports = [
       t.check('What’s New says Encyclopedia 2000 › Offline Library, not Tools', /Encyclopedia 2000 › Offline Library/.test(wn) && !/Tools ›/.test(wn));
       t.check('…and ⌘F', /⌘F/.test(wn));
       await t.js('document.querySelector(".dialog.whatsnew .go:last-child")?.click();');
-      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", metaKey: true, bubbles: true }));');
-      await t.sleep(300);
-      if (!(await t.js('return !!document.querySelector(".dialog.keys");'))) await t.js('E2K.go("home");');
+      await t.command('Keyboard Shortcuts', '/');
+      await t.waitFor('document.querySelector(".dialog.keys")', 4000);
       const keys = await t.js('return [...document.querySelectorAll(".dialog.keys kbd")].map((k) => k.textContent);');
       if (keys.length) {
         t.check('Shortcuts are written the Mac way (⇧⌘P, ⌘F)', keys.includes('⇧⌘P') && keys.includes('⌘F'), keys.slice(0, 8).join(' '));
@@ -470,6 +469,7 @@ module.exports = [
       t.check('It says the article isn’t in the library', await t.waitFor('/isn’t in the offline library/.test(document.querySelector(".errbox")?.innerText || "")', 10000));
       t.check('Related articles in the library are listed', await t.waitFor('document.querySelectorAll(".errbox .inlib a").length >= 1', 8000));
       t.check('The old search button is gone', !(await t.js('return /Search the offline library/.test(document.querySelector(".errbox").innerText);')));
+      await t.sleep(800);                     // the page fades in
       await t.shot('not-in-library');
       const first = await t.js('const a = document.querySelector(".errbox .inlib a"); a.click(); return a.textContent;');
       t.check('A related article opens', await t.waitFor('(document.querySelector("h1")?.textContent || "").trim() === ' + JSON.stringify(first), 10000), first);

@@ -1,7 +1,7 @@
 // The automated tests' Electron entry point: starts the real app (main.js) and runs one scenario from scenarios.js
 // against its main window, then writes result.json and the screenshots to E2K_TEST_OUT and quits. run.js starts it
 // once per scenario; it isn't meant to be run by hand.
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, Menu } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -65,6 +65,19 @@ async function run(win) {
       result.shots.push(file);
     },
     net: () => t.js(`return document.getElementById('net').textContent;`),
+    // Clicks an item in the menu bar by its label (on macOS the menus live there, and the page ignores Ctrl+ keys).
+    menu(label) {
+      const find = (items) => { for (const i of items || []) { if (i.label === label) return i; const sub = i.submenu && find(i.submenu.items); if (sub) return sub; } return null; };
+      const item = find(Menu.getApplicationMenu()?.items);
+      if (item) item.click();
+      return !!item;
+    },
+    // A command the way people reach it: from the menu bar on a Mac, or with its keyboard shortcut elsewhere.
+    async command(macLabel, key, mods = { ctrlKey: true }) {
+      if (process.platform === 'darwin') return t.menu(macLabel);
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: ${JSON.stringify(key)}, ...${JSON.stringify(mods)}, bubbles: true }));`);
+      return true;
+    },
     lib: () => t.js('return await window.e2k.library.state();'),
     windows: () => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()),
     // Ends the app at once, without saving or asking: like the computer losing power.
