@@ -15,3 +15,6 @@ Test in Sandbox.wsb
 
 # Release note drafts (published on GitHub releases)
 release-notes-*.md
+
+# Automated test results (screenshots and reports)
+tools/test/results/

@@ -13,6 +13,7 @@
     "icons": "electron tools/make-icons.js",
     "shortcut": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/make-shortcut.ps1",
     "map": "node tools/make-map.mjs",
+    "test:app": "node tools/test/run.js",
     "dist": "node tools/sign-nsis-plugins.js && electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
     "release": "node tools/sign-nsis-plugins.js && electron-builder --win --publish always -c.electronDist=node_modules/electron/dist",
     "stats": "node tools/stats.mjs",
