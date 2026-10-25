@@ -5,6 +5,8 @@
 // - Remembers the library, its folder, and any unfinished download in userData/library.json.
 // The page talks to it over IPC (library:*), and hears about changes and progress on 'library:update'.
 // Development settings: E2K_ZIM=<file.zim> opens that file instead; E2K_LIBRARY_TEST=1 adds a tiny test pack.
+// For the automated tests (tools/test): E2K_TEST_CHOOSE_DIR=<folder> answers Change… without the folder dialog, and
+// E2K_TEST_COPY_MOVE=1 moves a library the way it moves to another drive (copied, with progress) even on the same one.
 const { app, protocol, ipcMain, BrowserWindow, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -50,7 +52,8 @@ const stateFile = () => path.join(app.getPath('userData'), 'library.json');
 const dataDir = () => app.getPath('userData');
 const libDir = () => (state.dir ? path.resolve(dataDir(), state.dir) : path.join(dataDir(), 'Library'));
 const storeDir = (dir) => { const rel = path.relative(dataDir(), dir); return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : dir; };
-function save() { try { fs.writeFileSync(stateFile(), JSON.stringify({ ...state, catalog: undefined }, null, 2)); } catch {} }
+// The catalog is saved too, so it's asked for at most once a day across restarts (as Kiwix asked), not once per launch.
+function save() { try { fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2)); } catch {} }
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
 
 function openFile(file) {
@@ -542,7 +545,8 @@ function removeCurrent() {
 async function chooseDir(win) {
   // A download writes into the folder, so the folder stays put until it's done (the window says so).
   if (move || state.download) return publicState();
-  const r = await dialog.showOpenDialog(win, { title: 'Choose a folder for the offline library', defaultPath: libDir(), properties: ['openDirectory', 'createDirectory'] });
+  const r = process.env.E2K_TEST_CHOOSE_DIR ? { filePaths: [process.env.E2K_TEST_CHOOSE_DIR] }
+    : await dialog.showOpenDialog(win, { title: 'Choose a folder for the offline library', defaultPath: libDir(), properties: ['openDirectory', 'createDirectory'] });
   if (r.canceled || !r.filePaths[0]) return publicState();
   const dir = r.filePaths[0];
   if (path.resolve(dir) === path.resolve(libDir())) return publicState();
@@ -561,7 +565,7 @@ async function chooseDir(win) {
   // rename; to another drive it's a copy, which runs in the background (see startMove).
   const from = path.join(libDir(), state.current.file), to = path.join(dir, state.current.file);
   let sameDrive = false;
-  try { sameDrive = fs.statSync(from).dev === fs.statSync(dir).dev; } catch {}
+  try { sameDrive = fs.statSync(from).dev === fs.statSync(dir).dev && !process.env.E2K_TEST_COPY_MOVE; } catch {}
   if (sameDrive) {
     if (lib && !override) { try { lib.close(); } catch {} lib = null; }
     try { fs.renameSync(from, to); } catch { if (!override) openFile(from); return { ...publicState(), error: 'The library couldn’t be moved there.' }; }
@@ -681,7 +685,7 @@ function setup({ offline = () => false } = {}) {
   ipcMain.handle('library:state', () => publicState());
   // Kiwix asks apps to go easy on its catalog (every Kiwix reader uses it), so the Offline Library window reuses what
   // it fetched in the last day instead of asking each time it opens. (Requests are compressed, as Kiwix asks.)
-  ipcMain.handle('library:catalog', async () => { try { if (!state.catalog || Date.now() - (state.checked || 0) > DAY) await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });
+  ipcMain.handle('library:catalog', async () => { try { if (!state.catalog || packs().some((p) => !state.catalog[p.id]) || Date.now() - (state.checked || 0) > DAY) await fetchCatalog(); return publicState(); } catch (e) { return { ...publicState(), error: 'Kiwix’s catalog couldn’t be reached. Check your connection.' }; } });
   ipcMain.handle('library:download', (_e, packId, opts) => startDownload(packId, opts));
   ipcMain.handle('library:space', (_e, packId) => spaceCheck(packId));
   ipcMain.handle('library:pause', () => { pause(); return publicState(); });
