@@ -245,6 +245,8 @@ module.exports = [
       await t.js('window.e2k.library.download("test");');
       if (!(await whenPartway(t))) return t.skip('Cancelled partway', 'the download finished first (fast connection)');
       t.check('Change… is greyed out during the download', await t.js('return [...document.querySelectorAll(".offline .where button")][0].disabled && !document.querySelector(".wherenote").hidden;'));
+      const tops = await t.js('return [...document.querySelectorAll(".offline .pack.dl .acts button")].map((b) => Math.round(b.getBoundingClientRect().top));');
+      t.check('Pause and Cancel are side by side', tops.length === 2 && Math.abs(tops[0] - tops[1]) <= 2, tops.join(', '));
       await t.shot('downloading');
       await t.js('await window.e2k.library.cancel();');
       await t.sleep(500);
@@ -457,6 +459,20 @@ module.exports = [
       for (const r of ['game/starchart', 'activity/solar-system', 'activity/periodic-table', 'gallery']) { await t.js(`E2K.go(${JSON.stringify(r)});`); await t.sleep(2500); }
       const net = count();
       t.check('Nothing came from the internet', net.n === 0, net.n ? `${net.n}: ${net.urls.join(' ')}` : '');
+    },
+  },
+  {
+    name: 'not-in-library', group: 'Reading offline', title: 'An article that isn’t in the library links to related ones that are',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      await t.js('E2K.openArticle("Ray Charles fan club");');
+      t.check('It says the article isn’t in the library', await t.waitFor('/isn’t in the offline library/.test(document.querySelector(".errbox")?.innerText || "")', 10000));
+      t.check('Related articles in the library are listed', await t.waitFor('document.querySelectorAll(".errbox .inlib a").length >= 1', 8000));
+      t.check('The old search button is gone', !(await t.js('return /Search the offline library/.test(document.querySelector(".errbox").innerText);')));
+      await t.shot('not-in-library');
+      const first = await t.js('const a = document.querySelector(".errbox .inlib a"); a.click(); return a.textContent;');
+      t.check('A related article opens', await t.waitFor('(document.querySelector("h1")?.textContent || "").trim() === ' + JSON.stringify(first), 10000), first);
     },
   },
   {

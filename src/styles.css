@@ -518,6 +518,9 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .errbox b { display: block; margin-bottom: 4px; font-size: 15px; color: var(--ink-2); }
 .errbox .bbtn { margin-top: 10px; background: var(--ink-2); }
 .errbox .bbtn + .bbtn { margin-left: 8px; }
+.errbox .inlib { margin: 10px 0 0; }
+.errbox .inlib b { display: inline; font-size: 13px; }
+.errbox .inlib a { color: #1d47a8; text-decoration: none; border-bottom: 1px dotted rgba(29, 71, 168, .5); cursor: pointer; }
 
 /* explore cards */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
@@ -790,6 +793,9 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .offline .pack.off h3, .offline .pack.off p:not(.why), .offline .pack.off .size { opacity: .5; }
 .offline .pack p.why { margin: 0; font-size: 12px; line-height: 16px; color: #ff9d8f; }
 .offline .pack .acts { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+/* Downloading or moving: the size on top, then Pause (or Resume) and Cancel side by side, so the row stays short. */
+.offline .pack.dl .acts { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; column-gap: 8px; }
+.offline .pack.dl .acts .size { flex-basis: 100%; text-align: right; }
 .offline .pack .size { min-height: 17px; font: 600 13px/17px "Segoe UI"; color: #fff; }
 .offline .bar { grid-column: 1 / -1; height: 8px; margin-top: 6px; background: rgba(0, 0, 0, .45); border: 1px solid rgba(160, 190, 255, .3); }
 .offline .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0); box-shadow: 0 0 8px #f5a623; transition: width .4s; }

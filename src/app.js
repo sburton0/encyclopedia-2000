@@ -1214,15 +1214,33 @@
       setIdle('Offline mode');
       return;
     }
-    // Offline mode: the page needs the internet, or the article isn't in the library.
+    // Offline mode: the page needs the internet, or the article isn't in the library. For a missing article, related
+    // ones that are in the library follow (see relatedInLibrary).
     const pg = shell({ title: err.notInLibrary ? 'Not in the offline library' : 'Offline mode', railTitle: '', wide: true });
+    const related = h('p', { class: 'inlib', hidden: true });
     pg.text.append(h('div', { class: 'errbox' },
       h('b', {}, err.notInLibrary ? `“${arg}” isn’t in the offline library` : 'This page needs the internet'),
       'You’re in Offline mode, so only the offline library is available.',
-      h('div', {}, err.notInLibrary ? bandBtn(`Search the offline library for “${arg}”`, () => go(route('search', arg), { replace: true })) : null,
-        navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+      related,
+      h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
     mount(pg.root, token);
     setIdle('Offline mode');
+    if (err.notInLibrary) relatedInLibrary(arg).then((titles) => {
+      if (!titles.length || !live(token)) return;
+      related.append(h('b', {}, 'In your library:'), ' ', ...titles.flatMap((t, i) => [i ? ' · ' : null,
+        h('a', { href: '#', 'data-title': t }, t)]).filter(Boolean));
+      related.hidden = false;
+    });
+  }
+  // Up to four articles in the library related to a title that isn't: the library's titles starting with shorter and
+  // shorter versions of it ("Apollo 11 lunar sample display" → "Apollo 11 lunar sample" → … → "Apollo 11").
+  async function relatedInLibrary(title) {
+    const words = String(title).split(/\s+/), found = [];
+    for (let n = words.length - 1; n >= 1 && found.length < 4; n--) {
+      const hits = await window.e2k.library.titles(words.slice(0, n).join(' '), 6).catch(() => []);
+      for (const hit of hits) if (!found.includes(hit.title) && hit.title.toLowerCase() !== title.toLowerCase() && found.length < 4) found.push(hit.title);
+    }
+    return found;
   }
   function onlineError(err, name, arg, token) {
     const offline = !Wiki.connected();
