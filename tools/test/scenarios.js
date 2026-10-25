@@ -390,6 +390,125 @@ module.exports = [
   },
 
   {
+    name: 'open-file', group: 'Offline library', title: 'Open library file…: use your own file where it is, then Stop using it',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
+    async run(t) {
+      const mine = path.join(t.profile, 'My Kiwix files'), before = await t.lib();
+      const file = libFiles(mine).find((f) => f.endsWith('.zim'));
+      process.env.E2K_TEST_OPEN_FILE = path.join(mine, file);  // read by library.js in this process
+      await openLibrary(t);
+      t.check('No library yet, with Open library file…', !!(await t.js(`return !!${label('Open library file…')};`)));
+      await t.js(`${label('Open library file…')}.click();`);
+      t.check('It\'s installed', await t.waitFor('(async () => !!(await window.e2k.library.state()).open)()', 8000));
+      const s = await t.lib();
+      t.check('It\'s marked as your own file', !!(s.current && s.current.own));
+      t.check('It\'s used where it is (the folder is yours; nothing copied)', path.resolve(s.dir) === path.resolve(mine) && !libFiles(before.dir).some((f) => f.endsWith('.zim')), s.dir);
+      t.check('Its article is found', !!(await t.js('return await window.e2k.library.find("Ray Charles");')));
+      const text = await t.js('return document.querySelector(".offline").innerText;');
+      t.check('The window shows YOUR FILE and Stop using…', /YOUR FILE/.test(text) && /Stop using…/.test(text) && !/Remove…/.test(text));
+      t.check('The folder is labeled Library folder', /Library folder/.test(text));
+      await t.shot('your-file');
+      await t.js(`${label('Stop using…')}.click();`);
+      await t.sleep(400);
+      await t.js(`${label('Stop using')}.click();`);
+      await t.sleep(800);
+      const after = await t.lib();
+      t.check('Stop using leaves no library', !after.current && !after.open);
+      t.check('…and your file is still there', fs.existsSync(path.join(mine, file)));
+      t.check('…and downloads go back to the app\'s folder', path.resolve(after.dir) === path.resolve(before.dir), after.dir);
+    },
+  },
+  {
+    name: 'open-file-replace', group: 'Offline library', title: 'Open your own file instead of a library the app downloaded (asks first)',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return { library: ctx.fixtureIn(path.join(ctx.profile, 'Library')) }; },
+    async run(t) {
+      const mine = path.join(t.profile, 'My Kiwix files'), before = await t.lib();
+      const old = path.join(before.dir, before.current.file);
+      process.env.E2K_TEST_OPEN_FILE = path.join(mine, before.current.file);
+      await openLibrary(t);
+      await t.js(`${label('Change library…')}.click();`);
+      await t.sleep(300);
+      await t.js(`${label('Open library file…')}.click();`);
+      t.check('It asks first', await t.waitFor(`!!${label('Use my file')}`, 4000), await t.js('return document.querySelector(".dialog:not(.offline) h2")?.textContent || "";'));
+      await t.sleep(400);
+      await t.shot('asks');
+      await t.js(`${label('Use my file')}.click();`);
+      t.check('Your file is used', await t.waitFor('(async () => { const s = await window.e2k.library.state(); return !!(s.current && s.current.own && s.open); })()', 8000));
+      t.check('The downloaded copy is deleted', !fs.existsSync(old));
+      t.check('Your file is still there', fs.existsSync(path.join(mine, before.current.file)));
+    },
+  },
+  {
+    name: 'open-file-bad', group: 'Offline library', title: 'A file that isn\'t a library is refused',
+    route: 'home', env: { E2K_LIBRARY_TEST: '1' },
+    async run(t) {
+      const bad = path.join(t.profile, 'notes.zim');
+      fs.writeFileSync(bad, 'Not a library.');
+      process.env.E2K_TEST_OPEN_FILE = bad;
+      await openLibrary(t);
+      await t.js(`${label('Open library file…')}.click();`);
+      t.check('It says why', await t.waitFor('/can’t be opened as a library/.test(document.querySelector(".offline .oerr")?.textContent || "")', 4000));
+      t.check('Nothing changes', !(await t.lib()).current);
+      await t.shot('refused');
+    },
+  },
+  {
+    name: 'other-library', group: 'Offline library', title: 'A Wikipedia library that isn\'t one of the four gets its own row',
+    // Without E2K_LIBRARY_TEST the Ray Charles library isn't one of the packs.
+    route: 'home', needs: 'fixture',
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
+    async run(t) {
+      const mine = path.join(t.profile, 'My Kiwix files');
+      process.env.E2K_TEST_OPEN_FILE = path.join(mine, libFiles(mine).find((f) => f.endsWith('.zim')));
+      await openLibrary(t);
+      await t.js(`${label('Open library file…')}.click();`);
+      t.check('It\'s installed', await t.waitFor('(async () => !!(await window.e2k.library.state()).open)()', 8000));
+      const s = await t.lib();
+      t.check('It\'s named from the file', s.current && s.current.pack === 'other' && s.current.label === 'Wikipedia: Ray Charles', JSON.stringify(s.current));
+      await t.sleep(500);
+      const text = await t.js('return document.querySelector(".offline").innerText;');
+      t.check('The window shows its row, installed', /Wikipedia: Ray Charles is installed/.test(text) && /INSTALLED/.test(text) && /Change library…/.test(text), text.slice(0, 300));
+      await t.shot('other-library');
+    },
+  },
+  ...[['update-own-delete', 'Delete it when done', false], ['update-own-keep', 'Keep it', true]].map(([name, answer, kept]) => ({
+    name, group: 'Offline library', title: `Update your own file to a newer edition: “${answer}”`,
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    // Your own copy of an older edition (the test library under an earlier date), so an update is offered.
+    setup: (ctx) => {
+      const mine = path.join(ctx.profile, 'My Kiwix files'), f = ctx.fixtureIn(mine).current;
+      const older = f.file.replace(/_\d{4}-\d{2}\.zim$/, '_2020-01.zim');
+      fs.renameSync(path.join(mine, f.file), path.join(mine, older));
+      return { library: { dir: mine, current: { ...f, file: older, date: '2020-01-01', own: true }, download: null, checked: 0 } };
+    },
+    async run(t) {
+      const before = await t.lib(), old = path.join(before.dir, before.current.file);
+      await openLibrary(t);
+      t.check('An update is offered', await t.waitFor(`!!${label('Update')}`, 20000));
+      await t.js(`${label('Update')}.click();`);
+      t.check('It asks about your old file', await t.waitFor(`!!${label(answer)}`, 4000));
+      await t.sleep(400);
+      await t.shot('asks');
+      await t.js(`${label(answer)}.click();`);
+      const s = await waitInstalled(t);
+      t.check('The new edition is installed', !!(s.current && !/2020-01/.test(s.current.file) && s.open), JSON.stringify(s.current));
+      t.check(kept ? 'Your old file is kept' : 'Your old file is deleted', fs.existsSync(old) === kept);
+    },
+  })),
+  {
+    name: 'folder-has-library', group: 'Offline library', title: 'Change… picks a folder that already has a library: it\'s used',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Old library')); return {}; },
+    async run(t) {
+      process.env.E2K_TEST_CHOOSE_DIR = path.join(t.profile, 'Old library');
+      const r = await t.js('return await window.e2k.library.chooseDir();');
+      t.check('The library in it is used', !!(r.current && r.open) && r.dir.endsWith('Old library'), r.error || JSON.stringify(r.current));
+    },
+  },
+
+  {
     name: 'portable-readonly', group: 'Offline library', title: 'The portable version in a folder it can’t save to',
     route: 'home', env: { E2K_LIBRARY_TEST: '1', PORTABLE_EXECUTABLE_DIR: process.platform === 'win32' ? process.env.WINDIR : '/' },
     async run(t) {

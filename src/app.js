@@ -2192,8 +2192,7 @@
     const st = await window.e2k.library.state().catch(() => null);
     if (netPop) return;
     const has = !!(st && st.open), off = isOffline();
-    const cur = st && st.current && st.packs.find((p) => p.id === st.current.pack);
-    const name = st && st.override ? st.override : cur ? cur.label : st && st.open ? st.open.title : '';
+    const name = st && st.override ? st.override : st && st.current ? st.current.label : st && st.open ? st.open.title : '';
     const opt = (on, title, sub, onpick) => h('div', { class: 'it' + (on ? ' on' : ''), role: 'menuitemradio', 'aria-checked': String(on), onclick: onpick },
       h('i', { class: 'rb' }), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
     const first = h('input', { type: 'checkbox', checked: store.get('libraryFirst', false), disabled: off || !has,
@@ -2227,17 +2226,15 @@
   function libChanged(s) {
     const wasMissing = !!libMissing;
     hasLib = !!(s && s.open);
-    const cur = s && s.current && s.packs.find((p) => p.id === s.current.pack);
-    libMissing = s && s.missing ? { label: cur ? cur.label : 'Your offline library', where: s.missing.where } : null;
+    libMissing = s && s.missing ? { label: s.current ? s.current.label : 'Your offline library', where: s.missing.where } : null;
     if (!hasLib && !libMissing && isOffline()) setOffline(false);
     updateNet();
     if (wasMissing && hasLib && (isOffline() || nav.stack[nav.idx] === 'home')) reload();
     if (hasLib && !s.download && store.get('offlineWhenReady', false)) {
       store.set('offlineWhenReady', false);
       if (isOffline()) return;
-      const cur = s.current && s.packs.find((p) => p.id === s.current.pack);
       dialog('Encyclopedia 2000', 'Your offline library is ready',
-        [`${cur ? cur.label : s.open.title} · ${s.open.articles.toLocaleString('en-US')} articles. Switch to Offline mode now? You can switch back any time from the status bar.`],
+        [`${s.current ? s.current.label : s.open.title} · ${s.open.articles.toLocaleString('en-US')} articles. Switch to Offline mode now? You can switch back any time from the status bar.`],
         [['Stay online'], ['Switch to Offline', () => setOffline(true), true]]);
     }
   }

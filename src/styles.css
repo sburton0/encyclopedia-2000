@@ -801,6 +801,8 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .offline .bar i { display: block; height: 100%; background: linear-gradient(90deg, #c97a10, #f5a623, #ffe0a0); box-shadow: 0 0 8px #f5a623; transition: width .4s; }
 .offline .prog { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: #b9c6e0; }
 .offline .oerr { margin: 10px 0 0; padding: 8px 12px; border-left: 3px solid #e0604a; background: rgba(224, 96, 74, .12); font-size: 12.5px; color: #ffd8cf; }
+.offline .have { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border: 1px dashed var(--ink-3); font-size: 12.5px; color: #dbe5f7; }
+.offline .have .go { flex: none; }
 .offline .where { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 12px; color: #b9c6e0; }
 .offline .where code { flex: 1; min-width: 0; padding: 4px 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(0, 0, 0, .35); border: 1px solid var(--ink-3); font: 11.5px Consolas, "DejaVu Sans Mono", monospace; color: #fff; }
 .offline .wherenote { margin: 4px 0 0; font-size: 11.5px; color: #b9c6e0; opacity: .8; }

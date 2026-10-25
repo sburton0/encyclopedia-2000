@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('e2k', {
     cancel: () => ipcRenderer.invoke('library:cancel'),
     remove: () => ipcRenderer.invoke('library:remove'),
     chooseDir: () => ipcRenderer.invoke('library:choose-dir'),
+    openFile: () => ipcRenderer.invoke('library:open-file'),
+    useFile: (file) => ipcRenderer.invoke('library:use-file', file),
     cancelMove: () => ipcRenderer.invoke('library:cancel-move'),
     openDir: () => ipcRenderer.invoke('library:open-dir'),
     onUpdate: (cb) => ipcRenderer.on('library:update', (_e, s) => cb(s)),

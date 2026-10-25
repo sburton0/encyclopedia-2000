@@ -5,8 +5,9 @@
 // - Remembers the library, its folder, and any unfinished download in userData/library.json.
 // The page talks to it over IPC (library:*), and hears about changes and progress on 'library:update'.
 // Development settings: E2K_ZIM=<file.zim> opens that file instead; E2K_LIBRARY_TEST=1 adds a tiny test pack.
-// For the automated tests (tools/test): E2K_TEST_CHOOSE_DIR=<folder> answers Change… without the folder dialog, and
-// E2K_TEST_COPY_MOVE=1 moves a library the way it moves to another drive (copied, with progress) even on the same one.
+// For the automated tests (tools/test): E2K_TEST_CHOOSE_DIR=<folder> answers Change… without the folder dialog,
+// E2K_TEST_OPEN_FILE=<file> answers Open library file… without the file dialog, and E2K_TEST_COPY_MOVE=1 moves a
+// library the way it moves to another drive (copied, with progress) even on the same one.
 const { app, protocol, ipcMain, BrowserWindow, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
@@ -43,7 +44,10 @@ let move = null;           // the library being copied to a folder on another dr
 let missing = false;       // the installed library can't be read (on a drive that was disconnected, or moved or deleted)
 let watch = null;          // while it's missing, checks every few seconds whether it's back
 let state = { dir: '', current: null, download: null, catalog: null, checked: 0 };
-// state.current:  { pack, file, date, size }      the installed library
+// state.current:  { pack, file, date, size, own, label }   the installed library; own: a file the user opened
+//                 themselves (never deleted without asking); pack 'other' (with its own label) for a Wikipedia
+//                 library that isn't one of the packs
+// state.appDir:   while the user's own file is in use, the folder downloads went to before (used again after it)
 // state.download: { pack, file, url, date, size, pieces, done, status }   status: downloading | paused | error
 // state.moving:   the unfinished copy of a move, deleted at the next start if the app closed mid-move
 const stateFile = () => path.join(app.getPath('userData'), 'library.json');
@@ -92,6 +96,75 @@ function watchPresence() {
 function broadcast(extra) {
   const s = { ...publicState(), ...extra };
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('library:update', s);
+}
+
+// ---------- the user's own library files ----------
+// What a library file holds, from its own details (and its name, as Kiwix names them:
+// wikipedia_en_all_maxi_2025-10.zim): whether it's the English Wikipedia, which pack it is (or 'other'), a name to
+// show, its edition, and its size. null if it can't be opened as a library at all.
+function identify(file) {
+  let z;
+  try { z = new Zim(file); } catch { return null; }
+  try {
+    const base = path.basename(file), m = /^(.+?)_(maxi|nopic|mini)_(\d{4}-\d{2})\.zim$/.exec(base) || [];
+    const name = z.meta('Name') || m[1] || '', flavour = z.meta('Flavour') || m[2] || '';
+    const langs = (z.meta('Language') || '').split(','), title = z.meta('Title');
+    const wiki = (/^wikipedia_en_/.test(name) || z.meta('Creator') === 'Wikipedia') && (!langs[0] || langs.includes('eng'));
+    const pack = packs().find((p) => p.name === name && p.flavour === flavour);
+    const label = `${!title || /^wikipedia$/i.test(title) ? 'Wikipedia' : `Wikipedia: ${title}`}${flavour === 'nopic' ? ' (text only)' : flavour === 'mini' ? ' (mini)' : ''}`;
+    return { wiki, pack: pack ? pack.id : 'other', label: pack ? pack.label : label, file: base,
+      date: (z.meta('Date') || (m[3] ? m[3] + '-01' : '')).slice(0, 10), size: fs.statSync(file).size };
+  } catch { return null; } finally { try { z.close(); } catch {} }
+}
+const labelOf = (c) => (c ? c.label || (packs().find((p) => p.id === c.pack) || {}).label || c.file : '');
+// Why a file can't be used, or '' if it can.
+function unusable(file, id) {
+  if (!id) return `${path.basename(file)} can’t be opened as a library. It may be damaged, or not a library file.`;
+  if (!id.wiki) return `${path.basename(file)} isn’t an English Wikipedia library. Encyclopedia 2000 can only read English Wikipedia for now.`;
+  return '';
+}
+// Uses a library file where it is (nothing is copied). A library the app downloaded is deleted (the window asks
+// first); one of the user's own is only stopped being used.
+function useFile(file) {
+  if (override) return { ...publicState(), error: 'A test library is in use (E2K_ZIM).' };
+  if (move || state.download) return publicState();
+  const id = identify(file), why = unusable(file, id);
+  if (why) return { ...publicState(), error: why };
+  const old = state.current, oldFile = old && path.join(libDir(), old.file);
+  if (oldFile && path.resolve(oldFile) === path.resolve(file)) return publicState();
+  if (!openFile(file)) return { ...publicState(), error: unusable(file, null) };
+  if (missing) found();
+  if (!old || !old.own) state.appDir = state.dir;
+  state.dir = storeDir(path.dirname(file));
+  state.current = { pack: id.pack, file: id.file, date: id.date, size: id.size, own: true, ...(id.pack === 'other' ? { label: id.label } : {}) };
+  if (old && !old.own && oldFile) { try { fs.unlinkSync(oldFile); } catch {} }
+  save(); broadcast();
+  return publicState();
+}
+// Open library file…: the file dialog, then a check of the file; replacing a library the app downloaded is
+// confirmed in the window first ({ confirm }), which then calls useFile.
+async function pickFile(win) {
+  if (move || state.download) return publicState();
+  const r = process.env.E2K_TEST_OPEN_FILE ? { filePaths: [process.env.E2K_TEST_OPEN_FILE] }
+    : await dialog.showOpenDialog(win, { title: 'Open a library file', filters: [{ name: 'Library files (.zim)', extensions: ['zim'] }], properties: ['openFile'] });
+  if (r.canceled || !r.filePaths[0]) return publicState();
+  const file = r.filePaths[0], id = identify(file), why = unusable(file, id);
+  if (why) return { ...publicState(), error: why };
+  const cur = state.current;
+  if (cur && !cur.own && !missing && path.resolve(path.join(libDir(), cur.file)) !== path.resolve(file)) {
+    return { ...publicState(), confirm: { file, label: id.label, old: labelOf(cur), oldSize: cur.size } };
+  }
+  return useFile(file);
+}
+// The best English Wikipedia library in a folder, if any: one of the packs before any other, the biggest pack, then
+// the newest edition.
+function libraryIn(dir) {
+  let names = [];
+  try { names = fs.readdirSync(dir).filter((n) => /\.zim$/i.test(n)); } catch {}
+  const rank = (id) => (id.pack === 'other' ? 0 : packs().length - packs().findIndex((p) => p.id === id.pack));
+  const ids = names.map((n) => identify(path.join(dir, n))).filter((id) => id && id.wiki);
+  ids.sort((a, b) => rank(b) - rank(a) || b.date.localeCompare(a.date) || b.size - a.size);
+  return ids[0] ? path.join(dir, ids[0].file) : '';
 }
 
 // ---------- reading ----------
@@ -400,7 +473,7 @@ function spaceCheck(packId) {
   return { ok: free >= need, ...info, freeIfRemoved: free + old, canRemoveOld: !!state.current && free + old >= need };
 }
 
-async function startDownload(packId, { removeOld = false } = {}) {
+async function startDownload(packId, { removeOld = false, keepOld = false } = {}) {
   if (job || move || missing) return { error: 'busy' };
   const c = state.catalog?.[packId] || (await fetchCatalog())[packId];
   if (!c) return { error: 'This pack isn’t in Kiwix’s catalog right now.' };
@@ -409,10 +482,12 @@ async function startDownload(packId, { removeOld = false } = {}) {
   if (sp.tooSmall) return { error: 'too-small', ...sp };
   if (sp.fat32 && c.size > 4 * 1024 ** 3) return { error: 'fat32', ...sp };
   if (!sp.ok && !(removeOld && sp.canRemoveOld)) return { error: 'space', ...sp };
-  if (removeOld && !sp.ok) removeCurrent();
+  if (removeOld && !sp.ok) removeCurrent({ forDownload: true });
   if (!state.download || state.download.pack !== packId || state.download.file !== c.file) {
     state.download = { pack: packId, file: c.file, url: c.url, date: c.date, size: c.size, done: 0, status: 'downloading' };
   }
+  // The user's own file is replaced only if they said so (keepOld: they chose to keep it).
+  state.download.keepOld = keepOld;
   state.download.status = 'downloading';
   state.download.resume = false;
   save(); broadcast();
@@ -503,11 +578,11 @@ function progress(bytes) {
 async function finish(part) {
   const d = state.download, file = path.join(libDir(), d.file);
   fs.renameSync(part, file);
-  const old = state.current && path.join(libDir(), state.current.file);
+  const old = state.current && path.join(libDir(), state.current.file), keep = state.current && state.current.own && d.keepOld;
   if (!override) openFile(file);
   state.current = { pack: d.pack, file: d.file, date: d.date, size: d.size };
   state.download = null; job = null;
-  if (old && old !== file) { try { fs.unlinkSync(old); } catch {} }
+  if (old && old !== file && !keep) { try { fs.unlinkSync(old); } catch {} }
   save(); broadcast();
 }
 
@@ -517,7 +592,7 @@ function pause() { if (job) { job.abort(); job = null; } if (state.download) { s
 function pauseForQuit() { if (job) { job.abort(); job = null; } if (state.download) { state.download.status = 'paused'; state.download.resume = true; } cancelMove(); save(); }
 const busy = () => !!(move || (job && state.download && state.download.status === 'downloading'));
 function quitInfo() {
-  if (move) { const p = packs().find((x) => x.id === state.current.pack); return { moving: true, label: p ? p.label : state.current.file, received: move.copied, size: move.size }; }
+  if (move) return { moving: true, label: labelOf(state.current), received: move.copied, size: move.size };
   const d = state.download, p = d && packs().find((x) => x.id === d.pack);
   return d && { label: p ? p.label : d.file, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), size: d.size };
 }
@@ -533,12 +608,17 @@ function cancel() {
   if (state.download) { try { fs.unlinkSync(path.join(libDir(), state.download.file + '.part')); } catch {} }
   state.download = null; save(); broadcast();
 }
-function removeCurrent() {
+// Remove… deletes a library the app downloaded. The user's own file is only stopped being used (Stop using…), and
+// downloads go back to the folder they went to before; it's deleted only to make room for a download they asked for.
+function removeCurrent({ forDownload = false } = {}) {
   if (!state.current || move) return;
   if (lib && !override) { try { lib.close(); } catch {} lib = null; }
-  try { fs.unlinkSync(path.join(libDir(), state.current.file)); } catch {}
+  const own = state.current.own;
+  if (!own || forDownload) { try { fs.unlinkSync(path.join(libDir(), state.current.file)); } catch {} }
   // Forgetting a missing library: a new download goes to the app's own folder, not a drive that isn't there.
   if (missing) { found(); if (!fs.existsSync(libDir())) state.dir = ''; }
+  if (own && !forDownload) state.dir = state.appDir && fs.existsSync(path.resolve(dataDir(), state.appDir)) ? state.appDir : '';
+  if (own) delete state.appDir;
   state.current = null; save(); broadcast();
 }
 
@@ -553,7 +633,12 @@ async function chooseDir(win) {
   // Somewhere files can't be created (the root of C:, for example): say so instead of choosing it.
   probeCache.delete(dir);
   if (!writable(dir)) return { ...publicState(), error: `Encyclopedia 2000 can’t save files in ${dir}. Choose a folder inside it, such as Documents.` };
-  if (!state.current) { state.dir = storeDir(dir); save(); broadcast(); return publicState(); }
+  // A folder that already holds a library (after reinstalling, or one from Kiwix) uses it.
+  if (!state.current) {
+    const found = libraryIn(dir);
+    if (found) return useFile(found);
+    state.dir = storeDir(dir); save(); broadcast(); return publicState();
+  }
   // A missing library: the folder chosen should be where it is now.
   if (missing) {
     const file = path.join(dir, state.current.file);
@@ -644,7 +729,7 @@ function publicState() {
     // Each pack's fit on the current drive (see spaceCheck), so the dialog can grey out the ones that can't go there.
     packs: packs().map(({ id, label, desc, recommended, covers }) => ({ id, label, desc, recommended, covers, ...(state.catalog?.[id] || {}),
       fit: state.catalog?.[id] && !(state.current && state.current.pack === id) ? spaceCheck(id) : null })),
-    current: state.current, override: override ? path.basename(override) : '',
+    current: state.current && { ...state.current, label: labelOf(state.current) }, override: override ? path.basename(override) : '',
     open: openInfo(),
     missing: missing ? { where: libDir() } : null,
     move: move && { to: move.dir, copied: move.copied, size: move.size, speed: move.speed, eta: move.eta },
@@ -693,6 +778,8 @@ function setup({ offline = () => false } = {}) {
   ipcMain.handle('library:remove', () => { removeCurrent(); return publicState(); });
   ipcMain.handle('library:cancel-move', () => { cancelMove(); return publicState(); });
   ipcMain.handle('library:choose-dir', (e) => chooseDir(BrowserWindow.fromWebContents(e.sender)));
+  ipcMain.handle('library:open-file', (e) => pickFile(BrowserWindow.fromWebContents(e.sender)));
+  ipcMain.handle('library:use-file', (_e, file) => useFile(file));
   ipcMain.handle('library:open-dir', () => shell.openPath(libDir()));
   // Check for new editions at most once a month, quietly: only with a library installed, and never in Offline mode
   // (people who don't use the offline library never contact Kiwix).

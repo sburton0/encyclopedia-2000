@@ -34,7 +34,7 @@ window.E2KLibrary = (() => {
     const list = h('div', { class: 'packs' });
     const err = h('p', { class: 'oerr', hidden: true });
     const dirCode = h('code');
-    const whereLbl = h('span', {}, 'Save to');
+    const whereLbl = h('span', {}, 'Library folder');
     const changeBtn = h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); fitUp(); } }, 'Change…');
     const whereNote = h('p', { class: 'wherenote', hidden: true }, 'To change the folder, cancel the download or let it finish.');
     const portableNote = h('p', { class: 'wherenote', hidden: true }, 'This portable copy is in a folder it can’t save to, so it keeps its settings and library on this computer instead.');
@@ -68,7 +68,13 @@ window.E2KLibrary = (() => {
     const close = () => { dlg = null; ov.remove(); };
     const showErr = (msg) => { err.textContent = msg || ''; err.hidden = !msg; };
 
-    const packOf = (id) => st.packs.find((p) => p.id === id);
+    // The installed library's pack; a Wikipedia library that isn't one of them (the user's own file) gets one of its own.
+    const packOf = (id) => st.packs.find((p) => p.id === id)
+      || (st.current && st.current.pack === id ? { id, label: st.current.label, desc: '', covers: [] } : undefined);
+    const own = () => !!(st.current && st.current.own);
+    // Open library file…: the user's own Kiwix file, used where it is.
+    const haveRow = h('div', { class: 'have' }, h('span', {}, 'Already have a Wikipedia library file from Kiwix?'),
+      h('button', { class: 'go', onclick: () => openLibFile() }, 'Open library file…'));
     // With a library installed, only it (and any download in progress) shows; Change library… reveals the rest.
     let showAll = false;
     function draw() {
@@ -86,6 +92,7 @@ window.E2KLibrary = (() => {
       } else status.replaceChildren(dot('#8f9dbd'), h('span', {}, h('b', {}, 'No offline library yet.'), ' Articles load from Wikipedia while you’re online.'));
       // the packs
       const visible = !st.current || showAll ? [...st.packs] : st.packs.filter((p) => p.id === st.current.pack || (d && d.pack === p.id));
+      if (cur && !st.packs.some((p) => p.id === cur.id)) visible.push(cur);
       // The installed library first; everything else (including a pack that's downloading) keeps its place in the list.
       const rank = (p) => (st.current && p.id === st.current.pack ? 0 : 1);
       visible.sort((a, b) => rank(a) - rank(b));
@@ -109,10 +116,11 @@ window.E2KLibrary = (() => {
               h('span', {}, mv.speed ? `${size(mv.speed)}/s · ${left(mv.eta)}` : ''))];
         } else if (st.current && st.current.pack === p.id) {
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
-          desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
+          if (own()) tags.push(h('span', { class: 'tag inc' }, 'YOUR FILE'));
+          desc = `${edition(st.current.date)} edition · ${size(st.current.size)} · ${!own() ? 'on this computer' : st.current.pack === 'other' ? st.current.file : 'your own file'}`;
           if (st.update && !d) acts.push(h('button', { class: 'go primary', onclick: () => start(p) }, 'Update'));
           if (!showAll) acts.push(h('button', { class: 'go', onclick: () => { showAll = true; draw(); } }, 'Change library…'));
-          acts.push(h('button', { class: 'go', onclick: () => remove(p), disabled: !!(d && d.status === 'downloading') }, 'Remove…'));
+          acts.push(h('button', { class: 'go', onclick: () => remove(p), disabled: !!(d && d.status === 'downloading') }, own() ? 'Stop using…' : 'Remove…'));
         } else if (d && d.pack === p.id) {
           const pct = d.size ? Math.min(100, (100 * d.received) / d.size) : 0;
           acts.push(h('span', { class: 'size' }, size(d.size || p.size)));
@@ -148,10 +156,11 @@ window.E2KLibrary = (() => {
         return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') + (mv && st.current && st.current.pack === p.id ? ' dl' : '') },
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
           h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
-      }), ...(toggle && showAll ? [toggle] : []));
+      }), ...((!st.current || showAll) && !mv && !st.override ? [haveRow] : []), ...(toggle && showAll ? [toggle] : []));
+      haveRow.querySelector('button').disabled = !!d;
       // One line: a long path is shortened in the middle, with the whole path on hover.
       // While a library downloads, its folder can't change; while one moves, the row shows where it's going.
-      whereLbl.textContent = mv ? 'Moving to' : 'Save to';
+      whereLbl.textContent = mv ? 'Moving to' : 'Library folder';
       const shown = mv ? mv.to : st.dir;
       // On a Mac or Linux, the home folder is written "~", so a shortened path still says where it starts.
       const home = st.home && shown.startsWith(st.home + '/') ? '~' + shown.slice(st.home.length) : shown;
@@ -165,8 +174,17 @@ window.E2KLibrary = (() => {
     dlg = (s) => { st = s; if (s.moveError) showErr(s.moveError); draw(); fitUp(); };
 
     // What switching packs means, before anything is downloaded or removed.
+    // Resolves true to go ahead, false to cancel, or { keepOld } when the library being replaced is the user's own file,
+    // which is deleted only if they say so.
     function confirmSwitch(p) {
       const cur = packOf(st.current.pack);
+      if (cur && own()) {
+        const heading = st.current.pack === p.id ? `Update ${p.label}?` : `Switch to ${p.label}?`;
+        const what = st.current.pack === p.id ? `The ${edition(st.update && st.update.date)} edition` : p.label;
+        return new Promise((res) => dialog('Offline Library', heading,
+          [`${what} will download to the same folder. When it’s done, should your old file (${st.current.file}, ${size(st.current.size)}) be deleted?`],
+          [['Delete it when done', () => res({ keepOld: false }), true], ['Keep it', () => res({ keepOld: true })], ['Cancel', () => res(false)]]));
+      }
       if (!cur || st.current.pack === p.id) return Promise.resolve(true);
       const pics = !/nopic/.test(cur.id) && /nopic/.test(p.id);
       let heading, body;
@@ -184,8 +202,10 @@ window.E2KLibrary = (() => {
       return new Promise((res) => dialog('Offline Library', heading, body, [[heading.replace('?', ''), () => res(true), true], ['Cancel', () => res(false)]]));
     }
     async function start(p, resume = false) {
-      if (!resume && st.current && !(await confirmSwitch(p))) return;
-      let r = await L.download(p.id);
+      const ok = !resume && st.current ? await confirmSwitch(p) : true;
+      if (!ok) return;
+      const keepOld = !!(ok && ok.keepOld);
+      let r = await L.download(p.id, { keepOld });
       // Suggest the biggest library that does fit this drive, if any.
       const alt = r.fits && st.packs.filter((x) => r.fits.includes(x.id) && x.id !== p.id).sort((a, b) => b.size - a.size)[0];
       const orAlt = alt ? `, or pick ${alt.label} (${size(alt.size)})` : '';
@@ -199,7 +219,7 @@ window.E2KLibrary = (() => {
             `Remove ${cur.label} now? You’ll have only your saved articles until the download finishes.`],
           [[`Remove ${cur.label} and download`, () => res(true), true], ['Cancel', () => res(false)]]));
           if (!ok) return;
-          r = await L.download(p.id, { removeOld: true });
+          r = await L.download(p.id, { removeOld: true, keepOld });
         } else return showErr(`${p.label} needs ${size(r.need)} free, and ${size(r.free)} is free here. Free up space, or choose another drive with Change…`);
       }
       // The error stays up until there's a new outcome, so clicking again doesn't make it flash.
@@ -218,7 +238,26 @@ window.E2KLibrary = (() => {
         [['Forget', () => res(true)], ['Cancel', () => res(false), true]]));
       if (ok) { st = await L.remove(); showErr(''); draw(); fitUp(); }
     }
+    async function openLibFile() {
+      let r = await L.openFile();
+      if (r.confirm) {
+        const c = r.confirm;
+        const ok = await new Promise((res) => dialog('Offline Library', `Use your file instead of ${c.old}?`,
+          [`${c.old} (${size(c.oldSize)}), which Encyclopedia 2000 downloaded, will be deleted to save space.`],
+          [['Use my file', () => res(true), true], ['Cancel', () => res(false)]]));
+        if (!ok) return;
+        r = await L.useFile(c.file);
+      }
+      st = r; showErr(r.error || ''); if (!r.error) showAll = false; draw(); fitUp();
+    }
     async function remove(p) {
+      if (own()) {
+        const ok = await new Promise((res) => dialog('Offline Library', `Stop using ${p.label}?`,
+          [`Your file stays in ${st.dir}. Articles will load from Wikipedia again, and only your saved articles will work offline.`],
+          [['Stop using', () => res(true)], ['Cancel', () => res(false), true]]));
+        if (ok) { st = await L.remove(); draw(); fitUp(); }
+        return;
+      }
       const ok = await new Promise((res) => dialog('Offline Library', `Remove ${p.label}?`,
         [`This frees ${size(st.current.size)}. Articles will load from Wikipedia again, and only your saved articles will work offline.`],
         [['Remove', () => res(true)], ['Cancel', () => res(false), true]]));
