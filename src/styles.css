@@ -125,6 +125,7 @@ button { font-family: inherit; cursor: default; }
 .donate .fbopt i.wp { background: #3a3a3a; font-family: Georgia, "Times New Roman", serif; }
 .donate .fbopt i.tip { background: #e0565b; }
 .donate p.fine { margin-top: 2px; font-size: 11.5px; color: var(--sky); }
+.dialog .db p.fine { margin-top: 6px; font-size: 11.5px; opacity: .75; overflow-wrap: anywhere; }
 .fbopts { display: grid; gap: 8px; margin: 12px 0 10px; }
 .fbopt { display: flex; gap: 12px; align-items: center; width: 100%; padding: 10px 12px; text-align: left; background: rgba(var(--deep), .45);
          border: 1px solid rgba(var(--edge), .3); color: #fff; font: 13px/1.35 "Segoe UI"; }

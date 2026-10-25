@@ -1413,7 +1413,17 @@
     else if (s.state === 'downloading') dialog(title, 'An update is on its way', [`Version ${prettyVersion(s.version)} is downloading. You’ll see a Restart Now button in the status bar when it’s ready.`]);
     else if (s.state === 'none') dialog(title, 'You’re up to date', [`Encyclopedia 2000 ${prettyVersion((await window.e2k.appInfo()).version)} is the newest version.`]);
     else if (s.state === 'dev') dialog(title, 'Updates aren’t available here', ['This copy of Encyclopedia 2000 is running from its source folder. Updates work in the installed app.']);
-    else dialog(title, 'Couldn’t check for updates', [Wiki.connected() ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.']);
+    else {
+      // What went wrong, in a small Details line, so a problem can be reported exactly. A copy missing its update file
+      // (Mac 0.4.1 and 0.4.2 shipped that way) can't ever check, so it says where to get a working one.
+      const msg = s.message || '';
+      const broken = /app-update\.yml/.test(msg);
+      dialog(title, 'Couldn’t check for updates', [
+        broken ? 'This copy of Encyclopedia 2000 can’t check for updates. Download the newest version from encyclopedia2000.com, and updates will work again.'
+          : Wiki.connected() ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.',
+        msg ? h('p', { class: 'fine' }, `Details: ${msg}`) : null].filter(Boolean),
+      broken ? [['Open the Website', () => window.e2k.openExternal('https://encyclopedia2000.com'), true], ['Close']] : undefined);
+    }
   }
 
   // ---------- donate ----------
