@@ -418,7 +418,7 @@ module.exports = [
       const keys = await t.js('return [...document.querySelectorAll(".dialog.keys kbd")].map((k) => k.textContent);');
       if (keys.length) {
         t.check('Shortcuts are written the Mac way (⇧⌘P, ⌘F)', keys.includes('⇧⌘P') && keys.includes('⌘F'), keys.slice(0, 8).join(' '));
-        t.check('No "+" between keys', !(await t.js('return !!document.querySelector(".dialog.keys .kplus");')));
+        t.check('No "+" between keys', !(await t.js('return [...document.querySelectorAll(".dialog.keys .kplus")].some((k) => k.textContent.trim() === "+");')));
         await t.shot('shortcuts');
       } else t.skip('Shortcuts dialog', 'couldn’t open it from the test (macOS shortcuts come from the menu bar)');
       await openLibrary(t);
