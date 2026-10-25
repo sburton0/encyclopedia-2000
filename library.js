@@ -649,7 +649,7 @@ function publicState() {
     missing: missing ? { where: libDir() } : null,
     move: move && { to: move.dir, copied: move.copied, size: move.size, speed: move.speed, eta: move.eta },
     download: d && { ...d, url: undefined, received: Math.min(d.size || 0, (d.done || 0) * (d.pieceLength || 0)), speed: job ? job.speed : 0, eta: job ? job.eta : 0 },
-    dir: libDir(), free: freeSpace(libDir()), checked: state.checked,
+    dir: libDir(), home: require('os').homedir(), portableFallback: !!process.env.E2K_PORTABLE_FALLBACK, free: freeSpace(libDir()), checked: state.checked,
     update: state.current && state.catalog?.[state.current.pack] && state.catalog[state.current.pack].file !== state.current.file ? state.catalog[state.current.pack] : null,
   };
 }

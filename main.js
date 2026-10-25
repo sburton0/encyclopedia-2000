@@ -13,8 +13,18 @@ if (process.platform === 'win32') app.setAppUserModelId('com.svid.encyclopedia20
 
 // The portable version (no installer) keeps its settings, favorites, and progress in a folder next to the .exe,
 // so it can run from a USB stick and leaves nothing behind on the computer.
+// Run from somewhere it can't save (a DVD, a locked network folder, a write-protected stick), it uses the computer's
+// usual app-data folder instead, and the Offline Library window says so (E2K_PORTABLE_FALLBACK).
 const PORTABLE_DIR = process.env.PORTABLE_EXECUTABLE_DIR;
-if (PORTABLE_DIR) app.setPath('userData', path.join(PORTABLE_DIR, 'Encyclopedia 2000 Data'));
+if (PORTABLE_DIR) {
+  const data = path.join(PORTABLE_DIR, 'Encyclopedia 2000 Data');
+  try {
+    fs.mkdirSync(data, { recursive: true });
+    const probe = path.join(data, '.e2k-write-check');
+    fs.writeFileSync(probe, ''); fs.unlinkSync(probe);
+    app.setPath('userData', data);
+  } catch { process.env.E2K_PORTABLE_FALLBACK = '1'; }
+}
 
 // On Linux, Chromium only uses the system's text-to-speech service (speech-dispatcher) for Read Aloud when asked to.
 if (process.platform === 'linux') app.commandLine.appendSwitch('enable-speech-dispatcher');

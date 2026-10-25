@@ -6,6 +6,7 @@
 //   reuse:       start from the profile another scenario left (a restart)
 //   needs:       'fixture' when the scenario needs the small test library that "download" saves
 //   env:         extra environment (E2K_LIBRARY_TEST=1 adds the tiny Ray Charles library, 3 MB)
+//   only:        a platform ('win32', 'darwin', 'linux') when the scenario only applies there
 //   run(t):      the test; t is described in runner.js
 //   after(ctx):  runs in run.js once the app has quit
 // The offline library has had the most problems, so most scenarios are about it: downloading, pausing, resuming after a
@@ -383,6 +384,45 @@ module.exports = [
       t.check('It starts out missing', !!(await t.lib()).missing);
       const r = await t.js('return await window.e2k.library.chooseDir();');
       t.check('Change… finds it there', !r.missing && !!r.open && r.dir.endsWith('Moved by hand'), r.error || r.dir);
+    },
+  },
+
+  {
+    name: 'portable-readonly', group: 'Offline library', title: 'The portable version in a folder it can’t save to',
+    route: 'home', env: { E2K_LIBRARY_TEST: '1', PORTABLE_EXECUTABLE_DIR: process.platform === 'win32' ? process.env.WINDIR : '/' },
+    async run(t) {
+      const s = await t.lib();
+      t.check('It falls back to the computer’s app-data folder', s.portableFallback === true);
+      await openLibrary(t);
+      t.check('The Offline Library window says so', await t.js('return !document.querySelectorAll(".offline .wherenote")[1].hidden && /can’t save to/.test(document.querySelector(".offline").innerText);'));
+      await t.shot('portable-fallback');
+    },
+  },
+
+  // ---------- macOS ----------
+  {
+    name: 'mac-wording', group: 'General', title: 'Mac: menu names, shortcut style, and paths', only: 'darwin',
+    route: 'home', env: { E2K_LIBRARY_TEST: '1' },
+    async run(t) {
+      await t.js(`localStorage.setItem('e2k.whatsNewSeen', JSON.stringify('0.4'));`);
+      t.win.webContents.reload();
+      await t.waitFor('document.querySelector(".dialog.whatsnew")', 10000);
+      const wn = await t.js('return document.querySelector(".dialog.whatsnew")?.innerText || "";');
+      t.check('What’s New says Encyclopedia 2000 › Offline Library, not Tools', /Encyclopedia 2000 › Offline Library/.test(wn) && !/Tools ›/.test(wn));
+      t.check('…and ⌘F', /⌘F/.test(wn));
+      await t.js('document.querySelector(".dialog.whatsnew .go:last-child")?.click();');
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", metaKey: true, bubbles: true }));');
+      await t.sleep(300);
+      if (!(await t.js('return !!document.querySelector(".dialog.keys");'))) await t.js('E2K.go("home");');
+      const keys = await t.js('return [...document.querySelectorAll(".dialog.keys kbd")].map((k) => k.textContent);');
+      if (keys.length) {
+        t.check('Shortcuts are written the Mac way (⇧⌘P, ⌘F)', keys.includes('⇧⌘P') && keys.includes('⌘F'), keys.slice(0, 8).join(' '));
+        t.check('No "+" between keys', !(await t.js('return !!document.querySelector(".dialog.keys .kplus");')));
+        await t.shot('shortcuts');
+      } else t.skip('Shortcuts dialog', 'couldn’t open it from the test (macOS shortcuts come from the menu bar)');
+      await openLibrary(t);
+      const where = await t.js('return document.querySelector(".offline .where code").textContent;');
+      t.check('The library folder starts with ~', where.startsWith('~/'), where);
     },
   },
 

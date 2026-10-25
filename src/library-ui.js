@@ -37,6 +37,7 @@ window.E2KLibrary = (() => {
     const whereLbl = h('span', {}, 'Save to');
     const changeBtn = h('button', { class: 'go', onclick: async () => { st = await L.chooseDir(); showErr(st.error || ''); draw(); fitUp(); } }, 'Change…');
     const whereNote = h('p', { class: 'wherenote', hidden: true }, 'To change the folder, cancel the download or let it finish.');
+    const portableNote = h('p', { class: 'wherenote', hidden: true }, 'This portable copy is in a folder it can’t save to, so it keeps its settings and library on this computer instead.');
     const freeTxt = h('span');
     const first = h('input', { type: 'checkbox', checked: pref('libraryFirst', false), onchange: () => { localStorage.setItem('e2k.libraryFirst', JSON.stringify(first.checked)); picChoice(); api.updateNet && api.updateNet(); } });
     // Under "library first": sharp pictures from the internet when connected, or the library's own (smaller) pictures.
@@ -56,7 +57,7 @@ window.E2KLibrary = (() => {
         h('div', { class: 'ob' },
           h('p', { class: 'intro' }, 'Download Wikipedia to this computer to read, search, and explore without an internet connection.'),
           status, list, err,
-          h('div', { class: 'where' }, whereLbl, dirCode, changeBtn, freeTxt), whereNote,
+          h('div', { class: 'where' }, whereLbl, dirCode, changeBtn, freeTxt), whereNote, portableNote,
           h('div', { class: 'opts' },
             h('label', { class: 'opt' }, first, h('span', {}, 'Use the offline library first, even when online (faster; uses less data)')), pics),
           h('div', { class: 'kiwix' },
@@ -152,10 +153,13 @@ window.E2KLibrary = (() => {
       // While a library downloads, its folder can't change; while one moves, the row shows where it's going.
       whereLbl.textContent = mv ? 'Moving to' : 'Save to';
       const shown = mv ? mv.to : st.dir;
-      dirCode.textContent = fitPath(shown, dirCode);
+      // On a Mac or Linux, the home folder is written "~", so a shortened path still says where it starts.
+      const home = st.home && shown.startsWith(st.home + '/') ? '~' + shown.slice(st.home.length) : shown;
+      dirCode.textContent = fitPath(home, dirCode);
       dirCode.title = shown;
       changeBtn.disabled = !!(d || mv);
       whereNote.hidden = !d;
+      portableNote.hidden = !st.portableFallback;
       freeTxt.textContent = !mv && !st.missing && st.free ? `${size(st.free)} free` : '';
     }
     dlg = (s) => { st = s; if (s.moveError) showErr(s.moveError); draw(); fitUp(); };

@@ -48,7 +48,7 @@
       <div class="db"><img src="icon.svg" alt=""><div>
         <h2 id="skip-h">Skip the startup screen every time?</h2>
         <p>Encyclopedia 2000 can open straight to the main window from now on.</p>
-        <p>You can change this anytime in Tools › Options.</p>
+        <p>You can change this anytime in ${window.e2k.platform === 'darwin' ? 'Encyclopedia 2000 › Options' : 'Tools › Options'}.</p>
       </div></div>
       <div class="df"><button class="go" data-a="yes">Always Skip</button><button class="go" data-a="no">Keep Showing</button></div>
     </div>`;

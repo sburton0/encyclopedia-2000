@@ -27,6 +27,7 @@ if (opt('--only')) {
   for (const s of scenarios) if (add.has(s.name)) { if (s.reuse) add.add(s.reuse); if (s.needs === 'fixture') add.add('download'); }
   chosen = scenarios.filter((s) => add.has(s.name));
 }
+chosen = chosen.filter((s) => !s.only || s.only === process.platform);
 if (opt('--group')) chosen = chosen.filter((s) => s.group.toLowerCase() === opt('--group').toLowerCase() || s.name === 'download');
 
 const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);

@@ -48,6 +48,8 @@
     const m = macKey(k);
     return (m.includes('Shift+') ? '⇧' : '') + (m.includes('Cmd+') ? '⌘' : '') + m.replace(/^(Cmd\+|Shift\+)+/, '');
   };
+  // Where Options and the Offline Library are, in text: the Tools menu, or on macOS the Encyclopedia 2000 menu.
+  const TOOLS = MAC ? 'Encyclopedia 2000 ›' : 'Tools ›';
 
   // On macOS the menus live in the menu bar at the top of the screen. The page sends them to the main process
   // whenever something they show changes, such as Back becoming available or a new favorite.
@@ -387,7 +389,7 @@
       } else if (d.offline) {
         // Offline without a library: the almanac still works, from the highlights saved with the app.
         discTitle.textContent = Wiki.connected() && !isOffline() ? 'Wikipedia couldn’t be reached.' : 'You’re offline.';
-        discText.textContent = 'With an offline library, you can keep reading without the internet. Download one from Tools › Offline Library.';
+        discText.textContent = `With an offline library, you can keep reading without the internet. Download one from ${TOOLS} Offline Library.`;
         discMore.textContent = 'Offline Library…';
         discMore.onclick = () => E2KLibrary.open(E2K);
       } else {
@@ -1183,7 +1185,7 @@
   // The library can't be found (its drive was disconnected, or it was moved or deleted): where it was, and what to do.
   const missingBox = () => h('div', { class: 'errbox' },
     h('b', {}, 'Your offline library can’t be found'),
-    `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own. You can also find it or download it again in Tools › Offline Library.`,
+    `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own. You can also find it or download it again in ${TOOLS} Offline Library.`,
     h('div', {}, bandBtn('Offline Library…', () => E2KLibrary.open(E2K)), navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null));
   function showError(err, name, arg, token) {
     if (isOffline()) {
@@ -1199,7 +1201,7 @@
       const pg = shell({ title: 'Picture of the Day', railTitle: '', wide: true });
       pg.text.append(h('div', { class: 'errbox' },
         h('b', {}, 'Your offline library has no pictures'),
-        'Text-only libraries leave out pictures to save space. The Picture of the Day comes back when you’re online, or with a library that includes pictures (Tools › Offline Library).',
+        `Text-only libraries leave out pictures to save space. The Picture of the Day comes back when you’re online, or with a library that includes pictures (${TOOLS} Offline Library).`,
         h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
       mount(pg.root, token);
       setIdle('Offline mode');
@@ -1292,8 +1294,9 @@
   ];
   const CAP = { Left: '←', Right: '→', Cmd: MAC ? '⌘' : 'Cmd', Shift: MAC ? '⇧' : 'Shift', Alt: MAC ? '⌥' : 'Alt' };
   function shortcuts() {
-    const caps = (combo) => (MAC && /^(Ctrl|Alt|F5)/.test(combo) ? macKey(combo) : combo).split('+')
-      .flatMap((k, i) => [i ? h('span', { class: 'kplus' }, '+') : null, h('kbd', {}, CAP[k] || k)]).filter(Boolean);
+    // On macOS a shortcut is written as one key cap the Mac way ("⇧⌘H"); elsewhere as keys joined by "+" ("Ctrl" + "H").
+    const caps = (combo) => (MAC ? [h('kbd', {}, keyText(combo).replace(/^(.*?)(Left|Right)$/, (_, m, k) => m + CAP[k]))]
+      : combo.split('+').flatMap((k, i) => [i ? h('span', { class: 'kplus' }, '+') : null, h('kbd', {}, CAP[k] || k)]).filter(Boolean));
     const row = ([label, combo]) => h('div', { class: 'kr' }, h('span', {}, label),
       h('span', {}, combo.split(' or ').flatMap((c, i) => [i ? h('span', { class: 'kplus' }, ' or ') : null, ...caps(c)]).filter(Boolean)));
     const cols = h('div', { class: 'kcols' }, SHORTCUTS.map((col) => h('div', {}, col.map(([title, rows]) => h('div', {}, h('h3', {}, title), rows.map(row))))));
@@ -1308,7 +1311,7 @@
     version: '0.5',
     name: '0.5 Beta',
     items: [
-      ['Offline Library', 'Download Wikipedia to your computer and read and search it without the internet. Open Tools › Offline Library to choose a library.'],
+      ['Offline Library', `Download Wikipedia to your computer and read and search it without the internet. Open ${TOOLS} Offline Library to choose a library.`],
       ['Online or Offline', 'Click the light in the status bar to go offline, or to read from your library first even when you’re online.'],
       ['Find in Article', `Press ${MAC ? '⌘F' : 'Ctrl+F'} to find a word on the page. Help › Keyboard Shortcuts lists the rest.`],
       ['Fixes and improvements', 'Search results without a picture show an icon for the kind of subject, and railway route diagrams draw correctly.'],
