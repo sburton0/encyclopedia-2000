@@ -327,6 +327,14 @@ button { font-family: inherit; cursor: default; }
   font: 600 9.5px/1.2 "Segoe UI"; color: #fff; text-align: left; }
 .rail .lnk.mall { margin-top: 4px; }
 .art { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+/* An article's Back to the top button: the same space below it (to the status bar) as to its right (to the scroll bar). */
+.totop { position: absolute; right: calc(var(--bar, 0px) + 16px); bottom: 16px; z-index: 5; width: 30px; height: 30px; padding: 0; display: grid; place-items: center;
+  border-radius: 50%; color: #fff; background: var(--ink-2); border: 1px solid rgba(255, 255, 255, .4); box-shadow: 0 2px 8px rgba(0, 0, 0, .3); cursor: pointer;
+  opacity: 0; visibility: hidden; transition: opacity .25s, visibility .25s; }
+.totop.show { opacity: .92; visibility: visible; }
+.totop:hover { opacity: 1; filter: brightness(1.2); }
+.totop svg { width: 13px; height: 13px; fill: currentColor; }
+@media print { .totop { display: none; } }
 .band { height: 96px; flex: none; position: relative; overflow: hidden; color: #fff; background: var(--ink-1); }
 .band > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .band .t { position: absolute; left: 22px; right: 360px; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: center; }
@@ -360,7 +368,9 @@ button { font-family: inherit; cursor: default; }
 mark.fh { background: rgba(255, 210, 122, .55); color: inherit; border-radius: 2px; box-shadow: 0 0 0 1px rgba(245, 166, 35, .35); }
 mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px var(--orange), 0 0 10px rgba(245, 166, 35, .7); }
 @media print { mark.fh, mark.fh.cur { background: none; box-shadow: none; color: inherit; } }
-.band .desc { font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* flex: none: in a header with a bottom border (Classic) the column is a little short, and shrinking the line would clip
+   its descenders. */
+.band .desc { flex: none; font: 12px "Segoe UI"; color: #d6e2fa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .band .tools { position: absolute; right: 14px; top: 0; bottom: 0; display: flex; align-items: center; gap: 6px; }
 .band.article .tools { right: var(--flow-right, 14px); bottom: auto; top: 10px; align-items: flex-start; }
 .band.article { height: 104px; }

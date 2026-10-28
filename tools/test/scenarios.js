@@ -17,6 +17,8 @@ const path = require('path');
 const KNOTS = 'wikipedia_en_knots';            // 18 MB: big enough to pause or quit partway (Ray Charles is one piece)
 const label = (q) => `[...document.querySelectorAll('.offline .packs button, .dialog .go')].find((b) => b.textContent.trim() === ${JSON.stringify(q)})`;
 const openLibrary = async (t) => { await t.js('E2KLibrary.open(E2K);'); await t.waitFor('document.querySelector(".offline .status")'); await t.sleep(1200); };
+// The page showing an article (while one page fades into the next, both are in the window).
+const pageOf = (title) => `[...document.querySelectorAll(".page")].find((p) => (p.querySelector("h1")?.textContent || "").trim() === ${JSON.stringify(title)})`;
 const libFiles = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 
 // Waits for a download to show progress, then calls act(); returns false if it finished before that (a very fast
@@ -75,6 +77,67 @@ module.exports = [
     async run(t) {
       t.check('Results appear', await t.waitFor('document.querySelectorAll(".res").length >= 5', 20000));
       await t.shot('search');
+    },
+  },
+  {
+    name: 'scroll-and-top', group: 'General', title: 'Back returns to where you were; the Top button and the Home key',
+    route: 'article/Apollo%2011',
+    async run(t) {
+      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 20000);
+      const top = () => t.js('return document.querySelector(".content.article").scrollTop;');
+      t.check('The article opens', await opened('Apollo 11'));
+      t.check('No Top button at the top', !(await t.js('return !!document.querySelector(".totop.show");')));
+      await t.js('document.querySelector(".content.article").scrollTo({ top: 3000, behavior: "instant" });');
+      t.check('The Top button appears after scrolling down', await t.waitFor('document.querySelector(".totop.show")', 3000));
+      const gaps = await t.js(`const b = document.querySelector(".totop").getBoundingClientRect(), c = document.querySelector(".content.article"), r = c.getBoundingClientRect();
+        return { right: Math.round(r.left + c.clientWidth - b.right), bottom: Math.round(r.bottom - b.bottom) };`);
+      t.check('The same space below it as to its right', gaps.right === gaps.bottom, JSON.stringify(gaps));
+      await t.sleep(400);
+      await t.shot('top-button');
+      await t.js('E2K.openArticle("Moon");');
+      t.check('A link opens another article at the top', await opened('Moon') && (await top()) === 0);
+      await t.command('Back', 'ArrowLeft', { altKey: true });
+      t.check('Back returns to the first article', await opened('Apollo 11'));
+      await t.sleep(1500);
+      const y = await top();
+      t.check('…where it was scrolled to', Math.abs(y - 3000) < 5, y);
+      // With animations off (Options), so it jumps: a smooth scroll can stall while the test window is in the background.
+      await t.js(`localStorage.setItem('e2k.animations', 'false');`);
+      await t.js('document.querySelector(".totop").click();');
+      t.check('The Top button goes to the top', await t.waitFor('document.querySelector(".content.article").scrollTop === 0', 4000),
+        JSON.stringify(await t.js('return { y: document.querySelector(".content.article").scrollTop, pages: document.querySelectorAll(".page").length, tops: document.querySelectorAll(".totop").length, anim: localStorage.getItem("e2k.animations") };')));
+      await t.js('document.querySelector(".content.article").scrollTo({ top: 2000, behavior: "instant" });');
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));');
+      t.check('Home goes to the top', await t.waitFor('document.querySelector(".content.article").scrollTop === 0', 4000), await top());
+      await t.js(`localStorage.setItem('e2k.theme', JSON.stringify('classic')); E2K.applyPrefs();`);
+      await opened('Apollo 11');
+      await t.sleep(1000);
+      t.check('Classic: the subtitle isn’t cut off', await t.js('const d = document.querySelector(".band .desc"); return d.textContent.length > 0 && d.scrollHeight <= d.clientHeight;'));
+    },
+  },
+  {
+    name: 'wikipedia-503', group: 'General', title: 'Wikipedia answers with a server error (503): the article still opens',
+    route: 'home',
+    async run(t) {
+      // Wikipedia's article service fails the first time (then a second later it works), then always.
+      await t.js(`const real = window.fetch; window.__html = { n: 0, mode: 'once' };
+        window.fetch = (url, ...rest) => {
+          if (String(url).includes('/api/rest_v1/page/html/')) {
+            window.__html.n++;
+            if (window.__html.mode === 'always' || window.__html.n === 1) return Promise.resolve(new Response('Service Temporarily Unavailable', { status: 503 }));
+          }
+          return real(url, ...rest);
+        };`);
+      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 25000);
+      await t.js('E2K.openArticle("Moon");');
+      t.check('One failure: it tries again and the article opens', await opened('Moon'));
+      t.check('…after a second try', (await t.js('return window.__html.n;')) === 2, await t.js('return window.__html.n;'));
+      await t.js(`window.__html.mode = 'always';`);
+      await t.js('E2K.openArticle("Saturn");');
+      t.check('Always failing: the article comes from Wikipedia’s other service', await opened('Saturn'));
+      t.check('…with its sections', await t.js(`return ${pageOf('Saturn')}.querySelectorAll(".text h2").length >= 4;`));
+      await t.sleep(800);                     // the page fades in
+      await t.shot('article-after-503');
     },
   },
   {
@@ -590,6 +653,22 @@ module.exports = [
       t.check('The old search button is gone', !(await t.js('return /Search the offline library/.test(document.querySelector(".errbox").innerText);')));
       await t.sleep(800);                     // the page fades in
       await t.shot('not-in-library');
+      const first = await t.js('const a = document.querySelector(".errbox .inlib a"); a.click(); return a.textContent;');
+      t.check('A related article opens', await t.waitFor('(document.querySelector("h1")?.textContent || "").trim() === ' + JSON.stringify(first), 10000), first);
+    },
+  },
+  {
+    name: 'offline-search-none', group: 'Reading offline', title: 'An offline search with no matches suggests articles in the library',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      await t.js('E2K.go(E2K.route("search", "Ray Charles fan club"));');
+      t.check('It says the offline library has no match', await t.waitFor('/No matches in the offline library/.test(document.querySelector(".errbox")?.innerText || "")', 10000));
+      t.check('…and that only the library is searched in Offline mode', await t.js('return /Offline mode/.test(document.querySelector(".errbox").innerText);'));
+      t.check('Related articles in the library are listed', await t.waitFor('document.querySelectorAll(".errbox .inlib a").length >= 1', 8000));
+      t.check('Go online is offered', await t.js('return [...document.querySelectorAll(".errbox .bbtn")].some((b) => b.textContent === "Go online");'));
+      await t.sleep(800);                     // the page fades in
+      await t.shot('offline-search-none');
       const first = await t.js('const a = document.querySelector(".errbox .inlib a"); a.click(); return a.textContent;');
       t.check('A related article opens', await t.waitFor('(document.querySelector("h1")?.textContent || "").trim() === ' + JSON.stringify(first), 10000), first);
     },

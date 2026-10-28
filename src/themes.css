@@ -189,6 +189,9 @@
 [data-theme="classic"] .band .pron:hover { background: #d4d0c8; border-color: #000; }
 [data-theme="classic"] .band .pron.on { background: #000080; border-color: #000080; color: #fff; }
 [data-theme="classic"] .band .desc { color: #404040; }
+[data-theme="classic"] .totop { border-radius: 0; color: #000; background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; box-shadow: 1px 1px 0 #000; }
+[data-theme="classic"] .totop:hover { filter: none; color: #000080; }
+[data-theme="classic"] .totop:active { border-color: #404040 #fff #fff #404040; }
 /* Find in article: a Windows 98 selection, navy with white text */
 [data-theme="classic"] mark.fh.cur { background: #000080; color: #fff; box-shadow: 0 0 0 2px #000080; }
 [data-theme="classic"] .band .bbtn { background: #c0c0c0; color: #000; border: 2px solid; border-color: #fff #404040 #404040 #fff; }

@@ -103,7 +103,7 @@
 
   // ---------- state ----------
   const view = $('#view');
-  const nav = { stack: [], from: [], idx: -1 };
+  const nav = { stack: [], from: [], scroll: [], idx: -1 };
   let renderToken = 0;
   let current = null; // the article on screen: { title, desc, thumb }
   let speaking = false;
@@ -173,20 +173,26 @@
 
   // ---------- navigation ----------
   // Each history entry can remember the trail it was opened from (see "location bar" below).
+  // Each history entry remembers how far down its page was scrolled, so Back, Forward, and a redraw (a new theme)
+  // return there. A page opened fresh starts at the top.
+  function saveScroll() { if (nav.idx >= 0) nav.scroll[nav.idx] = view.querySelector('.content')?.scrollTop || 0; }
   function go(r, { replace = false, from = null } = {}) {
-    if (replace && nav.idx >= 0) { nav.stack[nav.idx] = r; nav.from[nav.idx] = from || nav.from[nav.idx]; }
+    saveScroll();
+    if (replace && nav.idx >= 0) { nav.stack[nav.idx] = r; nav.from[nav.idx] = from || nav.from[nav.idx]; nav.scroll[nav.idx] = 0; }
     else {
       nav.stack = nav.stack.slice(0, nav.idx + 1);
       nav.from = nav.from.slice(0, nav.idx + 1);
+      nav.scroll = nav.scroll.slice(0, nav.idx + 1);
       nav.stack.push(r);
       nav.from.push(from);
+      nav.scroll.push(0);
       nav.idx++;
     }
     render(r);
   }
-  const back = () => { if (nav.idx > 0) render(nav.stack[--nav.idx]); };
-  const fwd = () => { if (nav.idx < nav.stack.length - 1) render(nav.stack[++nav.idx]); };
-  const reload = () => render(nav.stack[nav.idx] || 'home');
+  const back = () => { if (nav.idx > 0) { saveScroll(); nav.idx--; render(nav.stack[nav.idx], true); } };
+  const fwd = () => { if (nav.idx < nav.stack.length - 1) { saveScroll(); nav.idx++; render(nav.stack[nav.idx], true); } };
+  const reload = () => { saveScroll(); render(nav.stack[nav.idx] || 'home', true); };
   // Articles opened without a trail (Find box, Favorites, Home) sit under Articles.
   const openArticle = (title, from = null) => go(route('article', title), { from });
 
@@ -223,7 +229,7 @@
   // Clicking a step returns to that screen: back through history if it's there, otherwise as a new page.
   function jumpTo(r) {
     for (let i = nav.idx - 1; i >= 0; i--) {
-      if (nav.stack[i] === r) { nav.idx = i; render(r); return; }
+      if (nav.stack[i] === r) { saveScroll(); nav.idx = i; render(r, true); return; }
     }
     go(r);
   }
@@ -274,8 +280,9 @@
   }
   const live = (token) => token === renderToken;
 
-  async function render(r) {
+  async function render(r, restore = false) {
     const token = ++renderToken;
+    const y = restore ? nav.scroll[nav.idx] || 0 : 0;
     const [name, ...rest] = r.split('/');
     const arg = rest.length ? decodeURIComponent(rest.join('/')) : '';
     if (gameCleanup) { try { gameCleanup(); } catch {} gameCleanup = null; }
@@ -301,9 +308,27 @@
         case 'world': await viewWorld(token); break;
         default: viewHome(token);
       }
+      if (y && live(token)) restoreScroll(y, token);
     } catch (err) {
       if (live(token)) showError(err, name, arg, token);
     }
+  }
+  // The top of a page: a quick glide, or a jump with animations off (Options).
+  const toTop = (c) => { stopRestore(); c.scrollTo({ top: 0, behavior: store.get('animations', true) ? 'smooth' : 'instant' }); };
+  let stopRestore = () => {};
+  // Scrolls back to where the page was, and keeps it there for a few seconds while pictures load and push the text
+  // down, until the reader scrolls themselves.
+  function restoreScroll(y, token) {
+    const c = view.querySelector('.content');
+    if (!c) return;
+    const put = () => c.scrollTo({ top: y, behavior: 'instant' });
+    put();
+    const watch = new ResizeObserver(() => { if (live(token)) put(); });
+    [...c.children].forEach((el) => watch.observe(el));
+    const stop = () => { watch.disconnect(); ['wheel', 'mousedown', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, stop, true)); };
+    stopRestore = stop;
+    ['wheel', 'mousedown', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, stop, true));
+    setTimeout(stop, 5000);
   }
 
   // ---------- data ----------
@@ -712,7 +737,14 @@
       pg.railIn.append(railSection('Related articles', `${related.length} articles`, related.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub'))));
     }
     mediaBox(mediaP, token).then((box) => { if (box && live(token)) tocSec.after(box); }, () => {});
+    // Back to the top: a small button at the bottom right, once the article has been scrolled down a screen or so.
+    const topBtn = h('button', { class: 'totop', title: 'Back to the top (Home)', 'aria-label': 'Back to the top', onclick: () => toTop(pg.content) },
+      svg('svg', { viewBox: '0 0 16 16' }, svg('path', { d: 'M8 3 2.5 8.6h3.6V13h3.8V8.6h3.6z' })));
+    pg.content.after(topBtn);
     pg.content.addEventListener('scroll', () => {
+      const c = pg.content;
+      topBtn.style.setProperty('--bar', (c.offsetWidth - c.clientWidth) + 'px');
+      topBtn.classList.toggle('show', c.scrollTop > c.clientHeight * 1.5);
       const y = pg.content.scrollTop + 40;
       let active = 0;
       toc.forEach(({ id }, i) => {
@@ -802,9 +834,29 @@
       ? spelling.charAt(0).toUpperCase() + spelling.slice(1) : '';
     const suggest = didYouMean ? h('p', { class: 'dym' }, 'Did you mean ',
       h('button', { onclick: () => go(route('search', didYouMean), { replace: true }) }, didYouMean), '?') : null;
-    pg.railIn.append(h('div', { class: 'note' }, pages.length ? `${pages.length} best matches for “${q}”.` : 'No matches found.'),
+    // Searched only the library: Offline mode, no connection, or "Use the offline library first".
+    const libOnly = hasLib && (isOffline() || !Wiki.connected() || store.get('libraryFirst', false));
+    pg.railIn.append(h('div', { class: 'note' }, pages.length ? `${pages.length} best matches for “${q}”.` : libOnly ? 'No matches in the offline library.' : 'No matches found.'),
       h('hr'), railLink(`Search Wikipedia for “${q}”`, () => window.e2k.openExternal(`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(q)}&fulltext=1`), 'sub'));
-    if (!pages.length) {
+    if (!pages.length && libOnly) {
+      // The library only finds titles that start with what was typed, so suggest articles it has that start with part
+      // of it ("Apollo 11 lunar sample display" → "Apollo 11").
+      const related = h('p', { class: 'inlib', hidden: true });
+      pg.text.replaceChildren(h('div', { class: 'errbox' },
+        h('b', {}, 'No matches in the offline library'),
+        `Nothing in the offline library matched “${q}”. `
+          + (isOffline() ? 'You’re in Offline mode, so only the offline library is searched.'
+            : !Wiki.connected() ? 'There’s no internet connection, so only the offline library is searched.'
+            : 'You’re using the offline library first, so only the offline library is searched.'),
+        related,
+        h('div', {}, isOffline() && navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+      relatedInLibrary(q).then((titles) => {
+        if (!titles.length || !live(token)) return;
+        related.append(h('b', {}, 'In your library:'), ' ', ...titles.flatMap((t, i) => [i ? ' · ' : null,
+          h('a', { href: '#', 'data-title': t }, t)]).filter(Boolean));
+        related.hidden = false;
+      });
+    } else if (!pages.length) {
       pg.text.replaceChildren(...(suggest ? [suggest] : []), h('div', { class: 'errbox' }, h('b', {}, 'No articles found'), `Nothing matched “${q}”. Check the spelling, or try a broader subject.`));
     } else {
       pg.text.replaceChildren(...(suggest ? [suggest] : []), h('div', { class: 'results' }, pages.map((p) => {
@@ -1303,7 +1355,7 @@
   // the macOS keys there (⌘ for Ctrl, Cmd+[ for Back, and so on), the same as the menus.
   const SHORTCUTS = [
     [['Finding', [['Find in this article', 'Ctrl+F'], ['Find an article', 'Ctrl+E'], ['Next match', 'Enter'], ['Previous match', 'Shift+Enter']]],
-      ['Moving around', [['Home', 'Ctrl+H'], ['Back', 'Alt+Left'], ['Forward', 'Alt+Right'], ['Refresh', 'F5']]],
+      ['Moving around', [['Home', 'Ctrl+H'], ['Back', 'Alt+Left'], ['Forward', 'Alt+Right'], ['Top of the article', MAC ? 'Home' : 'Home or Ctrl+Home'], ['Refresh', 'F5']]],
       ['Reading', [['Larger text', 'Ctrl+='], ['Smaller text', 'Ctrl+-'], ['Normal text size', 'Ctrl+0'], ['Copy', 'Ctrl+C']]]],
     [['Printing', [['Print Preview', 'Ctrl+P'], ['Print', 'Ctrl+Shift+P']]],
       ['Favorites and sound', [['Favorites pane', 'Ctrl+I'], ['Mute', 'Ctrl+M']]],
@@ -2406,6 +2458,12 @@
   document.addEventListener('keydown', (e) => {
     const k = e.key;
     if (k === 'Escape') { closeFind(); closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
+    // Home (or Ctrl+Home) goes to the top of an article, unless you're typing.
+    if (k === 'Home' && current?.content && !$('.overlay') && !e.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
+      e.preventDefault();
+      toTop(current.content);
+      return;
+    }
     if (MAC) return; // macOS shortcuts come from the menu bar.
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }

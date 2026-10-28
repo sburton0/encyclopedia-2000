@@ -26,10 +26,16 @@ window.Wiki = (() => {
   }
   addEventListener('online', () => setDown(false));
 
-  async function get(url, as = 'json') {
+  // Wikipedia sometimes answers with a server error (503) for a while, at random; one more try a second later usually
+  // gets through. Never for "too many requests" (429) or a missing page.
+  async function get(url, as = 'json', retry = true) {
     let res;
     try { res = await fetch(url); } catch (e) { if (!offlineMode()) setDown(true); throw e; }
     setDown(false);
+    if (res.status >= 500 && retry) {
+      await new Promise((r) => setTimeout(r, 1000));
+      return get(url, as, false);
+    }
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status}`);
       err.status = res.status;
@@ -210,7 +216,12 @@ window.Wiki = (() => {
     onThisDay: (date, type = 'all') => feed(() => get(`${BASE}/api/rest_v1/feed/onthisday/${type}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
       async () => ({ offline: true, selected: await savedDay(date) })),
     summary: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/summary/${enc(title)}?redirect=true`), libSummary),
-    html: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/html/${enc(title)}?redirect=true`, 'text'), libHtml),
+    // If the article service keeps failing, the same article (the same kind of page) from Wikipedia's other one.
+    html: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/html/${enc(title)}?redirect=true`, 'text').catch((e) => {
+      if (!(e.status >= 500)) throw e;
+      return get(`${BASE}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&parsoid=1&redirects=1&format=json&formatversion=2&origin=*`)
+        .then((r) => { if (!r.parse?.text) throw e; return r.parse.text; });
+    }), libHtml),
     // Every picture, video, and sound in an article, in the order they appear.
     mediaList: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/media-list/${enc(title)}?redirect=true`), libMedia),
     // Size, length, file address, a still picture, and the credit for up to 50 files ("File:…" titles).
