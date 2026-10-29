@@ -116,6 +116,124 @@ module.exports = [
     },
   },
   {
+    name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
+    route: 'article/Moon',
+    async run(t) {
+      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 20000);
+      // Right-clicks the element the expression finds (at its middle, or at x, y), and returns the menu's items.
+      const ctx = (el, at = '') => t.js(`const el = ${el}; const r = el.getBoundingClientRect();
+        const [x, y] = ${at || '[r.left + r.width / 2, r.top + r.height / 2]'};
+        el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        return [...document.querySelectorAll('.menu.ctx .mi')].map((m) => m.firstChild.textContent + (m.classList.contains('disabled') ? ' (off)' : ''));`);
+      // Picks a menu item as a mouse does (mousedown, then click), which leaves the selection alone.
+      const pick = (label) => t.js(`const m = [...document.querySelectorAll('.menu.ctx .mi')].find((m) => m.firstChild.textContent.startsWith(${JSON.stringify(label)}));
+        m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); m.click();`);
+      // Waits up to 2 seconds for the clipboard to hold this text.
+      const clipped = async (want) => { for (let i = 0; i < 20; i++) { if (String(await t.clipText()).trim() === want) return true; await t.sleep(100); } return false; };
+      const page = `${pageOf('Moon')}`;
+      t.check('The article opens', await opened('Moon'));
+      await t.sleep(800);
+      const blank = await ctx(`${page}.querySelector('.content.article')`, '[r.left + 6, r.top + 120]');
+      t.check('On the page: Back, Forward, Back to the Top, Select All, Find, Print',
+        ['Back (off)', 'Forward (off)', 'Back to the Top', 'Select All', 'Find in Article…', 'Print Preview…', 'Print…'].every((l) => blank.includes(l)), blank.join(', '));
+      const box = await t.js(`const m = document.querySelector('.menu.ctx'), r = m.getBoundingClientRect();
+        return { size: getComputedStyle(m).fontSize, inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };`);
+      t.check('It’s the menus’ size (12 px), inside the window', box.size === '12px' && box.inside, JSON.stringify(box));
+      await t.sleep(300);                     // drawn before the screenshot
+      await t.shot('right-click-page');
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      t.check('Escape closes it', !(await t.js('return !!document.querySelector(".menu.ctx");')));
+
+      // Selected text: Copy and Look Up, which searches for it.
+      const words = await t.js(`const p = [...${page}.querySelectorAll('.text p')].find((p) => p.textContent.length > 200);
+        const n = [...p.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim().split(' ').length > 3);
+        const s = n.textContent.indexOf(' ') + 1, w = n.textContent.slice(s).split(' ').slice(0, 2).join(' ');
+        const r = document.createRange(); r.setStart(n, s); r.setEnd(n, s + w.length);
+        getSelection().removeAllRanges(); getSelection().addRange(r); window.__sel = r; return w.trim();`);
+      const text = await ctx(`${page}.querySelector('.text')`, '(() => { const b = window.__sel.getBoundingClientRect(); return [b.left + 2, b.top + 2]; })()');
+      await t.sleep(300);
+      t.check('On selected text: Copy and Look Up', text.includes('Copy') && text.includes(`Look Up “${words}”`), text.join(', '));
+      await t.shot('right-click-text');
+      t.setClip('');
+      await pick('Copy');
+      t.check('Copy copies the selected words', await clipped(words), await t.clipText());
+      await ctx(`${page}.querySelector('.text')`, '(() => { const b = window.__sel.getBoundingClientRect(); return [b.left + 2, b.top + 2]; })()');
+      await pick('Look Up');
+      t.check('Look Up searches for the words', await t.waitFor(`document.querySelector('.band h1')?.textContent.includes(${JSON.stringify(words)})`, 15000));
+
+      // A link: Open opens the article.
+      await t.command('Back', 'ArrowLeft', { altKey: true });
+      t.check('(Back to the article)', await opened('Moon'));
+      await t.sleep(800);
+      const link = `${pageOf('Moon')}.querySelector('.text p a[data-title]')`;
+      const title = await t.js(`return ${link}.dataset.title;`);
+      const onLink = await ctx(link);
+      t.check('On a link: Open, Open on Wikipedia, Copy Link', ['Open', 'Open on Wikipedia', 'Copy Link'].every((l) => onLink.includes(l)), onLink.join(', '));
+      await pick('Copy Link');
+      t.check('Copy Link copies its Wikipedia address', await clipped(`https://en.wikipedia.org/wiki/${title.replace(/ /g, '_')}`), await t.clipText());
+      await ctx(link);
+      await pick('Open');
+      t.check('Open opens the linked article', await opened(title), title);
+
+      // A picture: View Picture opens it.
+      await t.command('Back', 'ArrowLeft', { altKey: true });
+      await opened('Moon');
+      await t.sleep(800);
+      const onPic = await ctx(`${pageOf('Moon')}.querySelector('.media img')`);
+      t.check('On a picture: View Picture, Copy Picture, Save Picture As…', ['View Picture', 'Copy Picture', 'Save Picture As…'].every((l) => onPic.includes(l)), onPic.join(', '));
+      t.setClip('');
+      await pick('Copy Picture');
+      let pic = false;
+      for (let i = 0; i < 30 && !pic; i++) { await t.sleep(100); pic = await t.clipImage(); }
+      t.check('Copy Picture copies the picture', pic);
+      await ctx(`${pageOf('Moon')}.querySelector('.media img')`);
+      await pick('View Picture');
+      t.check('View Picture opens it', await t.waitFor('document.querySelector(".overlay")', 5000));
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+
+      // The Find box: Cut and Copy are off with nothing selected.
+      await t.js(`const q = document.querySelector('#q'); q.value = ''; q.blur();`);
+      const field = await ctx(`document.querySelector('#q')`);
+      t.check('In the Find box: Cut, Copy, Paste, Select All', ['Cut (off)', 'Copy (off)', 'Paste', 'Select All'].every((l) => field.includes(l)), field.join(', '));
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      const q = (code) => t.js(`const q = document.querySelector('#q'); ${code}`);
+      await q(`q.focus(); q.value = 'hello world'; q.setSelectionRange(0, 5);`);
+      await ctx(`document.querySelector('#q')`);
+      await pick('Copy');
+      t.check('Copy in the Find box', await clipped('hello'), await t.clipText());
+      await q(`q.focus(); q.setSelectionRange(6, 11);`);
+      await ctx(`document.querySelector('#q')`);
+      await pick('Cut');
+      t.check('Cut in the Find box', await clipped('world') && (await q('return q.value;')) === 'hello ', await q('return q.value;'));
+      await ctx(`document.querySelector('#q')`);
+      await pick('Paste');
+      t.check('Paste in the Find box', await t.waitFor(`document.querySelector('#q').value === 'hello world'`, 3000), await q('return q.value;'));
+      await ctx(`document.querySelector('#q')`);
+      await pick('Select All');
+      t.check('Select All in the Find box', (await q('return q.value.slice(q.selectionStart, q.selectionEnd);')) === 'hello world');
+      // The menu bar's Edit › Copy (Windows and Linux; on a Mac it's the system's own).
+      if (t.platform !== 'darwin') {
+        await q(`q.value = ''; q.blur();`);
+        await t.js(`const n = [...${page}.querySelectorAll('.text p')].find((p) => p.textContent.length > 200).firstChild;
+          const r = document.createRange(); r.selectNodeContents(n); getSelection().removeAllRanges(); getSelection().addRange(r);`);
+        const want = (await t.js('return String(getSelection());')).trim();
+        t.setClip('');
+        await t.js(`const top = [...document.querySelectorAll('#menubar .m')].find((m) => m.firstChild.textContent === 'Edit');
+          top.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+          const m = [...document.querySelectorAll('#menubar .menu .mi')].find((m) => m.firstChild.textContent === 'Copy');
+          m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); m.click();`);
+        t.check('Edit › Copy copies the selection', await clipped(want), await t.clipText());
+      }
+
+      await t.js(`localStorage.setItem('e2k.theme', JSON.stringify('classic')); E2K.applyPrefs();`);
+      await opened('Moon');
+      await t.sleep(1000);
+      await ctx(`${pageOf('Moon')}.querySelector('.text p a[data-title]')`);
+      await t.sleep(300);
+      await t.shot('right-click-classic');
+    },
+  },
+  {
     name: 'wikipedia-503', group: 'General', title: 'Wikipedia answers with a server error (503): the article still opens',
     route: 'home',
     async run(t) {

@@ -197,6 +197,23 @@ ipcMain.on('win', (e, cmd) => {
   else if (cmd === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
   else if (cmd === 'close') win.close();
   else if (cmd === 'print') win.webContents.print({});
+  else if (cmd === 'cut') win.webContents.cut();
+  else if (cmd === 'copy') win.webContents.copy();
+  else if (cmd === 'paste') win.webContents.paste();
+});
+
+// The right-click menu's Copy Picture and Save Picture As….
+ipcMain.on('picture:copy', (e, x, y) => { if (Number.isFinite(x) && Number.isFinite(y)) e.sender.copyImageAt(x, y); });
+ipcMain.handle('picture:save', async (e, name, bytes) => {
+  const safe = String(name || '').replace(/[\\/:*?"<>|]+/g, '').trim() || 'Picture';
+  const ext = path.extname(safe).slice(1).toLowerCase();
+  const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.fromWebContents(e.sender), {
+    title: 'Save Picture', defaultPath: path.join(app.getPath('pictures'), safe),
+    filters: ext ? [{ name: `${ext.toUpperCase()} picture`, extensions: [ext] }, { name: 'All files', extensions: ['*'] }] : [],
+  });
+  if (canceled || !filePath) return false;
+  fs.writeFileSync(filePath, Buffer.from(bytes));
+  return true;
 });
 
 const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate });

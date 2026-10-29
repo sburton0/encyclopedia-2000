@@ -23,6 +23,8 @@ contextBridge.exposeInMainWorld('e2k', {
   setMenu: (template) => ipcRenderer.send('menu:set', template),
   onMenu: (cb) => ipcRenderer.on('menu:run', (_e, id) => cb(id)),
   win: (cmd) => ipcRenderer.send('win', cmd),
+  copyImageAt: (x, y) => ipcRenderer.send('picture:copy', x, y),
+  savePicture: (name, bytes) => ipcRenderer.invoke('picture:save', name, bytes),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),
   onMaximized: (cb) => ipcRenderer.on('maximized', (_e, v) => cb(v)),
   onFullscreen: (cb) => ipcRenderer.on('fullscreen', (_e, v) => cb(v)),

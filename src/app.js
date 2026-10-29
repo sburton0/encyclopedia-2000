@@ -2056,7 +2056,8 @@
     shortcuts: () => shortcuts(),
     favpane: () => toggleFavPane(),
     speak: toggleSpeak,
-    copy: () => document.execCommand('copy'),
+    // Through the main process: the page's own copy command doesn't reliably reach the clipboard.
+    copy: () => window.e2k.win('copy'),
     // Print is turned off on screens without a printable page; the keyboard shortcuts quietly do nothing there.
     print: () => { if (printable()) window.e2k.printPreview(); },
     printNow: () => { if (printable()) window.e2k.win('print'); },
@@ -2125,7 +2126,8 @@
       const [label, cmd, key, checked, disabled] = it;
       box.append(h('div', {
         class: 'mi' + (checked ? ' checked' : '') + (disabled ? ' disabled' : ''),
-        onmousedown: (e) => e.stopPropagation(),
+        // preventDefault keeps the selection, for Copy.
+        onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); },
         onclick: (e) => { e.stopPropagation(); if (disabled || !cmd) return; closeMenus(); runCmd(cmd); },
       }, h('span', {}, label), h('span', { class: 'k' }, key || '')));
     });
@@ -2138,6 +2140,106 @@
     menubar.append(top);
   });
   document.addEventListener('mousedown', () => closeMenus());
+
+  // ---------- right-click menu ----------
+  // What's offered depends on what was clicked: selected text, a link, a picture, a text box, or the page itself.
+  // It's drawn like the menu bar's menus, at the same fixed size as other apps' right-click menus.
+  let ctxMenu = null;
+  function closeCtx() { if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; } }
+  // A picture's file name from its address ("…/320px-Full_Moon.jpg" is "Full Moon.jpg").
+  const fileOf = (src) => {
+    let name = (src || '').split(/[?#]/)[0].split('/').pop() || 'picture';
+    try { name = decodeURIComponent(name); } catch {}
+    return name.replace(/^\d+px-/, '').replace(/_/g, ' ');
+  };
+  async function savePicture(img) {
+    const shown = img.currentSrc || img.src;
+    setStatus('Saving the picture…', true);
+    try {
+      // The full picture where there is one (articles show smaller copies), else the one on screen.
+      const full = img.closest('a[data-file]') && !isOffline() ? originalOf(shown) : '';
+      let res = full ? await fetch(full).catch(() => null) : null, src = full;
+      if (!res || !res.ok) { res = await fetch(shown); src = shown; }
+      const saved = await window.e2k.savePicture(fileOf(src), new Uint8Array(await res.arrayBuffer()));
+      setIdle(saved ? 'Picture saved' : statusIdle);
+    } catch { setIdle('Couldn’t save the picture'); }
+  }
+  function viewPicture(img) {
+    // Pictures that open when clicked open the same way; any other picture opens on its own.
+    if (img.closest('a[data-file]') || img.onclick) img.click();
+    else lightbox(img.currentSrc || img.src, img.alt || '');
+  }
+  function selectAll() {
+    if (document.activeElement?.matches?.('input, textarea')) document.activeElement.blur();
+    const t = articleText();
+    if (t) getSelection().selectAllChildren(t); else document.execCommand('selectAll');
+  }
+  function ctxItems(e) {
+    const field = e.target.closest('input, textarea');
+    if (field) {
+      if (field.type && !/^(text|search|url|email|number)$/.test(field.type)) return [];
+      const sel = field.selectionStart !== field.selectionEnd, ro = field.readOnly || field.disabled;
+      // Cut, Copy, and Paste go through the main process: the page's own copy command doesn't reliably reach the clipboard.
+      return [['Cut', () => { field.focus(); window.e2k.win('cut'); }, 'Ctrl+X', null, !sel || ro],
+        ['Copy', () => { field.focus(); window.e2k.win('copy'); }, 'Ctrl+C', null, !sel],
+        ['Paste', () => { field.focus(); window.e2k.win('paste'); }, 'Ctrl+V', null, ro], '-',
+        ['Select All', () => { field.focus(); field.select(); }, 'Ctrl+A']];
+    }
+    if (!e.target.closest('#view') || e.target.closest('.overlay, canvas')) return [];
+    const groups = [];
+    const words = String(getSelection() || '').replace(/\s+/g, ' ').trim();
+    if (words) {
+      const short = words.length > 30 ? words.slice(0, 28).trim() + '…' : words;
+      groups.push([['Copy', 'copy', 'Ctrl+C'], ...(words.length <= 100 ? [[`Look Up “${short}”`, () => go(route('search', words))]] : [])]);
+    }
+    const a = e.target.closest('a'), img = e.target.closest('img');
+    if (a?.dataset.title) {
+      const url = Wiki.pageUrl(a.dataset.title.replace(/ /g, '_'));
+      groups.push([['Open', () => openArticle(a.dataset.title, linkFrom())], ['Open on Wikipedia', () => window.e2k.openExternal(url)],
+        ['Copy Link', () => navigator.clipboard.writeText(url)]]);
+    } else if (a?.dataset.ext) {
+      groups.push([['Open in Web Browser', () => window.e2k.openExternal(a.dataset.ext)], ['Copy Link', () => navigator.clipboard.writeText(a.dataset.ext)]]);
+    }
+    if (img) {
+      groups.push([['View Picture', () => viewPicture(img)], ['Copy Picture', () => window.e2k.copyImageAt(Math.round(e.clientX), Math.round(e.clientY))],
+        ['Save Picture As…', () => savePicture(img)]]);
+    }
+    if (!groups.length) {
+      groups.push([['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1],
+        ...(current?.content ? [['Back to the Top', () => toTop(current.content), 'Home']] : [])]);
+      groups.push([['Select All', selectAll, 'Ctrl+A'], ...(findable() ? [['Find in Article…', 'find', 'Ctrl+F']] : [])]);
+      if (printable()) groups.push([['Print Preview…', 'print', 'Ctrl+P'], ['Print…', 'printNow', 'Ctrl+Shift+P']]);
+    } else groups.push([['Select All', selectAll, 'Ctrl+A']]);
+    return groups.flatMap((g, i) => (i ? ['-', ...g] : g));
+  }
+  document.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    closeMenus();
+    closeCtx();
+    const items = ctxItems(e);
+    if (!items.length) return;
+    const box = h('div', { class: 'menu ctx', onmousedown: (ev) => ev.stopPropagation(), oncontextmenu: (ev) => { ev.preventDefault(); ev.stopPropagation(); } });
+    items.forEach((it) => {
+      if (it === '-') return box.append(h('div', { class: 'msep' }));
+      const [label, cmd, key, , disabled] = it;
+      box.append(h('div', {
+        class: 'mi' + (disabled ? ' disabled' : ''),
+        // mousedown keeps the selection (and the text box's cursor) where it was until the command runs.
+        onmousedown: (ev) => { ev.preventDefault(); ev.stopPropagation(); },
+        onclick: (ev) => { ev.stopPropagation(); if (disabled) return; closeCtx(); runCmd(cmd); },
+      }, h('span', {}, label), h('span', { class: 'k' }, keyText(key) || '')));
+    });
+    document.body.append(box);
+    ctxMenu = box;
+    // At the pointer, kept inside the window: it opens leftward or upward when there's no room.
+    const w = box.offsetWidth, ht = box.offsetHeight;
+    box.style.left = Math.max(2, e.clientX + w > innerWidth - 2 ? e.clientX - w : e.clientX) + 'px';
+    box.style.top = Math.max(2, e.clientY + ht > innerHeight - 2 ? e.clientY - ht : e.clientY) + 'px';
+  });
+  document.addEventListener('mousedown', closeCtx);
+  addEventListener('blur', closeCtx);
+  addEventListener('resize', closeCtx);
+  document.addEventListener('wheel', closeCtx, { passive: true });
 
   // ---------- search box ----------
   const q = $('#q');
@@ -2457,7 +2559,7 @@
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeFind(); closeMenus(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
+    if (k === 'Escape') { closeFind(); closeMenus(); closeCtx(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
     // Home (or Ctrl+Home) goes to the top of an article, unless you're typing.
     if (k === 'Home' && current?.content && !$('.overlay') && !e.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
       e.preventDefault();

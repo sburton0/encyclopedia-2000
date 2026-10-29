@@ -50,6 +50,8 @@ button { font-family: inherit; cursor: default; }
 .menu .mi.disabled { color: #5d6474; }
 .menu .mi.disabled:hover { background: transparent; }
 .menu .msep { height: 1px; margin: 3px 2px; background: #30343e; }
+/* The right-click menu: the menu bar's menus, placed at the pointer. */
+.menu.ctx { position: fixed; top: 0; z-index: 1000; min-width: 190px; font-size: 12px; }
 
 /* ---------- toolbar: flat buttons that sit inside the dark band ---------- */
 .toolbar { height: 38px; flex: none; display: flex; align-items: center; gap: 2px; padding: 0 8px; position: relative; z-index: 30;
