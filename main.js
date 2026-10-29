@@ -204,16 +204,30 @@ ipcMain.on('win', (e, cmd) => {
 
 // The right-click menu's Copy Picture and Save Picture As….
 ipcMain.on('picture:copy', (e, x, y) => { if (Number.isFinite(x) && Number.isFinite(y)) e.sender.copyImageAt(x, y); });
-ipcMain.handle('picture:save', async (e, name, bytes) => {
-  const safe = String(name || '').replace(/[\\/:*?"<>|]+/g, '').trim() || 'Picture';
-  const ext = path.extname(safe).slice(1).toLowerCase();
+// Downloads here, not in the page: the page's security policy lets it show Wikimedia's pictures but not download
+// them. Tries each address in turn (the full picture, then the one on screen) and keeps the first real picture.
+ipcMain.handle('picture:save', async (e, urls) => {
+  let res = null, url = '';
+  for (const u of (Array.isArray(urls) ? urls : []).slice(0, 3)) {
+    if (!/^(https:\/\/[a-z0-9.-]+\.(wikimedia|wikipedia)\.org\/|e2k-zim:)/.test(String(u))) continue;
+    try {
+      const r = await e.sender.session.fetch(u);
+      if (r.ok && /^image\//.test(r.headers.get('content-type') || '')) { res = r; url = u; break; }
+    } catch {}
+  }
+  if (!res) return 'failed';
+  // Its file name from the address ("…/320px-Full_Moon.jpg" is "Full Moon.jpg").
+  let name = url.split(/[?#]/)[0].split('/').pop() || '';
+  try { name = decodeURIComponent(name); } catch {}
+  name = name.replace(/^\d+px-/, '').replace(/_/g, ' ').replace(/[\\/:*?"<>|]+/g, '').trim() || 'Picture';
+  const ext = path.extname(name).slice(1).toLowerCase();
   const { canceled, filePath } = await dialog.showSaveDialog(BrowserWindow.fromWebContents(e.sender), {
-    title: 'Save Picture', defaultPath: path.join(app.getPath('pictures'), safe),
+    title: 'Save Picture', defaultPath: path.join(app.getPath('pictures'), name),
     filters: ext ? [{ name: `${ext.toUpperCase()} picture`, extensions: [ext] }, { name: 'All files', extensions: ['*'] }] : [],
   });
-  if (canceled || !filePath) return false;
-  fs.writeFileSync(filePath, Buffer.from(bytes));
-  return true;
+  if (canceled || !filePath) return 'canceled';
+  fs.writeFileSync(filePath, Buffer.from(await res.arrayBuffer()));
+  return 'saved';
 });
 
 const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate });

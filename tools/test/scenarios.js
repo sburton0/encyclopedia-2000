@@ -13,6 +13,12 @@
 // quit, cancelling, moving, a library going missing and coming back, no connection, and Offline mode.
 const fs = require('fs');
 const path = require('path');
+// Whether a saved file is a picture (JPEG, PNG, GIF, WebP, or SVG), from its first bytes, and its size.
+const savedPicture = (file) => {
+  try { const b = fs.readFileSync(file); return { size: b.length, picture: /^(\xff\xd8\xff|\x89PNG|GIF8|RIFF....WEBP|<\?xml|<svg)/.test(b.subarray(0, 16).toString('latin1')) }; } catch { return { size: 0, picture: false }; }
+};
+// Waits for a saved file to appear.
+const savedFile = async (t, file) => { for (let i = 0; i < 100 && !fs.existsSync(file); i++) await t.sleep(200); await t.sleep(300); return savedPicture(file); };
 
 const KNOTS = 'wikipedia_en_knots';            // 18 MB: big enough to pause or quit partway (Ray Charles is one piece)
 const label = (q) => `[...document.querySelectorAll('.offline .packs button, .dialog .go')].find((b) => b.textContent.trim() === ${JSON.stringify(q)})`;
@@ -186,10 +192,40 @@ module.exports = [
       let pic = false;
       for (let i = 0; i < 30 && !pic; i++) { await t.sleep(100); pic = await t.clipImage(); }
       t.check('Copy Picture copies the picture', pic);
+      // Save Picture As… downloads the full picture (the Save dialog is answered by the test).
+      const saved = path.join(t.out, 'saved-lead.jpg');
+      t.saveTo(saved);
+      await ctx(`${pageOf('Moon')}.querySelector('.media img')`);
+      await pick('Save Picture As…');
+      const lead = await savedFile(t, saved);
+      t.check('Save Picture As… saves the picture', lead.picture, JSON.stringify(lead));
+      t.check('…the full picture, not the small copy', lead.size > 150000, lead.size);
+      t.check('…suggesting the picture’s own name', /^[^/]+\.(jpe?g|png)$/i.test(t.saveAsked[0] || '') && !/px-/.test(t.saveAsked[0]), t.saveAsked[0]);
+      t.check('…and says so', await t.waitFor('/Picture saved/.test(document.querySelector("#status")?.textContent || document.body.innerText)', 4000));
       await ctx(`${pageOf('Moon')}.querySelector('.media img')`);
       await pick('View Picture');
-      t.check('View Picture opens it', await t.waitFor('document.querySelector(".overlay")', 5000));
+      t.check('View Picture opens it', await t.waitFor('document.querySelector(".overlay img")', 5000));
+      // In the enlarged picture: Copy Picture and Save Picture As….
+      await t.waitFor('document.querySelector(".overlay img")?.complete', 8000);
+      const inViewer = await ctx(`document.querySelector('.overlay img')`);
+      t.check('On an enlarged picture: Copy Picture, Save Picture As…', inViewer.join(', ') === 'Copy Picture, Save Picture As…', inViewer.join(', '));
+      await t.sleep(300);
+      await t.shot('right-click-enlarged');
+      const saved2 = path.join(t.out, 'saved-enlarged.jpg');
+      t.saveTo(saved2);
+      await pick('Save Picture As…');
+      const big = await savedFile(t, saved2);
+      t.check('…and it saves', big.picture && big.size > 20000, JSON.stringify(big));
+      t.check('The enlarged picture is still open', await t.js('return !!document.querySelector(".overlay img");'));
       await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      // The media viewer (a picture from the article's Media).
+      await t.waitFor('!document.querySelector(".overlay")', 3000);
+      await t.js(`${pageOf('Moon')}.querySelector('button.mt.image').click();`);
+      if (await t.waitFor('document.querySelector(".mstage img")?.complete', 10000)) {
+        const inMedia = await ctx(`document.querySelector('.mstage img')`);
+        t.check('In the media viewer: Copy Picture, Save Picture As…', inMedia.join(', ') === 'Copy Picture, Save Picture As…', inMedia.join(', '));
+        await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      } else t.check('The media viewer opens a picture', false, await t.js('return document.querySelector(".overlay")?.className || "no viewer";'));
 
       // The Find box: Cut and Copy are off with nothing selected.
       await t.js(`const q = document.querySelector('#q'); q.value = ''; q.blur();`);
@@ -231,6 +267,24 @@ module.exports = [
       await ctx(`${pageOf('Moon')}.querySelector('.text p a[data-title]')`);
       await t.sleep(300);
       await t.shot('right-click-classic');
+    },
+  },
+  {
+    name: 'media-videos', group: 'General', title: 'The media viewer: going from one video to another, the Play button goes away',
+    route: 'article/Michael%20Jackson',
+    async run(t) {
+      t.check('The article opens', await t.waitFor(`${pageOf('Michael Jackson')}?.querySelectorAll(".text p").length > 5`, 20000));
+      const state = () => t.js(`const st = document.querySelector('.mstage'), v = st?.querySelector('video');
+        return { playing: !!v && !v.paused, button: st?.classList.contains('playing') ? 'hidden' : 'shown' };`);
+      t.check('Two videos in Media', await t.waitFor(`${pageOf('Michael Jackson')}.querySelectorAll('button.mt.video').length >= 2`, 15000));
+      await t.js(`${pageOf('Michael Jackson')}.querySelector('button.mt.video').click();`);
+      t.check('The first video plays', await t.waitFor(`!document.querySelector('.mstage video')?.paused`, 20000));
+      await t.js(`document.querySelectorAll('.mviewer .mstrip button.mt.video')[1].click();`);
+      t.check('The second video plays', await t.waitFor(`!document.querySelector('.mstage video')?.paused && document.querySelector('.mstage video').currentTime > 0.5`, 25000));
+      await t.sleep(1000);
+      const s = await state();
+      t.check('…without the Play button over it', s.playing && s.button === 'hidden', JSON.stringify(s));
+      await t.shot('second-video');
     },
   },
   {
@@ -773,6 +827,41 @@ module.exports = [
       await t.shot('not-in-library');
       const first = await t.js('const a = document.querySelector(".errbox .inlib a"); a.click(); return a.textContent;');
       t.check('A related article opens', await t.waitFor('(document.querySelector("h1")?.textContent || "").trim() === ' + JSON.stringify(first), 10000), first);
+    },
+  },
+  {
+    name: 'right-click-offline', group: 'Reading offline', title: 'Save Picture As… with a picture from the offline library',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      await t.js('E2K.openArticle("Ray Charles");');
+      t.check('The article opens from the library', await t.waitFor('document.querySelector(".content.article .text p") && [...document.querySelectorAll(".content.article img")].some((i) => i.src.startsWith("e2k-zim:") && i.complete && i.naturalWidth > 50)', 15000));
+      const saved = path.join(t.out, 'saved-offline');
+      t.saveTo(saved);
+      await t.js(`const img = [...document.querySelectorAll(".content.article img")].find((i) => i.src.startsWith("e2k-zim:") && i.naturalWidth > 50);
+        const r = img.getBoundingClientRect();
+        img.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+        const m = [...document.querySelectorAll('.menu.ctx .mi')].find((m) => m.firstChild.textContent === 'Save Picture As…');
+        m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); m.click();`);
+      const pic = await savedFile(t, saved);
+      t.check('Save Picture As… saves the library’s picture', pic.picture && pic.size > 1000, JSON.stringify(pic) + ' ' + (t.saveAsked || []).join());
+    },
+  },
+  {
+    name: 'section-pages', group: 'Reading offline', title: 'Library pages that only lead to a section of another article aren’t listed or opened as articles',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      // In the Ray Charles library, "Here We Go Again (Nancy Sinatra song)" and "(Norah Jones song)" are pages that lead
+      // to sections of "Here We Go Again (Ray Charles song)"; "Eleanor Rigby (person)" to a section of "Eleanor Rigby".
+      const found = await t.js('return (await window.e2k.library.titles("Here We Go Again", 8)).map((r) => r.title);');
+      t.check('Suggestions list the article, not the pages leading to its sections',
+        found.includes('Here We Go Again (Ray Charles song)') && !found.some((x) => /Sinatra|Norah/.test(x)), found.join(', '));
+      const person = await t.js('return (await window.e2k.library.titles("Eleanor Rigby (person)", 8)).map((r) => r.title);');
+      t.check('Typing such a page’s name suggests the article it leads to', person.join() === 'Eleanor Rigby', person.join(', '));
+      await t.js('E2K.openArticle("Eleanor Rigby (person)");');
+      t.check('Opening it opens the article', await t.waitFor('document.querySelector(".band h1")?.textContent === "Eleanor Rigby" && document.querySelectorAll(".content.article .text p").length > 3', 15000),
+        await t.js('return document.querySelector(".band h1")?.textContent || document.querySelector(".errbox")?.innerText || "";'));
     },
   },
   {

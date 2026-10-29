@@ -62,7 +62,7 @@ function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateF
 
 function openFile(file) {
   dailies.clear(); featuredHere = null;
-  previews.clear();
+  previews.clear(); stubs.clear(); stubClusters.clear();
   if (lib) { try { lib.close(); } catch {} lib = null; }
   try { lib = new Zim(file); } catch (e) { console.error('Offline library could not be opened:', e.message); return false; }
   // A read that fails (its drive was disconnected) means the library is missing, until it can be opened again.
@@ -75,7 +75,7 @@ function openFile(file) {
 function lost() {
   if (override || !state.current) return;
   if (lib) { try { lib.close(); } catch {} lib = null; }
-  dailies.clear(); featuredHere = null; previews.clear();
+  dailies.clear(); featuredHere = null; previews.clear(); stubs.clear(); stubClusters.clear();
   if (!missing) { missing = true; setImmediate(() => broadcast()); }
   if (!watch) {
     watch = setInterval(() => {
@@ -170,10 +170,36 @@ function libraryIn(dir) {
 // ---------- reading ----------
 const toPath = (title) => String(title).trim().replace(/ /g, '_');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// An entry, following redirects. Kiwix's libraries also hold thousands of tiny pages that only send you to a section
+// of another article ("Michael Jackson's finances" goes to Michael Jackson › Earnings); those are followed too, so
+// they aren't listed or opened as articles of their own. Reading a page to tell is slow (its whole cluster is
+// unpacked), but these pages are packed thousands to a cluster, and an article's cluster holds only a handful: so
+// unless `sure`, only a page stored deep in its cluster (or in one already known to hold them) is read. Remembered.
+const stubs = new Map(), stubClusters = new Set();
+function follow(e, sure = false) {
+  e = lib.resolve(e);
+  if (!e || e.mime !== 'text/html') return e;
+  if (!stubs.has(e.i)) {
+    if (!sure && e.blob < 16 && !stubClusters.has(e.cluster)) return e;
+    let to = null;
+    try {
+      const html = lib.content(e);
+      const m = html.length < 2048 && /<meta http-equiv="refresh" content="0;\s*URL='\.\/([^'#]+)/i.exec(html.toString('utf8'));
+      if (m) {
+        stubClusters.add(e.cluster);
+        let p = m[1];
+        try { p = decodeURIComponent(p); } catch {}
+        to = lib.resolve(lib.find('C', p));
+      }
+    } catch {}
+    stubs.set(e.i, to && to.mime === 'text/html' && to.i !== e.i ? to : null);
+  }
+  return stubs.get(e.i) || e;
+}
 function find(title) {
   if (!lib) return null;
   for (const p of new Set([toPath(title), cap(toPath(title))])) {
-    const e = lib.resolve(lib.find('C', p));
+    const e = follow(lib.find('C', p), true);
     if (e && e.mime === 'text/html') return { path: e.path, title: e.title };
   }
   return null;
@@ -187,7 +213,7 @@ function titles(q, limit = 8, deep = false) {
   const t = String(q).trim(), lower = t.toLowerCase(), best = new Map();
   for (const v of new Set([t, cap(t), t.replace(/\b\w/g, (c) => c.toUpperCase())])) {
     for (const e of lib.titleEntries(v, limit * 4)) {
-      const r = lib.resolve(e);
+      const r = follow(e);
       if (!r || r.mime !== 'text/html' || r.path === 'index') continue;
       const own = r.title.toLowerCase();
       const rank = own === lower || e.title.toLowerCase() === lower ? 0 : own.startsWith(lower) ? 1 : 2;
@@ -206,9 +232,9 @@ function titles(q, limit = 8, deep = false) {
     const later = [];
     for (const v of new Set([start, cap(start), start.replace(/\b\w/g, (c) => c.toUpperCase())])) {
       for (const e of lib.titleEntries(v, 400)) {
-        const r = lib.resolve(e);
+        let r = lib.resolve(e);
         if (!r || r.mime !== 'text/html' || r.path === 'index' || best.has(r.path)) continue;
-        if (has(r.title + ' ' + e.title)) best.set(r.path, { title: r.title, path: r.path, rank: 3, key: r.title });
+        if (has(r.title + ' ' + e.title)) { r = follow(r); if (!best.has(r.path)) best.set(r.path, { title: r.title, path: r.path, rank: 3, key: r.title }); }
         else if (deep && later.length < 60) later.push(r);
       }
     }
@@ -217,9 +243,14 @@ function titles(q, limit = 8, deep = false) {
       if (!best.has(r.path) && has(preview(r.path).extract)) best.set(r.path, { title: r.title, path: r.path, rank: 4, key: r.title });
     }
   }
-  return [...best.values()]
-    .sort((a, b) => a.rank - b.rank || (a.rank === 1 ? a.key.length - b.key.length : 0) || a.key.localeCompare(b.key))
-    .slice(0, limit).map(({ title, path: p }) => ({ title, path: p, ...preview(p) }));
+  // The ones shown are read to be sure (a few section pages are stored where they weren't looked for).
+  const shown = new Map();
+  for (const it of [...best.values()].sort((a, b) => a.rank - b.rank || (a.rank === 1 ? a.key.length - b.key.length : 0) || a.key.localeCompare(b.key))) {
+    if (shown.size >= limit) break;
+    const r = follow(lib.find('C', it.path), true) || {};
+    if (r.path && !shown.has(r.path)) shown.set(r.path, { title: r.title, path: r.path });
+  }
+  return [...shown.values()].map(({ title, path: p }) => ({ title, path: p, ...preview(p) }));
 }
 // An article's lead picture (the infobox's, or the first figure's) as an e2k-zim: address, and its first sentence,
 // for search results and suggestions. Read from the article itself, so they're remembered per article.
@@ -271,7 +302,7 @@ function random() {
   if (!lib) return null;
   const n = lib.titleList().length;
   for (let k = 0; k < 50; k++) {
-    const e = lib.resolve(lib.entry(lib.titleIdx(Math.floor(Math.random() * n))));
+    const e = follow(lib.entry(lib.titleIdx(Math.floor(Math.random() * n))), true);
     if (e && e.mime === 'text/html' && e.path !== 'index') return { title: e.title, path: e.path };
   }
   return null;
@@ -358,7 +389,7 @@ async function dailyPicks(key) {
   };
   const mine = lib, fa = await featuredInLibrary(), n = lib.titleList().length, pics = hasPictures();
   const pick = fa.length ? () => fa[Math.floor(next() * fa.length)]
-    : () => { const e = lib.resolve(lib.entry(lib.titleIdx(Math.floor(next() * n)))); return e && e.mime === 'text/html' && e.path !== 'index' ? e : null; };
+    : () => { const e = follow(lib.entry(lib.titleIdx(Math.floor(next() * n))), true); return e && e.mime === 'text/html' && e.path !== 'index' ? e : null; };
   let disc = null, pic = null;
   // Today's discovery has a picture when the library has pictures; the center picture needs a library with pictures.
   for (let k = 0; k < 300 && !disc; k++) {

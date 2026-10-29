@@ -1,7 +1,7 @@
 // The automated tests' Electron entry point: starts the real app (main.js) and runs one scenario from scenarios.js
 // against its main window, then writes result.json and the screenshots to E2K_TEST_OUT and quits. run.js starts it
 // once per scenario; it isn't meant to be run by hand.
-const { app, BrowserWindow, Menu, clipboard } = require('electron');
+const { app, BrowserWindow, Menu, clipboard, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 
@@ -83,6 +83,8 @@ async function run(win) {
     clipText: () => clipboard.readText(),
     clipImage: () => clipboard.has('image/png'),
     setClip: (text) => clipboard.writeText(text),
+    // Answers the next Save dialogs with this file instead of asking; saveAsked lists the names they suggested.
+    saveTo(file) { t.saveAsked = []; dialog.showSaveDialog = async (_w, opts) => { t.saveAsked.push(path.basename((opts || _w).defaultPath || '')); return { canceled: false, filePath: file }; }; },
     windows: () => BrowserWindow.getAllWindows().filter((w) => !w.isDestroyed()),
     // Ends the app at once, without saving or asking: like the computer losing power.
     crash() { result.crashed = true; finish(); },

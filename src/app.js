@@ -95,7 +95,10 @@
   const https = (u) => (u && u.startsWith('//') ? 'https:' + u : u);
   const bg = (url) => (url ? `background-image:url("${String(url).replace(/"/g, '%22')}")` : '');
   const bigThumb = (url, px = 1280) => (url && /\/\d+px-/.test(url) ? url.replace(/\/\d+px-/, `/${px}px-`) : url);
-  const originalOf = (thumb) => (thumb && thumb.includes('/thumb/') ? thumb.replace('/thumb/', '/').replace(/\/[^/]+$/, '') : thumb);
+  // A thumbnail's original. Thumbnails may come from thumb.wikimedia.org, but the originals are only on
+  // upload.wikimedia.org (the same address on thumb.wikimedia.org leads to the Commons home page).
+  const originalOf = (thumb) => (thumb && thumb.includes('/thumb/')
+    ? thumb.replace('/thumb/', '/').replace(/\/[^/]+$/, '').replace('//thumb.wikimedia.org/', '//upload.wikimedia.org/') : thumb);
   // Wikimedia won't upscale, so only request a larger thumbnail when the original is wider than that.
   const sized = (thumb, original, width, px) => (width > px ? bigThumb(thumb, px) : original || thumb);
   const longDate = (d = new Date()) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
@@ -1811,7 +1814,9 @@
         const el = h(m.type, { src: m.src, preload: play ? 'auto' : 'none', poster: m.type === 'video' ? m.thumb : null });
         const parts = playerParts();
         controls.append(parts.pb, parts.cur, parts.bar, parts.tot, ...volControl());
-        toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => stage.classList.toggle('playing', on) });
+        // Only the one on screen: a video left behind for the next one pauses as it goes, and says so after the next one
+        // has started, which would bring back the Play button over it.
+        toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => { if (el.isConnected) stage.classList.toggle('playing', on); } });
         el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
         const big = h('button', { class: 'big', title: 'Play', onclick: toggle }, icon('play'));
         if (m.type === 'video') {
@@ -2146,23 +2151,14 @@
   // It's drawn like the menu bar's menus, at the same fixed size as other apps' right-click menus.
   let ctxMenu = null;
   function closeCtx() { if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; } }
-  // A picture's file name from its address ("…/320px-Full_Moon.jpg" is "Full Moon.jpg").
-  const fileOf = (src) => {
-    let name = (src || '').split(/[?#]/)[0].split('/').pop() || 'picture';
-    try { name = decodeURIComponent(name); } catch {}
-    return name.replace(/^\d+px-/, '').replace(/_/g, ' ');
-  };
   async function savePicture(img) {
     const shown = img.currentSrc || img.src;
     setStatus('Saving the picture…', true);
-    try {
-      // The full picture where there is one (articles show smaller copies), else the one on screen.
-      const full = img.closest('a[data-file]') && !isOffline() ? originalOf(shown) : '';
-      let res = full ? await fetch(full).catch(() => null) : null, src = full;
-      if (!res || !res.ok) { res = await fetch(shown); src = shown; }
-      const saved = await window.e2k.savePicture(fileOf(src), new Uint8Array(await res.arrayBuffer()));
-      setIdle(saved ? 'Picture saved' : statusIdle);
-    } catch { setIdle('Couldn’t save the picture'); }
+    // The main process downloads it (the page's security policy only lets it read pictures, not download them): the
+    // full picture where there is one (articles show smaller copies), else the one on screen.
+    const urls = [...new Set([isOffline() ? '' : originalOf(shown), shown].filter(Boolean))];
+    const r = await window.e2k.savePicture(urls).catch(() => 'failed');
+    setIdle(r === 'saved' ? 'Picture saved' : r === 'canceled' ? statusIdle : 'Couldn’t save the picture');
   }
   function viewPicture(img) {
     // Pictures that open when clicked open the same way; any other picture opens on its own.
@@ -2185,6 +2181,10 @@
         ['Paste', () => { field.focus(); window.e2k.win('paste'); }, 'Ctrl+V', null, ro], '-',
         ['Select All', () => { field.focus(); field.select(); }, 'Ctrl+A']];
     }
+    const copyPic = ['Copy Picture', () => window.e2k.copyImageAt(Math.round(e.clientX), Math.round(e.clientY))];
+    // An enlarged picture (the media viewer, or a picture opened on its own).
+    const big = e.target.closest('.lightbox img, .mstage img');
+    if (big) return [copyPic, ['Save Picture As…', () => savePicture(big)]];
     if (!e.target.closest('#view') || e.target.closest('.overlay, canvas')) return [];
     const groups = [];
     const words = String(getSelection() || '').replace(/\s+/g, ' ').trim();
@@ -2201,7 +2201,7 @@
       groups.push([['Open in Web Browser', () => window.e2k.openExternal(a.dataset.ext)], ['Copy Link', () => navigator.clipboard.writeText(a.dataset.ext)]]);
     }
     if (img) {
-      groups.push([['View Picture', () => viewPicture(img)], ['Copy Picture', () => window.e2k.copyImageAt(Math.round(e.clientX), Math.round(e.clientY))],
+      groups.push([['View Picture', () => viewPicture(img)], copyPic,
         ['Save Picture As…', () => savePicture(img)]]);
     }
     if (!groups.length) {
