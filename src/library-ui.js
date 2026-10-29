@@ -216,7 +216,7 @@ window.E2KLibrary = (() => {
         if (r.canRemoveOld && cur) {
           const ok = await new Promise((res) => dialog('Offline Library', 'Not enough space', [
             `There isn’t enough space to keep ${cur.label} while ${p.label} downloads (it needs ${size(r.need)}; ${size(r.free)} is free).`,
-            `Remove ${cur.label} now? You’ll have only your saved articles until the download finishes.`],
+            `Remove ${cur.label} now? Articles will load from Wikipedia until the download finishes.`],
           [[`Remove ${cur.label} and download`, () => res(true), true], ['Cancel', () => res(false)]]));
           if (!ok) return;
           r = await L.download(p.id, { removeOld: true, keepOld });
@@ -253,13 +253,13 @@ window.E2KLibrary = (() => {
     async function remove(p) {
       if (own()) {
         const ok = await new Promise((res) => dialog('Offline Library', `Stop using ${p.label}?`,
-          [`Your file stays in ${st.dir}. Articles will load from Wikipedia again, and only your saved articles will work offline.`],
+          [`Your file stays in ${st.dir}. Articles will load from Wikipedia again.`],
           [['Stop using', () => res(true)], ['Cancel', () => res(false), true]]));
         if (ok) { st = await L.remove(); draw(); fitUp(); }
         return;
       }
       const ok = await new Promise((res) => dialog('Offline Library', `Remove ${p.label}?`,
-        [`This frees ${size(st.current.size)}. Articles will load from Wikipedia again, and only your saved articles will work offline.`],
+        [`This frees ${size(st.current.size)}. Articles will load from Wikipedia again.`],
         [['Remove', () => res(true)], ['Cancel', () => res(false), true]]));
       if (ok) { st = await L.remove(); draw(); }
     }
