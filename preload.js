@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('e2k', {
   setMenu: (template) => ipcRenderer.send('menu:set', template),
   onMenu: (cb) => ipcRenderer.on('menu:run', (_e, id) => cb(id)),
   win: (cmd) => ipcRenderer.send('win', cmd),
+  copyText: (text) => ipcRenderer.send('clipboard:text', text),
   copyImageAt: (x, y) => ipcRenderer.send('picture:copy', x, y),
   savePicture: (urls) => ipcRenderer.invoke('picture:save', urls),
   openExternal: (url) => ipcRenderer.invoke('open-external', url),

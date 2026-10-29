@@ -2196,9 +2196,9 @@
     if (a?.dataset.title) {
       const url = Wiki.pageUrl(a.dataset.title.replace(/ /g, '_'));
       groups.push([['Open', () => openArticle(a.dataset.title, linkFrom())], ['Open on Wikipedia', () => window.e2k.openExternal(url)],
-        ['Copy Link', () => navigator.clipboard.writeText(url)]]);
+        ['Copy Link', () => window.e2k.copyText(url)]]);
     } else if (a?.dataset.ext) {
-      groups.push([['Open in Web Browser', () => window.e2k.openExternal(a.dataset.ext)], ['Copy Link', () => navigator.clipboard.writeText(a.dataset.ext)]]);
+      groups.push([['Open in Web Browser', () => window.e2k.openExternal(a.dataset.ext)], ['Copy Link', () => window.e2k.copyText(a.dataset.ext)]]);
     }
     if (img) {
       groups.push([['View Picture', () => viewPicture(img)], copyPic,

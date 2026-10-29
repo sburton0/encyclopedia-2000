@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog, session } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, screen, dialog, session, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -202,7 +202,9 @@ ipcMain.on('win', (e, cmd) => {
   else if (cmd === 'paste') win.webContents.paste();
 });
 
-// The right-click menu's Copy Picture and Save Picture As….
+// The right-click menu's Copy Link (the page's own clipboard refuses while the window isn't focused), Copy Picture, and
+// Save Picture As….
+ipcMain.on('clipboard:text', (_e, text) => clipboard.writeText(String(text)));
 ipcMain.on('picture:copy', (e, x, y) => { if (Number.isFinite(x) && Number.isFinite(y)) e.sender.copyImageAt(x, y); });
 // Downloads here, not in the page: the page's security policy lets it show Wikimedia's pictures but not download
 // them. Tries each address in turn (the full picture, then the one on screen) and keeps the first real picture.
