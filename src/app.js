@@ -946,16 +946,27 @@
     pg.text.append(grid);
     if (!mount(pg.root, token)) return;
     setStatus('Picking articles…', true);
-    const results = await Promise.allSettled(Array.from({ length: 8 }, () => Wiki.random()));
+    // Twelve picks are asked for at once, and each card fills in as its article arrives; the first eight win.
+    // Wikipedia builds the summary of an article it hasn't sent lately on the spot (up to a few seconds),
+    // so one slow pick no longer holds up the page.
+    const ghosts = [...grid.children], seen = new Set();
+    let filled = 0, settled = 0;
+    await new Promise((done) => {
+      for (let i = 0; i < 12; i++) {
+        Wiki.random().then((s) => {
+          const t = s.titles?.normalized || s.title;
+          if (!live(token) || filled >= 8 || seen.has(t)) return;
+          seen.add(t);
+          ghosts[filled++].replaceWith(h('button', { class: 'card', onclick: () => openArticle(t) },
+            h('div', { class: 'ph', style: bg(s.thumbnail?.source) }),
+            h('div', { class: 'b' }, h('b', {}, t), s.description ? h('span', {}, s.description) : null, h('p', {}, s.extract || ''))));
+          if (filled === 8) done();
+        }, () => {}).finally(() => { if (++settled === 12) done(); });
+      }
+    });
     if (!live(token)) return;
-    const pages = results.filter((r) => r.status === 'fulfilled').map((r) => r.value);
-    if (!pages.length) throw new Error('No articles returned');
-    grid.replaceChildren(...pages.map((s) => {
-      const t = s.titles?.normalized || s.title;
-      return h('button', { class: 'card', onclick: () => openArticle(t) },
-        h('div', { class: 'ph', style: bg(s.thumbnail?.source) }),
-        h('div', { class: 'b' }, h('b', {}, t), s.description ? h('span', {}, s.description) : null, h('p', {}, s.extract || '')));
-    }));
+    if (!filled) throw new Error('No articles returned');
+    ghosts.slice(filled).forEach((g) => g.remove());
     setIdle();
   }
 

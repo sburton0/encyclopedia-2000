@@ -542,9 +542,9 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .errbox .inlib b { display: inline; font-size: 13px; }
 .errbox .inlib a { color: #1d47a8; text-decoration: none; border-bottom: 1px dotted rgba(29, 71, 168, .5); cursor: pointer; }
 
-/* explore cards */
+/* explore cards (a card is a button, which centers what's inside it: as a column, the picture stays at the top of a card stretched to its row) */
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 16px; }
-.card { padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
+.card { display: flex; flex-direction: column; padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea; box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
 .card:hover { transform: translateY(-2px); border-color: var(--orange); }
 .card .ph { height: 120px; background: linear-gradient(135deg, var(--ink-3), var(--ink-1)) center/cover; }
 .card .b { padding: 9px 11px 12px; }

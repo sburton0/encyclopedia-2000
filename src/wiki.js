@@ -28,13 +28,13 @@ window.Wiki = (() => {
 
   // Wikipedia sometimes answers with a server error (503) for a while, at random; one more try a second later usually
   // gets through. Never for "too many requests" (429) or a missing page.
-  async function get(url, as = 'json', retry = true) {
+  async function get(url, as = 'json', retry = true, init = {}) {
     let res;
-    try { res = await fetch(url); } catch (e) { if (!offlineMode()) setDown(true); throw e; }
+    try { res = await fetch(url, init); } catch (e) { if (!offlineMode()) setDown(true); throw e; }
     setDown(false);
     if (res.status >= 500 && retry) {
       await new Promise((r) => setTimeout(r, 1000));
-      return get(url, as, false);
+      return get(url, as, false, init);
     }
     if (!res.ok) {
       const err = new Error(`HTTP ${res.status}`);
@@ -232,7 +232,9 @@ window.Wiki = (() => {
     commonsPages: (titles) => get(`${COMMONS}/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=revisions&rvprop=content&rvslots=main`
       + `&titles=${encodeURIComponent(titles.join('|'))}`)
       .then((r) => Object.fromEntries((r.query?.pages || []).map((p) => [p.title, p.revisions?.[0]?.slots?.main?.content || '']))),
-    random: () => search(() => get(`${BASE}/api/rest_v1/page/random/summary`), async () => { const r = await lib.random(); if (!r) throw new Error('The library is empty'); return libSummary(r); }),
+    // Not through the browser's cache: it sends identical requests made at the same time one after another (to see if it
+    // can reuse the first answer), which made the Articles page's random picks arrive in a line instead of together.
+    random: () => search(() => get(`${BASE}/api/rest_v1/page/random/summary`, 'json', true, { cache: 'no-store' }), async () => { const r = await lib.random(); if (!r) throw new Error('The library is empty'); return libSummary(r); }),
     searchTitles: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`), async () => ({ pages: await libTitles(q, 8) })),
     // Offline, results are titles that start with what was typed (the library's word search isn't readable here yet).
     searchPages: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=20`), async () => ({ pages: await libTitles(q, 20, true) })),

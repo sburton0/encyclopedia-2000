@@ -148,6 +148,27 @@ module.exports = [
     },
   },
   {
+    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 2 seconds (one slow pick doesn’t hold up the rest, and the picks aren’t sent one after another), each picture at the top of its card',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 15000);
+      const times = [];
+      for (let i = 0; i < 3; i++) {
+        const t0 = Date.now();
+        // Shuffle draws a new grid; the old one is marked so the wait can't count its cards.
+        await t.js(i ? 'document.querySelector(".cards").dataset.old = 1; document.querySelector(".tools .bbtn").click();' : 'E2K.go("explore")');
+        await t.waitFor('document.querySelectorAll(".cards:not([data-old]) .card:not(.ghost)").length === 8', 15000);
+        times.push(Date.now() - t0);
+      }
+      t.check('Eight cards each time, with different articles', await t.js('const ts = [...document.querySelectorAll(".cards .card b")].map((b) => b.textContent); return ts.length === 8 && new Set(ts).size === 8;'));
+      t.check('The cards fill in within 2 seconds', times.every((ms) => ms < 2000), times.map((ms) => `${ms} ms`).join(', '));
+      // A card stretched to the tallest in its row keeps its picture at the top, with no white gap above it.
+      const gaps = await t.js('return [...document.querySelectorAll(".cards .card")].map((c) => Math.round(c.querySelector(".ph").getBoundingClientRect().top - c.getBoundingClientRect().top));');
+      t.check('Every picture sits at the top of its card', gaps.every((g) => g <= 1), `gaps above the pictures: ${gaps.join(', ')} px`);
+      await t.shot('articles');
+    },
+  },
+  {
     name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
     route: 'article/Moon',
     async run(t) {
