@@ -88,7 +88,7 @@ window.E2KWorld = (() => {
 
     // Map
     const vb = state.view ? { ...state.view } : { x: 0, y: 0, w: M.w, h: M.h };
-    const map = svg('svg', { class: 'wx-svg', viewBox: '' });
+    const map = svg('svg', { class: 'wx-svg', viewBox: `${vb.x} ${vb.y} ${vb.w} ${vb.h}` });
     const world = svg('g');
     world.append(svg('path', { class: 'wx-grid', d: M.grid }), svg('path', { class: 'wx-inert', d: M.inert }));
     const paths = {}, dots = {};

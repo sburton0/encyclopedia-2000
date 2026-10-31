@@ -1011,6 +1011,7 @@ module.exports = [
         const groups = await t.js('return [...document.querySelectorAll(".dialog.keys h3")].map((h) => h.textContent);');
         t.check('Keyboard Shortcuts lists Going places and Offline', groups.includes('Going places') && groups.includes('Offline'), groups.join(', '));
         t.check('…and has focus', await t.js('return document.querySelector(".overlay").contains(document.activeElement);'));
+        await t.sleep(600);                   // drawn before the screenshot (a Mac draws the window a moment later)
         await t.shot('shortcuts');
       } else t.skip('Keyboard Shortcuts', 'couldn’t open it from the test (macOS shortcuts come from the menu bar)');
     },
