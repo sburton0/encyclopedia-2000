@@ -77,6 +77,14 @@ window.E2KLibrary = (() => {
       h('button', { class: 'go', onclick: () => openLibFile() }, 'Open library file…'));
     // With a library installed, only it (and any download in progress) shows; Change library… reveals the rest.
     let showAll = false;
+    // Screen readers hear a download's progress every 10%, and when it pauses or stops.
+    let said = '';
+    const sayProgress = (label, what, pct) => {
+      const now = `${what} ${Math.floor(pct / 10) * 10}`;
+      if (now === said) return;
+      said = now;
+      E2K.announce(`${label}: ${what.replace('…', '')} ${Math.floor(pct)}%`);
+    };
     function draw() {
       const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
@@ -111,7 +119,8 @@ window.E2KLibrary = (() => {
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
           const pct = mv.size ? Math.min(100, (100 * mv.copied) / mv.size) : 0;
           acts.push(h('button', { class: 'go', onclick: async () => { st = await L.cancelMove(); draw(); } }, 'Cancel'));
-          extra = [h('div', { class: 'bar' }, h('i', { style: `width:${pct.toFixed(1)}%` })),
+          sayProgress(cur.label, 'Moving…', pct);
+          extra = [h('div', { class: 'bar', role: 'progressbar', 'aria-label': `Moving ${cur.label}`, 'aria-valuenow': Math.floor(pct) }, h('i', { style: `width:${pct.toFixed(1)}%` })),
             h('div', { class: 'prog' }, h('span', {}, `Moving… ${size(mv.copied) || '0 MB'} of ${size(mv.size)} (${Math.floor(pct)}%)`),
               h('span', {}, mv.speed ? `${size(mv.speed)}/s · ${left(mv.eta)}` : ''))];
         } else if (st.current && st.current.pack === p.id) {
@@ -128,7 +137,8 @@ window.E2KLibrary = (() => {
           else acts.push(h('button', { class: 'go primary', onclick: () => start(p, true) }, 'Resume'));
           acts.push(h('button', { class: 'go', onclick: () => cancel(p) }, 'Cancel'));
           const what = d.status === 'downloading' ? 'Downloading…' : d.status === 'error' ? 'Stopped.' : 'Paused.';
-          extra = [h('div', { class: 'bar' }, h('i', { style: `width:${pct.toFixed(1)}%` })),
+          sayProgress(p.label, what, pct);
+          extra = [h('div', { class: 'bar', role: 'progressbar', 'aria-label': `Downloading ${p.label}`, 'aria-valuenow': Math.floor(pct) }, h('i', { style: `width:${pct.toFixed(1)}%` })),
             h('div', { class: 'prog' }, h('span', {}, `${what} ${size(d.received) || '0 MB'} of ${size(d.size)} (${Math.floor(pct)}%)`),
               h('span', {}, d.status === 'downloading' && d.speed ? `${size(d.speed)}/s · ${left(d.eta)}` : d.status === 'error' ? d.error || '' : ''))];
         } else {

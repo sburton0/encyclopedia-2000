@@ -24,6 +24,7 @@
     "release:linux": "electron-builder --linux --publish always"
   },
   "devDependencies": {
+    "axe-core": "4.10.2",
     "d3-geo": "^3.1.1",
     "electron": "^44.7.0",
     "electron-builder": "^26.0.12",

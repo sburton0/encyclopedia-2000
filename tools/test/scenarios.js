@@ -129,7 +129,7 @@ module.exports = [
       // Right-clicks the element the expression finds (at its middle, or at x, y), and returns the menu's items.
       const ctx = (el, at = '') => t.js(`const el = ${el}; const r = el.getBoundingClientRect();
         const [x, y] = ${at || '[r.left + r.width / 2, r.top + r.height / 2]'};
-        el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: x, clientY: y }));
+        el.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: x, clientY: y }));
         return [...document.querySelectorAll('.menu.ctx .mi')].map((m) => m.firstChild.textContent + (m.classList.contains('disabled') ? ' (off)' : ''));`);
       // Picks a menu item as a mouse does (mousedown, then click), which leaves the selection alone.
       const pick = (label) => t.js(`const m = [...document.querySelectorAll('.menu.ctx .mi')].find((m) => m.firstChild.textContent.startsWith(${JSON.stringify(label)}));
@@ -224,7 +224,11 @@ module.exports = [
       if (await t.waitFor('document.querySelector(".mstage img")?.complete', 10000)) {
         const inMedia = await ctx(`document.querySelector('.mstage img')`);
         t.check('In the media viewer: Copy Picture, Save Picture As…', inMedia.join(', ') === 'Copy Picture, Save Picture As…', inMedia.join(', '));
+        // Escape closes the menu first, then the viewer.
         await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+        t.check('Escape closes the menu and leaves the viewer open', await t.js('return !document.querySelector(".menu.ctx") && !!document.querySelector(".mviewer");'));
+        await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+        await t.waitFor('!document.querySelector(".overlay")', 3000);
       } else t.check('The media viewer opens a picture', false, await t.js('return document.querySelector(".overlay")?.className || "no viewer";'));
 
       // The Find box: Cut and Copy are off with nothing selected.
@@ -840,7 +844,7 @@ module.exports = [
       t.saveTo(saved);
       await t.js(`const img = [...document.querySelectorAll(".content.article img")].find((i) => i.src.startsWith("e2k-zim:") && i.naturalWidth > 50);
         const r = img.getBoundingClientRect();
-        img.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
+        img.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 }));
         const m = [...document.querySelectorAll('.menu.ctx .mi')].find((m) => m.firstChild.textContent === 'Save Picture As…');
         m.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true })); m.click();`);
       const pic = await savedFile(t, saved);
@@ -885,6 +889,191 @@ module.exports = [
     route: 'home', reuse: 'offline-mode', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     async run(t) {
       t.check('Still in Offline mode', /^Offline$/.test((await t.net()).trim()), await t.net());
+    },
+  },
+
+  // ---------- accessibility ----------
+  {
+    name: 'keyboard-menus', group: 'Accessibility', title: 'The menu bar by keyboard (Alt, F10, arrows, Enter, Escape); windows keep focus inside',
+    route: 'home',
+    async run(t) {
+      if (t.platform === 'darwin') return t.skip('The menu bar by keyboard', 'macOS has its own menu bar');
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(1500);
+      const rightTo = async (n) => { for (let i = 0; i < n; i++) await t.key('Right'); };
+      await t.key('Alt');
+      let f = await t.focused();
+      t.check('Alt chooses the first menu, File', f.where === 'menubar' && f.text === 'File', JSON.stringify(f));
+      await rightTo(6);
+      f = await t.focused();
+      t.check('Right moves along the menus to Tools', f.text === 'Tools', JSON.stringify(f));
+      await t.key('Down');
+      f = await t.focused();
+      t.check('Down opens Tools on its first item', f.where === 'menu' && f.text.startsWith('Offline Library'), JSON.stringify(f));
+      t.check('Screen readers are told they’re menus', await t.js(`return document.getElementById('menubar').getAttribute('role') === 'menubar'
+        && document.querySelector('#menubar .menu').getAttribute('role') === 'menu' && document.querySelector('#menubar .menu .mi').getAttribute('role') === 'menuitem';`));
+      await t.sleep(300);
+      await t.shot('menu-keyboard');
+      await t.key('Right');
+      f = await t.focused();
+      t.check('Right in an open menu opens the next one (Help)', f.where === 'menu' && f.text.startsWith('Keyboard Shortcuts'), JSON.stringify(f));
+      await t.key('Escape');
+      f = await t.focused();
+      t.check('Escape closes the menu and leaves its name chosen', f.where === 'menubar' && f.text === 'Help' && !(await t.js('return !!document.querySelector("#menubar .menu");')), JSON.stringify(f));
+      await t.key('Escape');
+      f = await t.focused();
+      t.check('Escape again leaves the menu bar', f.where !== 'menubar' && f.where !== 'menu', JSON.stringify(f));
+      await t.key('F10');
+      t.check('F10 also chooses File', (await t.focused()).text === 'File');
+      await t.key('Left');
+      t.check('Left from File goes round to Help', (await t.focused()).text === 'Help');
+      await t.key('F10');
+      t.check('F10 again leaves the menu bar', (await t.focused()).where !== 'menubar');
+      await t.key('Left', ['alt']);
+      t.check('Alt with another key (Alt+Left for Back) doesn’t go into the menu bar', (await t.focused()).where !== 'menubar');
+      // A command from the keyboard: Tools › Offline Library… opens its window, which keeps focus inside.
+      await t.key('Alt'); await rightTo(6); await t.key('Enter'); await t.key('Enter');
+      t.check('Enter on Tools › Offline Library… opens it', await t.waitFor('document.querySelector(".overlay .offline")', 6000));
+      await t.sleep(1000);
+      f = await t.focused();
+      t.check('Focus is in the window', f.where === 'window', JSON.stringify(f));
+      let out = 0;
+      for (let i = 0; i < 25; i++) { await t.key('Tab'); if ((await t.focused()).where !== 'window') out++; }
+      t.check('Tab stays inside it (25 presses)', out === 0, `${out} outside`);
+      await t.key('Tab', ['shift']);
+      t.check('…and Shift+Tab', (await t.focused()).where === 'window');
+      await t.key('Escape');
+      t.check('Escape closes it', await t.waitFor('!document.querySelector(".overlay")', 3000));
+      // The same in the Classic theme.
+      await t.js(`localStorage.setItem('e2k.theme', JSON.stringify('classic')); E2K.applyPrefs();`);
+      await t.sleep(500);
+      await t.key('Alt'); await rightTo(6); await t.key('Down');
+      await t.sleep(300);
+      await t.shot('menu-keyboard-classic');
+      await t.key('Escape'); await t.key('Escape');
+    },
+  },
+  {
+    name: 'keyboard-places', group: 'Accessibility', title: 'Ctrl+1–6 open each section with focus on its heading; Ctrl+Shift+L, Ctrl+Shift+O, and the shortcut list',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(1000);
+      const mac = t.platform === 'darwin';
+      // Each section, and the heading it opens on.
+      const places = [['Articles', 'Explore the encyclopedia'], ['Media', 'Picture of the Day'], ['Timeline', 'On this day'], ['World Explorer', 'Countries of the World'],
+        ['Games', 'Games'], ['Activities', 'Activities']];
+      for (const [i, [name, heading]] of places.entries()) {
+        if (mac) t.menu(name); else await t.key(String(i + 1), ['control']);
+        const there = await t.waitFor(`document.activeElement?.matches('h1, h2, h3') && document.querySelector('#view').contains(document.activeElement)
+          && document.activeElement.textContent.startsWith(${JSON.stringify(heading)})`, 12000);
+        t.check(`${mac ? `Features › ${name}` : `Ctrl+${i + 1}`} opens ${name}, with focus on its heading`, there,
+          await t.js('return (document.activeElement?.tagName || "") + " " + (document.activeElement?.textContent || "").trim().slice(0, 40);'));
+      }
+      await t.command('Offline Library…', 'L', { ctrlKey: true, shiftKey: true });
+      t.check(`${mac ? 'Offline Library…' : 'Ctrl+Shift+L'} opens the Offline Library`, await t.waitFor('document.querySelector(".overlay .offline")', 6000));
+      t.check('…with focus in it', await t.waitFor('document.querySelector(".overlay").contains(document.activeElement)', 3000));
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      await t.sleep(400);
+      await t.command('Work Offline', 'O', { ctrlKey: true, shiftKey: true });
+      t.check(`${mac ? 'Work Offline' : 'Ctrl+Shift+O'} without a library offers to download one`, await t.waitFor('/needs an offline library/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 4000));
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      await t.sleep(400);
+      await t.command('Keyboard Shortcuts', '/');
+      await t.waitFor('document.querySelector(".dialog.keys")', 4000);
+      if (await t.js('return !!document.querySelector(".dialog.keys");')) {
+        const groups = await t.js('return [...document.querySelectorAll(".dialog.keys h3")].map((h) => h.textContent);');
+        t.check('Keyboard Shortcuts lists Going places and Offline', groups.includes('Going places') && groups.includes('Offline'), groups.join(', '));
+        t.check('…and has focus', await t.js('return document.querySelector(".overlay").contains(document.activeElement);'));
+        await t.shot('shortcuts');
+      } else t.skip('Keyboard Shortcuts', 'couldn’t open it from the test (macOS shortcuts come from the menu bar)');
+    },
+  },
+  {
+    name: 'keyboard-connection', group: 'Accessibility', title: 'The Online / Offline control by keyboard, and windows and menus in a contrast theme',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(1000);
+      await t.js('document.getElementById("netbtn").focus();');
+      await t.key('Enter');
+      t.check('Enter on the status bar’s Online control opens its menu', await t.waitFor('document.querySelector(".netpop")', 3000));
+      let f = await t.focused();
+      t.check('Focus is on the choice that’s on (Online)', f.where === 'connection' && f.role === 'menuitemradio' && /^Online/.test(f.text), JSON.stringify(f));
+      t.check('The control says its menu is open', await t.js('return document.getElementById("netbtn").getAttribute("aria-expanded") === "true";'));
+      await t.key('Down');
+      f = await t.focused();
+      t.check('Down moves to Offline', /^Offline/.test(f.text), JSON.stringify(f));
+      await t.key('Escape');
+      f = await t.focused();
+      t.check('Escape closes it, and focus goes back to the control', !(await t.js('return !!document.querySelector(".netpop");')) && f.text.startsWith('Connection'), JSON.stringify(f));
+      await t.key('Enter'); await t.key('Down'); await t.key('Enter');
+      t.check('Choosing Offline without a library offers to download one', await t.waitFor('/needs an offline library/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 4000));
+      f = await t.focused();
+      t.check('…in a window that has focus', f.where === 'window', JSON.stringify(f));
+      await t.key('Escape');
+      await t.sleep(300);
+      // A contrast theme (forced colors): menus and windows have solid backgrounds, not see-through ones.
+      const solid = (sel) => t.js(`const c = getComputedStyle(document.querySelector(${JSON.stringify(sel)})).backgroundColor;
+        return { c, ok: c !== 'transparent' && !/^rgba\\(.*, 0\\)$/.test(c) };`);
+      await t.contrast(true);
+      await t.js('document.getElementById("netbtn").focus();');
+      await t.key('Enter');
+      await t.sleep(400);
+      let bg = await solid('.netpop');
+      t.check('In a contrast theme the connection menu has a solid background', bg.ok, bg.c);
+      await t.shot('connection-contrast');
+      await t.key('Escape');
+      await openLibrary(t);
+      bg = await solid('.overlay .offline');
+      t.check('…and so does the Offline Library', bg.ok, bg.c);
+      await t.shot('library-contrast');
+      await t.contrast(false);
+    },
+  },
+  {
+    name: 'accessibility-checks', group: 'Accessibility', title: 'axe-core finds no serious problems on the main screens and windows; pictures have names; Star Chart marks answers',
+    route: 'home',
+    async run(t) {
+      const screens = [['home', '.home .alm .ev'], ['article/Moon', '.page .text p'], ['search/apollo', '.results .res'], ['explore', '.page'], ['gallery', '.page'],
+        ['onthisday', '.tl-item'], ['games', '#view h1, #view h2'], ['activities', '.act-group'], ['world', '#view canvas, #view svg'], ['activity/periodic-table', '#view h1, #view h2']];
+      for (const [route, ready] of screens) {
+        await t.js(`E2K.go(${JSON.stringify(route)});`);
+        await t.waitFor(`document.querySelector(${JSON.stringify(ready)})`, 15000);
+        await t.sleep(2500);
+        const bad = await t.axe();
+        t.check(`${route}: no serious or critical problems`, !bad.length, bad.join('; '));
+      }
+      await t.js('E2K.go("article/Moon");');
+      await t.waitFor('document.querySelectorAll(".page .text p").length > 5', 15000);
+      await t.sleep(1500);
+      const unnamed = await t.js('return [...document.querySelectorAll(".page .text img, .page .media img")].filter((i) => !(i.getAttribute("alt") || "").trim()).map((i) => i.src.split("/").pop());');
+      t.check('Every picture in the Moon article has a name', !unnamed.length, unnamed.join(', '));
+      const windows = [['Offline Library', 'E2KLibrary.open(E2K);'], ['Options', 'E2KOptions.open(E2K);'],
+        ['Keyboard Shortcuts', 'document.dispatchEvent(new KeyboardEvent("keydown", { key: "/", ctrlKey: true, bubbles: true }));']];
+      for (const [name, code] of windows) {
+        if (name === 'Keyboard Shortcuts' && t.platform === 'darwin') t.menu('Keyboard Shortcuts'); else await t.js(code);
+        await t.waitFor('document.querySelector(".overlay")', 5000);
+        await t.sleep(1500);
+        const bad = await t.axe();
+        t.check(`${name} window: no serious or critical problems`, !bad.length, bad.join('; '));
+        await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+        await t.sleep(400);
+      }
+      // Star Chart: the question takes focus; the answers are marked with ✓ and ✗, and the result is read out.
+      await t.js('E2K.go("game/starchart");');
+      await t.waitFor('document.querySelector(".sc-const")', 15000);
+      await t.sleep(1500);
+      await t.js('document.querySelector(".sc-const").dispatchEvent(new MouseEvent("click", { bubbles: true }));');
+      t.check('Star Chart asks a question', await t.waitFor('document.querySelectorAll(".sc-choice").length >= 2', 20000));
+      t.check('…and the question has focus', await t.waitFor('document.activeElement?.classList.contains("sc-q-prompt")', 3000));
+      await t.js('const b = document.querySelectorAll(".sc-choice"); b[b.length - 1].click();');
+      await t.sleep(400);
+      const marks = await t.js('return { right: document.querySelector(".sc-choice.right i")?.textContent, wrong: document.querySelector(".sc-choice.wrong i")?.textContent || "", said: document.getElementById("announce").textContent };');
+      t.check('The right answer shows ✓', marks.right === '✓', JSON.stringify(marks));
+      t.check('A wrong pick shows ✗', marks.wrong === '' || marks.wrong === '✗', JSON.stringify(marks));
+      t.check('The result is read out', /Correct|Not quite/.test(marks.said), marks.said);
+      await t.shot('starchart-marks');
     },
   },
 ];

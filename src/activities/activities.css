@@ -256,7 +256,7 @@
 .act-group[hidden] { display: none; }
 .band .tools .wx-chip { height: 26px; }
 .act-group > h3 { margin: 0 0 10px; padding-bottom: 6px; font: 600 11px "Segoe UI"; letter-spacing: 3px; color: var(--ink-2); border-bottom: 1px solid #d7deec; text-transform: uppercase; }
-.act-group > h3 span { margin-left: 8px; font-weight: 400; letter-spacing: 0; color: #8a93a6; text-transform: none; }
+.act-group > h3 span { margin-left: 8px; font-weight: 400; letter-spacing: 0; color: #5d6678; text-transform: none; }
 
 /* ---------- Almanac Calendar ---------- */
 .ac-cal { position: absolute; left: 24px; top: 84px; right: 376px; bottom: 16px; display: flex; flex-direction: column; }

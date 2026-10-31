@@ -233,12 +233,14 @@
         const feedback = h('div', { class: 'sc-feedback' });
         panel.replaceChildren(...[
           h('div', { class: 'sc-q-kicker' }, q.kicker.toUpperCase()),
-          h('div', { class: 'sc-q-prompt' }, q.prompt),
+          h('div', { class: 'sc-q-prompt', tabindex: -1 }, q.prompt),
           q.image ? h('div', { class: 'sc-q-img', style: `background-image:url("${q.image}")` }) : null,
           q.detail ? h('div', { class: 'sc-q-detail' }, E2KTrivia.passage(q.detail, h)) : null,
           h('div', { class: 'sc-choices' }, buttons),
           feedback,
         ].filter(Boolean));
+        // The question takes focus, so a screen reader reads it; the next Tab is the first answer.
+        if (panel.isConnected) panel.querySelector('.sc-q-prompt').focus({ preventScroll: true });
 
         function choose(i) {
           if (answered) return;
@@ -246,8 +248,9 @@
           const ok = i === q.answer;
           buttons.forEach((b, j) => {
             b.disabled = true;
-            if (j === q.answer) b.classList.add('right');
-            else if (j === i) b.classList.add('wrong');
+            // Marked by more than color: a check in the right answer's letter box, a cross in a wrong pick.
+            if (j === q.answer) { b.classList.add('right'); b.firstChild.textContent = '✓'; b.setAttribute('aria-label', `${q.choices[j]}, correct answer`); }
+            else if (j === i) { b.classList.add('wrong'); b.firstChild.textContent = '✗'; b.setAttribute('aria-label', `${q.choices[j]}, your answer, wrong`); }
             else b.classList.add('dim');
           });
           let finished = false;
@@ -274,6 +277,7 @@
           updateProgress();
           canvas.querySelector('.sc-mini b').textContent = String(st.score);
           feedback.append(h('p', { class: 'sc-fact' }, q.fact || ''));
+          api.announce(`${feedback.firstChild.textContent} ${q.fact || ''} Score: ${st.score} points.`);
           const actions = h('div', { class: 'sc-actions' },
             q.learn ? h('button', { class: 'bbtn', onclick: () => api.openArticle(q.learn) }, `Read about ${E2KTrivia.display(q.learn)} ›`) : null,
             finished

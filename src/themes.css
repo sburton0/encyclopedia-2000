@@ -44,7 +44,7 @@
 }
 [data-theme="disc"] .menubar { background: linear-gradient(#eceef2, #c9ced8); }
 [data-theme="disc"] .menubar .m { color: #1d2330; }
-[data-theme="disc"] .menubar .m:hover, [data-theme="disc"] .menubar .m.open { background: #9aa3b5; color: #fff; }
+[data-theme="disc"] .menubar .m:hover, [data-theme="disc"] .menubar .m.open, [data-theme="disc"] .menubar .m:focus { background: #9aa3b5; color: #fff; }
 [data-theme="disc"] .toolbar { background: linear-gradient(#d9dde4, #a9b0bc); border-top-color: #eef0f4; border-bottom-color: #6b7280; }
 [data-theme="disc"] .toolbar .tbtn, [data-theme="disc"] .find label { color: #1d2330; }
 [data-theme="disc"] .toolbar .tbtn:hover { background: rgba(255, 255, 255, .5); border-color: #8a93a6; color: #000; }
@@ -126,10 +126,10 @@
 [data-theme="classic"] .menubar, [data-theme="classic"] .toolbar, [data-theme="classic"] .crumbs, [data-theme="classic"] .statusbar { background: #c0c0c0; color: #000; }
 [data-theme="classic"] .menubar .m, [data-theme="classic"] .toolbar .tbtn, [data-theme="classic"] .find label, [data-theme="classic"] .crumbs a, [data-theme="classic"] .crumbs .step,
 [data-theme="classic"] .statusbar, [data-theme="classic"] .statusbar .sup { color: #000; }
-[data-theme="classic"] .menubar .m:hover, [data-theme="classic"] .menubar .m.open { background: #000080; color: #fff; }
+[data-theme="classic"] .menubar .m:hover, [data-theme="classic"] .menubar .m.open, [data-theme="classic"] .menubar .m:focus { background: #000080; color: #fff; }
 [data-theme="classic"] .menu { background: #c0c0c0; border: 2px solid; border-color: #fff #404040 #404040 #fff; }
 [data-theme="classic"] .menu .mi { color: #000; }
-[data-theme="classic"] .menu .mi:hover { background: #000080; color: #fff; }
+[data-theme="classic"] .menu .mi:hover, [data-theme="classic"] .menu .mi:focus { background: #000080; color: #fff; }
 [data-theme="classic"] .menu .mi .k { color: #404040; }
 [data-theme="classic"] .menu .mi.disabled { color: #808080; }
 [data-theme="classic"] .menu .msep { background: #808080; box-shadow: 0 1px #fff; }

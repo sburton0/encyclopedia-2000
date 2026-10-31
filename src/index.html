@@ -49,6 +49,7 @@
 </svg>
 
 <div id="app">
+  <header class="top">
   <div class="titlebar">
     <img class="emb" src="icon-small.svg" alt="">
     <span class="tt">Encyclopedia 2000</span>
@@ -59,9 +60,10 @@
     </div>
   </div>
 
-  <div class="menubar" id="menubar"></div>
+  <div class="menubar" id="menubar" role="menubar" aria-label="Menu bar"></div>
+  </header>
 
-  <div class="toolbar" id="toolbar">
+  <div class="toolbar" id="toolbar" role="navigation" aria-label="Toolbar">
     <button class="tbtn lbl home-btn" data-cmd="home" title="Home (Ctrl+H)"><img src="icon-small.svg" alt="">Home</button>
     <span class="tsep"></span>
     <button class="tbtn" data-cmd="back" title="Back (Alt+Left)"><svg class="ic"><use href="#i-back"/></svg></button>
@@ -70,9 +72,9 @@
     <div class="find">
       <label for="q">Find</label>
       <div class="field" id="field">
-        <input id="q" autocomplete="off" spellcheck="false" placeholder="Type a subject">
+        <input id="q" autocomplete="off" spellcheck="false" placeholder="Type a subject" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="suggest">
         <button class="dd" id="qdd" title="Recently viewed" tabindex="-1">&#x25BC;</button>
-        <div class="suggest" id="suggest" hidden></div>
+        <div class="suggest" id="suggest" role="listbox" aria-label="Suggestions" hidden></div>
       </div>
       <button class="go" id="go" title="Show search results">Search</button>
     </div>
@@ -106,15 +108,16 @@
     <aside class="fpane" id="fpane" aria-label="Favorites" hidden></aside>
   </div>
 
-  <div class="statusbar">
+  <div class="statusbar" role="contentinfo">
     <div class="sb grow" id="status">Ready</div>
     <div class="sb upd" id="updatebar" hidden></div>
     <div class="sb" id="betabar"><span class="beta">BETA</span><a href="#" class="sup" id="feedback-link" title="Report a problem or share an idea">Send feedback</a></div>
     <div class="sb">Content from Wikipedia · CC BY-SA · <a href="#" class="sup" id="support" title="Donate to Wikipedia, or tip the developer">♥ Donate</a></div>
-    <div class="sb netbtn" id="netbtn" title="Connection and offline library"><span class="dot" id="netdot"></span><span id="net">Online</span><span class="caret">▴</span></div>
+    <div class="sb netbtn" id="netbtn" title="Connection and offline library" role="button" tabindex="0" aria-haspopup="menu" aria-expanded="false"><span class="dot" id="netdot"></span><span id="net">Online</span><span class="caret">▴</span></div>
     <div class="sb" id="clock"></div>
   </div>
 </div>
+<div id="announce" class="sr" aria-live="polite"></div>
 
 <script src="bloom.js"></script>
 <script src="themes.js"></script>

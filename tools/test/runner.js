@@ -79,6 +79,31 @@ async function run(win) {
       return true;
     },
     lib: () => t.js('return await window.e2k.library.state();'),
+    // Presses a key as the keyboard does (keyCode as Electron names it: 'Alt', 'F10', 'Down', 'Enter', 'Tab', 'a'…).
+    async key(keyCode, modifiers = []) {
+      wc.focus();
+      wc.sendInputEvent({ type: 'keyDown', keyCode, modifiers });
+      if (keyCode.length === 1 && !modifiers.some((m) => m !== 'shift')) wc.sendInputEvent({ type: 'char', keyCode, modifiers });
+      wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+      await sleep(120);
+    },
+    // What has focus: its role, its name or text, and where it is.
+    focused: () => t.js(`const e = document.activeElement; if (!e || e === document.body) return { where: 'none' };
+      return { tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || '', text: (e.getAttribute('aria-label') || e.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 60),
+        where: e.closest('.overlay') ? 'window' : e.closest('#menubar .menu') ? 'menu' : e.closest('#menubar') ? 'menubar' : e.closest('.netpop') ? 'connection' : e.closest('#view') ? 'page' : 'other' };`),
+    // axe-core's accessibility checks on the window as it is (WCAG 2.1 A and AA); returns the serious and critical
+    // problems as "rule (count): example".
+    async axe() {
+      if (!(await t.js('return !!window.axe;'))) await wc.executeJavaScript(fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8'));
+      return t.js(`const r = await axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'], resultTypes: ['violations'] });
+        return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => v.id + ' (' + v.nodes.length + '): ' + v.nodes[0].target.join(' '));`);
+    },
+    // Windows' contrast themes (forced colors), on or off.
+    async contrast(on) {
+      if (!wc.debugger.isAttached()) wc.debugger.attach('1.3');
+      await wc.debugger.sendCommand('Emulation.setEmulatedMedia', { features: [{ name: 'forced-colors', value: on ? 'active' : 'none' }] });
+      await sleep(400);
+    },
     // What's on the clipboard, as text (for Copy and Cut), and whether it holds a picture.
     clipText: () => clipboard.readText(),
     clipImage: () => clipboard.has('image/png'),

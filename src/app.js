@@ -67,7 +67,7 @@
     const file = m.File.filter((it) => it[1] !== 'exit');
     if (file[file.length - 1] === '-') file.pop();
     const template = [
-      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library']), item(['Themes…', 'themes']), '-',
+      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library', 'Ctrl+Shift+L']), item(['Work Offline', 'offline', 'Ctrl+Shift+O', isOffline()]), item(['Themes…', 'themes']), '-',
         { role: 'services' }, '-', { role: 'hide', label: 'Hide Encyclopedia 2000' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit', label: 'Quit Encyclopedia 2000' }] },
       { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
       { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find in Article…', 'find', 'Ctrl+F', null, !findable()]), item(['Find an Article', 'search', 'Ctrl+E'])] },
@@ -121,6 +121,13 @@
     $('.statusbar').classList.toggle('busy', busy);
   }
   function setIdle(msg = 'Ready') { statusIdle = msg; setStatus(msg); }
+  // Screen readers read out what's put here (search results, Offline mode, Star Chart's answers). Cleared first, so the
+  // same words twice are read twice.
+  const announcer = $('#announce');
+  function announce(msg) {
+    announcer.textContent = '';
+    setTimeout(() => { announcer.textContent = msg; }, 60);
+  }
   // The connection light: Online (green), Online with the library first (blue), Offline mode (grey), or no connection
   // (amber, reading from the library; red without one). It opens the connection menu (below).
   const isOffline = () => window.e2k.net.offline();
@@ -132,6 +139,8 @@
       : hasLib && store.get('libraryFirst', false) ? ['blue', 'Online · Library first'] : ['green', 'Online'];
     $('#netdot').className = 'dot ' + color;
     $('#net').textContent = label;
+    $('#netbtn').setAttribute('aria-label', `Connection: ${label}`);
+    syncMenu();
   }
   addEventListener('online', updateNet);
   addEventListener('offline', updateNet);
@@ -279,7 +288,19 @@
     el.classList.add('fade-in');
     view.replaceChildren(el);
     updateToolbar();
+    focusScreen(el);
     return true;
+  }
+  // A new screen takes focus on its heading, so a screen reader reads where you are and the next Tab is the screen's
+  // first control. Not while you're typing or in a window, and nothing shows for mouse users.
+  function focusScreen(el = view) {
+    const a = document.activeElement;
+    if (a && a !== document.body && (a.matches('input, textarea, select') || a.closest('.overlay, .netpop, .menu, #menubar'))) return;
+    const head = el.querySelector('h1') || el.querySelector('h2, h3');
+    if (!head) return;
+    head.tabIndex = -1;
+    head.classList.add('landing');
+    head.focus({ preventScroll: true });
   }
   const live = (token) => token === renderToken;
 
@@ -368,7 +389,7 @@
     const dial = h('button', { class: 'dial', title: 'Picture of the Day', onclick: () => go('gallery') });
     const dialHd = h('b', {}, 'PICTURE OF THE DAY');
     const dialCap = h('span', {}, 'Loading…');
-    const discThumb = h('button', { class: 'thumb', style: 'padding:0' });
+    const discThumb = h('button', { class: 'thumb', style: 'padding:0', 'aria-label': 'Today’s discovery' });
     const discTitle = h('b', {}, 'Loading today’s discovery…');
     const discText = h('p');
     const discMore = h('button', { class: 'more' }, 'Read the full article ›');
@@ -409,6 +430,7 @@
         discTitle.textContent = t;
         discText.textContent = tfa.extract || '';
         discMore.onclick = discThumb.onclick = () => openArticle(t);
+        discThumb.setAttribute('aria-label', `Read about ${t}`);
       } else if (d.offline && libMissing) {
         discTitle.textContent = 'Your offline library can’t be found.';
         discText.textContent = `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own.`;
@@ -486,7 +508,7 @@
     // An article's title is centered in the space between the bottom of its buttons and the bottom of the header.
     if (article) new ResizeObserver(() => band.style.setProperty('--tools-bottom', (toolsEl.offsetTop + toolsEl.offsetHeight) + 'px')).observe(toolsEl);
     const text = h('div', { class: 'text' });
-    const media = h('aside', { class: 'media' });
+    const media = h('div', { class: 'media' });
     // In an article the picture column floats at the top right, so the text widens to the full width below it.
     const flow = article ? h('div', { class: 'flow' }, media, text) : null;
     const content = article
@@ -503,7 +525,7 @@
       align.observe(content);
     }
     const root = h('div', { class: 'page' },
-      h('aside', { class: 'rail' }, railArt, railIn),
+      h('div', { class: 'rail' }, railArt, railIn),
       h('section', { class: 'art' },
         band,
         content));
@@ -519,16 +541,17 @@
   // is open is remembered across articles.
   function railSection(title, summary, kids) {
     const isShut = () => store.get('railShut', []).includes(title);
-    const head = h('h4', { class: 'fold', role: 'button', tabindex: 0 }, title, h('span', { class: 'n' }, summary));
+    const btn = h('span', { class: 'fb', role: 'button', tabindex: 0 }, title, h('span', { class: 'n' }, summary));
+    const head = h('h4', { class: 'fold', 'aria-level': 2 }, btn);
     const body = h('div', { class: 'rbody' }, kids);
-    const show = (shut) => { body.hidden = shut; head.classList.toggle('shut', shut); head.setAttribute('aria-expanded', String(!shut)); };
+    const show = (shut) => { body.hidden = shut; head.classList.toggle('shut', shut); btn.setAttribute('aria-expanded', String(!shut)); };
     const toggle = () => {
       const shut = !body.hidden;
       show(shut);
       store.set('railShut', [...store.get('railShut', []).filter((t) => t !== title), ...(shut ? [title] : [])]);
     };
     head.addEventListener('click', toggle);
-    head.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+    btn.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
     show(isShut());
     return h('section', { class: 'rsec' }, head, body);
   }
@@ -574,7 +597,7 @@
       const out = doc.createElement('div');
       out.className = 'sounds';
       const head = box.querySelector('.listen-header');
-      if (head) { const h6 = doc.createElement('h6'); h6.append(...head.childNodes); out.append(h6); }
+      if (head) { const h6 = doc.createElement('h6'); h6.setAttribute('role', 'heading'); h6.setAttribute('aria-level', '3'); h6.append(...head.childNodes); out.append(h6); }
       for (const ha of box.querySelectorAll('.haudio')) {
         const au = ha.querySelector('audio');
         if (!au) continue;
@@ -668,6 +691,17 @@
       } else if (!href.startsWith('#')) {
         a.replaceWith(...a.childNodes);
       }
+    });
+
+    // Pictures without a description are named for screen readers by their caption, or else their file's name (so a
+    // picture that's a link isn't read out as just "link").
+    body.querySelectorAll('img').forEach((img) => {
+      if ((img.getAttribute('alt') || '').trim()) return;
+      const cap = img.closest('figure')?.querySelector('figcaption')?.textContent.trim();
+      const file = img.closest('a[data-file]')?.dataset.file || decodeURIComponent((img.getAttribute('resource') || '').split('/').pop() || '');
+      const name = cap || file.replace(/^(File|Image):/i, '').replace(/\.\w{3,4}$/, '').replace(/_/g, ' ').trim()
+        || (img.getAttribute('usemap') ? 'Timeline chart' : 'Picture');
+      img.setAttribute('alt', name.length > 150 ? name.slice(0, 148) + '…' : name);
     });
 
     const firstP = [...body.querySelectorAll('p')].find((p) => p.textContent.trim().length > 60);
@@ -779,7 +813,7 @@
       pg.media.append(h('div', { class: 'frame' }, leadImg),
         h('div', { class: 'cap' }, sum.description ? `${name}, ${sum.description}` : name));
     }
-    const factsBox = h('div', { class: 'facts' }, h('h6', {}, 'Quick facts'));
+    const factsBox = h('div', { class: 'facts' }, h('h6', { role: 'heading', 'aria-level': 2 }, 'Quick facts'));
     facts.forEach(([k, v]) => factsBox.append(h('div', { class: 'r' }, h('span', {}, k), h('span', {}, v))));
     factsBox.append(
       h('div', { class: 'r' }, h('span', {}, 'Source'), h('span', {}, 'Wikipedia')),
@@ -876,6 +910,7 @@
       })));
     }
     setIdle(`${pages.length} results`);
+    announce(pages.length ? `${pages.length} results for ${q}.` : `No results for ${q}.`);
   }
 
   async function viewRandom(token) {
@@ -1174,6 +1209,7 @@
     const root = h('div', { class: 'game-root' });
     if (!mount(root, token)) return;
     gameCleanup = game.mount(root, E2K) || null;
+    focusScreen(root);
     setIdle(game.name);
   }
 
@@ -1191,7 +1227,7 @@
       h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' }, h('span', { class: 'gprog' }, ''), h('span', { class: 'gplay' }, 'Open ›'))));
     const sections = groups.map(([cat, items], i) => {
       pg.railIn.append(...(i ? [h('hr')] : []), h('h4', {}, cat), ...items.map((a) => railLink(a.name, () => open(a), 'sub')));
-      const sec = h('section', { class: 'act-group', 'data-cat': cat }, h('h3', {}, cat, h('span', {}, `${items.length} ${items.length === 1 ? 'activity' : 'activities'}`)),
+      const sec = h('section', { class: 'act-group', 'data-cat': cat }, h('h3', { 'aria-level': 2 }, cat, h('span', {}, `${items.length} ${items.length === 1 ? 'activity' : 'activities'}`)),
         h('div', { class: 'gcards' }, items.map(card)));
       pg.text.append(sec);
       return sec;
@@ -1216,6 +1252,7 @@
     const root = h('div', { class: 'game-root' });
     if (!mount(root, token)) return;
     gameCleanup = activity.mount(root, E2K) || null;
+    focusScreen(root);
     setIdle(activity.name);
   }
 
@@ -1234,6 +1271,7 @@
     if (!mount(root, token)) return;
     setIdle();
     gameCleanup = E2KWorld.mount(root, E2K) || null;
+    focusScreen(root);
   }
 
   // ---------- errors ----------
@@ -1314,6 +1352,65 @@
 
   // ---------- overlays ----------
   function closeOverlays() { $$('.overlay').forEach((o) => o.remove()); }
+  // Every window (dialogs, the Offline Library, Options, the media viewer, Star Chart's awards) keeps focus inside
+  // itself while it's open, is named for screen readers by its title, and gives focus back to what opened it.
+  const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const topOverlay = () => $$('.overlay').at(-1) || null;
+  const focusables = (box) => $$(FOCUSABLE, box).filter((e) => e.getClientRects().length && !e.closest('[hidden]'));
+  const openers = new WeakMap();
+  let lastFocus = null;
+  // The last thing focused in a window, so focus can come back to it when the window redraws (the Offline Library
+  // does as a download goes on).
+  let inWindow = '';
+  const focusKey = (e) => `${e.tagName}|${e.className}|${(e.textContent || '').trim().slice(0, 40)}`;
+  document.addEventListener('focusin', (e) => { if (e.target.closest?.('.overlay')) inWindow = focusKey(e.target); else lastFocus = e.target; });
+  function refocus(ov) {
+    const a = document.activeElement;
+    if (ov !== topOverlay() || (a && a !== document.body && a.isConnected)) return;
+    const list = focusables(ov);
+    (list.find((e) => focusKey(e) === inWindow) || list[0] || ov.querySelector('[role="dialog"]'))?.focus({ preventScroll: true });
+  }
+  new MutationObserver((records) => {
+    for (const r of records) {
+      for (const ov of r.addedNodes) {
+        if (!(ov instanceof HTMLElement) || !ov.classList.contains('overlay')) continue;
+        openers.set(ov, lastFocus);
+        // A picture opened on its own is just the picture: the overlay itself is the window.
+        const box = ov.querySelector('[role="dialog"]') || (ov.firstElementChild?.tagName === 'DIV' ? ov.firstElementChild : ov);
+        if (!box.getAttribute('role')) box.setAttribute('role', 'dialog');
+        box.setAttribute('aria-modal', 'true');
+        if (!box.hasAttribute('tabindex')) box.tabIndex = -1;
+        const name = box.querySelector('.dt, h2');
+        if (!box.getAttribute('aria-label') && !box.getAttribute('aria-labelledby')) {
+          if (name) { name.id ||= 'dlg-' + Math.random().toString(36).slice(2, 8); box.setAttribute('aria-labelledby', name.id); }
+          else box.setAttribute('aria-label', box.querySelector('img')?.alt || 'Picture');
+        }
+        setTimeout(() => { if (ov.isConnected && !ov.contains(document.activeElement)) (focusables(ov)[0] || box)?.focus?.(); }, 0);
+        new MutationObserver(() => setTimeout(() => refocus(ov), 0)).observe(ov, { childList: true, subtree: true });
+      }
+      for (const ov of r.removedNodes) {
+        if (!(ov instanceof HTMLElement) || !ov.classList.contains('overlay')) continue;
+        const back = openers.get(ov);
+        setTimeout(() => {
+          if (topOverlay() || (document.activeElement && document.activeElement !== document.body)) return;
+          if (back?.isConnected) back.focus({ preventScroll: true }); else focusScreen();
+        }, 0);
+      }
+    }
+  }).observe(document.body, { childList: true });
+  document.addEventListener('keydown', (e) => {
+    const ov = topOverlay();
+    if (e.key !== 'Tab' || !ov) return;
+    const list = focusables(ov);
+    if (!list.length) { e.preventDefault(); return; }
+    const i = list.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); list.at(-1).focus(); }
+    else if (!e.shiftKey && (i === -1 || i === list.length - 1)) { e.preventDefault(); list[0].focus(); }
+  });
+  document.addEventListener('focusin', (e) => {
+    const ov = topOverlay();
+    if (ov && !ov.contains(e.target) && !e.target.closest?.('.menu.ctx')) (focusables(ov)[0] || ov.querySelector('[role="dialog"]'))?.focus();
+  });
 
   // Every dialog can be moved by its title bar, and always keeps the title bar on screen.
   document.addEventListener('mousedown', (e) => {
@@ -1359,8 +1456,11 @@
   const SHORTCUTS = [
     [['Finding', [['Find in this article', 'Ctrl+F'], ['Find an article', 'Ctrl+E'], ['Next match', 'Enter'], ['Previous match', 'Shift+Enter']]],
       ['Moving around', [['Home', 'Ctrl+H'], ['Back', 'Alt+Left'], ['Forward', 'Alt+Right'], ['Top of the article', MAC ? 'Home' : 'Home or Ctrl+Home'], ['Refresh', 'F5']]],
+      ['Going places', [['Articles', 'Ctrl+1'], ['Media', 'Ctrl+2'], ['Timeline', 'Ctrl+3'], ['World Explorer', 'Ctrl+4'], ['Games', 'Ctrl+5'], ['Activities', 'Ctrl+6'],
+        ...(MAC ? [] : [['Menu bar', 'Alt or F10']])]],
       ['Reading', [['Larger text', 'Ctrl+='], ['Smaller text', 'Ctrl+-'], ['Normal text size', 'Ctrl+0'], ['Copy', 'Ctrl+C']]]],
     [['Printing', [['Print Preview', 'Ctrl+P'], ['Print', 'Ctrl+Shift+P']]],
+      ['Offline', [['Offline Library', 'Ctrl+Shift+L'], ['Offline mode on or off', 'Ctrl+Shift+O']]],
       ['Favorites and sound', [['Favorites pane', 'Ctrl+I'], ['Mute', 'Ctrl+M']]],
       ['Pictures and videos', [['Previous / next', 'Left or Right'], ['Play / pause', 'Space']]],
       ['Encyclopedia 2000', [['Options', 'Ctrl+,'], ['Keyboard shortcuts', 'Ctrl+/'], ['Close a window or menu', 'Esc'], MAC ? ['Quit', 'Cmd+Q'] : ['Exit', 'Alt+F4']]]],
@@ -1767,8 +1867,9 @@
         if (i >= 0) mediaViewer(items, i, true);
         else if (src) mediaViewer([{ type: 'video', file, caption, thumb: poster, src, duration: Number(dur) || 0 }], 0, true);
       };
-      s.replaceWith(h('button', { class: 'vthumb', title: 'Play video', onclick: open },
-        poster ? h('img', { src: poster, alt: caption, loading: 'lazy' }) : null,
+      const name = caption || (file || '').replace(/^(File|Image):/i, '').replace(/\.\w{3,4}$/, '').replace(/_/g, ' ');
+      s.replaceWith(h('button', { class: 'vthumb', title: 'Play video', 'aria-label': name ? 'Play video: ' + name : 'Play video', onclick: open },
+        poster ? h('img', { src: poster, alt: name, loading: 'lazy' }) : null,
         h('span', { class: 'play' }, icon('play')),
         Number(dur) ? h('span', { class: 'dur' }, clock(dur)) : null));
     });
@@ -2079,6 +2180,7 @@
     about,
     options: () => E2KOptions.open(E2K),
     library: () => E2KLibrary.open(E2K),
+    offline: () => toggleOffline(),
     themes: () => E2KOptions.open(E2K, 'Appearance'),
     exit: () => window.e2k.win('close'),
   };
@@ -2108,49 +2210,136 @@
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
       ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
-      ['Features', [['Articles', 'explore'], ['World Explorer', 'world'], ['Media', 'gallery'], ['Timeline', 'onthisday'], ['Games', 'games'], ['Activities', 'activities']]],
-      ['Tools', [['Offline Library…', 'library'], ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
+      // Numbered in the order of Home's Explore shelf.
+      ['Features', [['Articles', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
+      ['Tools', [['Offline Library…', 'library', 'Ctrl+Shift+L'], ['Work Offline', 'offline', 'Ctrl+Shift+O', isOffline()], '-', ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['Keyboard Shortcuts', 'shortcuts', 'Ctrl+/'], '-', ['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
   const menubar = $('#menubar');
   let openMenu = null;
+  // Where focus goes back to when the keyboard leaves the menu bar.
+  let menuReturn = null;
+  const tops = () => $$('.m', menubar);
   function closeMenus() {
     $$('.menu', menubar).forEach((m) => m.remove());
-    $$('.m.open', menubar).forEach((m) => m.classList.remove('open'));
+    $$('.m.open', menubar).forEach((m) => { m.classList.remove('open'); m.setAttribute('aria-expanded', 'false'); });
     openMenu = null;
   }
-  function showMenu(top, index) {
+  // A menu's items, for the menu bar and the right-click menu: [label, command, key, checked, disabled] or '-'.
+  function menuItems(box, items, run) {
+    items.forEach((it) => {
+      if (it === '-') return box.append(h('div', { class: 'msep', role: 'separator' }));
+      const [label, cmd, key, checked, disabled] = it;
+      const off = disabled || !cmd;
+      const mi = h('div', {
+        class: 'mi' + (checked ? ' checked' : '') + (disabled ? ' disabled' : ''),
+        role: checked == null ? 'menuitem' : 'menuitemcheckbox', tabindex: -1,
+        ...(checked == null ? {} : { 'aria-checked': String(!!checked) }), ...(off ? { 'aria-disabled': 'true' } : {}),
+        // preventDefault keeps the selection, for Copy.
+        onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); },
+        onmousemove: () => { if (box.contains(document.activeElement) && document.activeElement !== mi) mi.focus(); },
+        onclick: (e) => { e.stopPropagation(); if (!off) run(cmd); },
+      }, h('span', {}, label), h('span', { class: 'k' }, keyText(key) || ''));
+      if (key) mi.setAttribute('aria-keyshortcuts', key.split(' or ')[0].replace('Ctrl', MAC ? 'Meta' : 'Control'));
+      box.append(mi);
+    });
+  }
+  // Up, Down, Home, End, Enter, and Space inside a menu. True when the key was used.
+  function menuKeys(box, e) {
+    const list = $$('.mi', box);
+    const i = list.indexOf(document.activeElement);
+    const to = (j) => list[(j + list.length) % list.length]?.focus();
+    if (e.key === 'ArrowDown') to(i + 1);
+    else if (e.key === 'ArrowUp') to(i < 0 ? -1 : i - 1);
+    else if (e.key === 'Home') to(0);
+    else if (e.key === 'End') to(-1);
+    else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) list[i].click();
+    else return false;
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  }
+  function showMenu(top, index, focus = '') {
     closeMenus();
     openMenu = index;
     top.classList.add('open');
-    const [, items] = menus()[index];
-    const box = h('div', { class: 'menu' });
-    items.forEach((it) => {
-      if (it === '-') return box.append(h('div', { class: 'msep' }));
-      const [label, cmd, key, checked, disabled] = it;
-      box.append(h('div', {
-        class: 'mi' + (checked ? ' checked' : '') + (disabled ? ' disabled' : ''),
-        // preventDefault keeps the selection, for Copy.
-        onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); },
-        onclick: (e) => { e.stopPropagation(); if (disabled || !cmd) return; closeMenus(); runCmd(cmd); },
-      }, h('span', {}, label), h('span', { class: 'k' }, key || '')));
-    });
+    top.setAttribute('aria-expanded', 'true');
+    const [label, items] = menus()[index];
+    const box = h('div', { class: 'menu', role: 'menu', 'aria-label': label });
+    menuItems(box, items, (cmd) => { leaveMenubar(); runCmd(cmd); });
     top.append(box);
+    if (focus) $$('.mi', box).at(focus === 'last' ? -1 : 0)?.focus();
+  }
+  // The keyboard way in (Alt or F10): the first menu's name is chosen, and the arrows, Enter, and Escape work from there.
+  function enterMenubar(index = 0, open = false) {
+    if (MAC) return;
+    closeCtx();
+    closeNet();
+    if (!menubar.contains(document.activeElement)) menuReturn = document.activeElement;
+    const top = tops()[index];
+    top.focus();
+    if (open) showMenu(top, index, 'first');
+  }
+  function leaveMenubar() {
+    const wasIn = menubar.contains(document.activeElement);
+    closeMenus();
+    const back = menuReturn;
+    menuReturn = null;
+    if (!wasIn) return;
+    if (back?.isConnected && back !== document.body) back.focus({ preventScroll: true });
+    else document.activeElement.blur();
   }
   menus().forEach(([label], i) => {
-    const top = h('div', { class: 'm' }, label);
+    const top = h('div', { class: 'm', role: 'menuitem', tabindex: -1, 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, label);
     top.addEventListener('mousedown', (e) => { e.stopPropagation(); openMenu === i ? closeMenus() : showMenu(top, i); });
-    top.addEventListener('mouseenter', () => { if (openMenu !== null && openMenu !== i) showMenu(top, i); });
+    top.addEventListener('mouseenter', () => { if (openMenu !== null && openMenu !== i) showMenu(top, i, menubar.contains(document.activeElement) ? 'first' : ''); });
     menubar.append(top);
   });
+  menubar.addEventListener('keydown', (e) => {
+    const list = tops();
+    const top = e.target.closest('.m'), i = list.indexOf(top), inMenu = !!e.target.closest('.menu');
+    const side = (d) => { const j = (i + d + list.length) % list.length; if (inMenu || openMenu !== null) showMenu(list[j], j, 'first'); else list[j].focus(); };
+    if (e.key === 'ArrowRight') side(1);
+    else if (e.key === 'ArrowLeft') side(-1);
+    else if (e.key === 'Escape') { if (inMenu) { closeMenus(); top.focus(); } else leaveMenubar(); }
+    else if (e.key === 'Tab') leaveMenubar();
+    else if (inMenu) { menuKeys(top.querySelector('.menu'), e); return; }
+    else if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') showMenu(top, i, 'first');
+    else if (e.key === 'ArrowUp') showMenu(top, i, 'last');
+    else return;
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  // Alt on its own (pressed and let go with nothing else) or F10 goes into the menu bar, and again comes out of it.
+  let altAlone = false;
+  addEventListener('keydown', (e) => {
+    altAlone = e.key === 'Alt' && !e.ctrlKey && !e.shiftKey && !e.metaKey && (altAlone || !e.repeat);
+    if (e.key === 'F10' && !e.shiftKey && !e.ctrlKey && !e.altKey && !MAC) {
+      e.preventDefault();
+      if (menubar.contains(document.activeElement)) leaveMenubar(); else enterMenubar();
+    }
+  }, true);
+  addEventListener('keyup', (e) => {
+    if (e.key !== 'Alt' || !altAlone || MAC) return;
+    altAlone = false;
+    e.preventDefault();
+    if (menubar.contains(document.activeElement)) leaveMenubar(); else if (!topOverlay()) enterMenubar();
+  }, true);
+  addEventListener('mousedown', () => { altAlone = false; }, true);
+  addEventListener('blur', () => { altAlone = false; });
   document.addEventListener('mousedown', () => closeMenus());
 
   // ---------- right-click menu ----------
   // What's offered depends on what was clicked: selected text, a link, a picture, a text box, or the page itself.
   // It's drawn like the menu bar's menus, at the same fixed size as other apps' right-click menus.
-  let ctxMenu = null;
-  function closeCtx() { if (ctxMenu) { ctxMenu.remove(); ctxMenu = null; } }
+  let ctxMenu = null, ctxReturn = null;
+  function closeCtx() {
+    if (!ctxMenu) return;
+    const had = ctxMenu.contains(document.activeElement);
+    ctxMenu.remove(); ctxMenu = null;
+    if (had && ctxReturn?.isConnected) ctxReturn.focus({ preventScroll: true });
+  }
   async function savePicture(img) {
     const shown = img.currentSrc || img.src;
     setStatus('Saving the picture…', true);
@@ -2218,24 +2407,25 @@
     closeCtx();
     const items = ctxItems(e);
     if (!items.length) return;
-    const box = h('div', { class: 'menu ctx', onmousedown: (ev) => ev.stopPropagation(), oncontextmenu: (ev) => { ev.preventDefault(); ev.stopPropagation(); } });
-    items.forEach((it) => {
-      if (it === '-') return box.append(h('div', { class: 'msep' }));
-      const [label, cmd, key, , disabled] = it;
-      box.append(h('div', {
-        class: 'mi' + (disabled ? ' disabled' : ''),
-        // mousedown keeps the selection (and the text box's cursor) where it was until the command runs.
-        onmousedown: (ev) => { ev.preventDefault(); ev.stopPropagation(); },
-        onclick: (ev) => { ev.stopPropagation(); if (disabled) return; closeCtx(); runCmd(cmd); },
-      }, h('span', {}, label), h('span', { class: 'k' }, keyText(key) || '')));
-    });
+    const box = h('div', { class: 'menu ctx', role: 'menu', 'aria-label': 'Shortcut menu', tabindex: -1,
+      onmousedown: (ev) => ev.stopPropagation(), oncontextmenu: (ev) => { ev.preventDefault(); ev.stopPropagation(); } });
+    // The items keep the selection (and the text box's cursor) where it was until the command runs.
+    menuItems(box, items.map((it) => (it === '-' ? it : [it[0], it[1], it[2], null, it[4]])), (cmd) => { closeCtx(); runCmd(cmd); });
     document.body.append(box);
     ctxMenu = box;
+    ctxReturn = document.activeElement;
+    // Opened from the keyboard (the menu key or Shift+F10), the first item takes focus. Opened by the mouse, focus stays
+    // where it was (a text box keeps its selection for Cut and Copy), and the arrow keys still reach the menu.
+    if (e.button !== 2) $('.mi', box)?.focus({ preventScroll: true });
     // At the pointer, kept inside the window: it opens leftward or upward when there's no room.
     const w = box.offsetWidth, ht = box.offsetHeight;
     box.style.left = Math.max(2, e.clientX + w > innerWidth - 2 ? e.clientX - w : e.clientX) + 'px';
     box.style.top = Math.max(2, e.clientY + ht > innerHeight - 2 ? e.clientY - ht : e.clientY) + 'px';
   });
+  document.addEventListener('keydown', (e) => {
+    if (!ctxMenu) return;
+    if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); closeCtx(); } else menuKeys(ctxMenu, e);
+  }, true);
   document.addEventListener('mousedown', closeCtx);
   addEventListener('blur', closeCtx);
   addEventListener('resize', closeCtx);
@@ -2255,20 +2445,23 @@
   q.addEventListener('focus', () => q.select());
   q.addEventListener('mouseup', (e) => { if (qClickFocus) { e.preventDefault(); qClickFocus = false; } });
 
-  function hideSuggest() { sug.hidden = true; sugItems = []; sugSel = -1; }
+  function hideSuggest() { sug.hidden = true; sugItems = []; sugSel = -1; q.setAttribute('aria-expanded', 'false'); q.removeAttribute('aria-activedescendant'); }
   function showSuggest(items, emptyMsg) {
     sugItems = items;
     sugSel = -1;
     sug.replaceChildren(...(items.length ? items.map((it, i) => h('div', {
-      class: 'si' + (it.action ? ' act' : ''),
+      class: 'si' + (it.action ? ' act' : ''), id: 'sug-' + i, role: 'option', 'aria-selected': 'false',
       onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); pick(i); },
       onmouseenter: () => highlight(i),
-    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : it.thumb || it.desc === 'Recently viewed' ? h('i', { class: 'th', style: bg(it.thumb) }) : h('i', { class: 'th ph' }, E2KKinds.icon(svg, it.desc)), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty' }, emptyMsg || 'No suggestions')]));
+    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : it.thumb || it.desc === 'Recently viewed' ? h('i', { class: 'th', style: bg(it.thumb) }) : h('i', { class: 'th ph' }, E2KKinds.icon(svg, it.desc)), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty', role: 'option', 'aria-disabled': 'true' }, emptyMsg || 'No suggestions')]));
     sug.hidden = false;
+    q.setAttribute('aria-expanded', 'true');
+    q.removeAttribute('aria-activedescendant');
   }
   function highlight(i) {
     sugSel = i;
-    [...sug.children].forEach((c, j) => c.classList.toggle('sel', j === i));
+    [...sug.children].forEach((c, j) => { c.classList.toggle('sel', j === i); if (c.id) c.setAttribute('aria-selected', String(j === i)); });
+    q.setAttribute('aria-activedescendant', 'sug-' + i);
   }
   function pick(i) {
     const it = sugItems[i];
@@ -2328,12 +2521,20 @@
   // offline library. Offline mode loads nothing from the internet; the main process refuses the window's requests too.
   const netBtn = $('#netbtn');
   let netPop = null;
-  function closeNet() { if (netPop) { netPop.remove(); netPop = null; netBtn.classList.remove('open'); } }
+  function closeNet() {
+    if (!netPop) return;
+    const had = netPop.contains(document.activeElement);
+    netPop.remove(); netPop = null;
+    netBtn.classList.remove('open');
+    netBtn.setAttribute('aria-expanded', 'false');
+    if (had) netBtn.focus({ preventScroll: true });
+  }
   function setOffline(on) {
     closeNet();
     if (on === isOffline()) return;
     window.e2k.net.setOffline(on);
     updateNet();
+    announce(on ? 'Offline mode is on. Only the offline library is used.' : 'Online.');
     reload();   // the page on screen comes again, from the right place
   }
   // Offline picked with no library: offer one. The app stays online meanwhile, and asks again once it's ready.
@@ -2341,13 +2542,19 @@
     dialog('Encyclopedia 2000', 'Offline mode needs an offline library', ['Download one to read Wikipedia without the internet. You can keep reading online while it downloads.'],
       [['Not now'], ['Download offline library…', () => { store.set('offlineWhenReady', true); E2KLibrary.open(E2K); }, true]]);
   }
+  // Offline mode on or off from the keyboard (Ctrl+Shift+O) or Tools › Work Offline.
+  function toggleOffline() {
+    if (isOffline()) setOffline(false);
+    else if (hasLib || libMissing) setOffline(true);
+    else askDownload();
+  }
   async function openNet() {
     if (netPop) return closeNet();
     const st = await window.e2k.library.state().catch(() => null);
     if (netPop) return;
     const has = !!(st && st.open), off = isOffline();
     const name = st && st.override ? st.override : st && st.current ? st.current.label : st && st.open ? st.open.title : '';
-    const opt = (on, title, sub, onpick) => h('div', { class: 'it' + (on ? ' on' : ''), role: 'menuitemradio', 'aria-checked': String(on), onclick: onpick },
+    const opt = (on, title, sub, onpick) => h('div', { class: 'it mi' + (on ? ' on' : ''), role: 'menuitemradio', 'aria-checked': String(on), tabindex: -1, onclick: onpick },
       h('i', { class: 'rb' }), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
     const first = h('input', { type: 'checkbox', checked: store.get('libraryFirst', false), disabled: off || !has,
       onchange: () => { store.set('libraryFirst', first.checked); updateNet(); } });
@@ -2357,19 +2564,30 @@
       opt(!off, 'Online', 'Uses the offline library when there’s no connection.', () => setOffline(false)),
       opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has || libMissing ? setOffline(true) : (closeNet(), askDownload()))),
       h('hr'),
-      h('label', { class: 'cb' + (off || !has ? ' dis' : '') }, first,
+      h('div', { class: 'cb mi' + (off || !has ? ' dis' : ''), role: 'menuitemcheckbox', tabindex: -1, 'aria-checked': String(first.checked),
+        ...(off || !has ? { 'aria-disabled': 'true' } : {}), onclick: (e) => { if (e.target !== first) { e.preventDefault(); if (!first.disabled) first.click(); } } }, first,
         h('span', {}, 'Use the offline library first, even when online', h('span', { class: 's' }, has ? 'Faster; uses less data.' : 'Needs an offline library.'))),
       h('hr'),
       has ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, name), ` · ${st.open.articles.toLocaleString('en-US')} articles`)
         : libMissing ? h('div', { class: 'lib' }, 'Offline library: ', h('b', {}, libMissing.label), ' · can’t be found') : null,
-      h('div', { class: 'lnk', role: 'menuitem', onclick: () => { closeNet(); E2KLibrary.open(E2K); } }, icon('book'), has || libMissing ? 'Manage offline library…' : 'Download offline library…'));
+      h('div', { class: 'lnk mi', role: 'menuitem', tabindex: -1, onclick: () => { closeNet(); E2KLibrary.open(E2K); } }, icon('book'), has || libMissing ? 'Manage offline library…' : 'Download offline library…'));
+    first.tabIndex = -1;
+    first.setAttribute('aria-hidden', 'true');
+    first.addEventListener('change', () => first.closest('.cb').setAttribute('aria-checked', String(first.checked)));
+    netPop.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); closeNet(); } else menuKeys(netPop, e);
+    });
     document.body.append(netPop);
     netBtn.classList.add('open');
+    netBtn.setAttribute('aria-expanded', 'true');
+    // The choice that's on takes focus, so a screen reader reads where you are.
+    $('.it.on', netPop)?.focus({ preventScroll: true });
     const r = netBtn.getBoundingClientRect(), pr = netPop.getBoundingClientRect();
     netPop.style.left = Math.max(6, Math.min(innerWidth - pr.width - 6, r.right - pr.width)) + 'px';
     netPop.style.top = (r.top - pr.height - 4) + 'px';
   }
-  netBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); openNet(); });
+  netBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); e.preventDefault(); openNet(); });
+  netBtn.addEventListener('keydown', (e) => { if (['Enter', ' ', 'ArrowUp', 'ArrowDown'].includes(e.key)) { e.preventDefault(); openNet(); } });
   document.addEventListener('mousedown', closeNet);
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNet(); });
   addEventListener('resize', closeNet);
@@ -2570,7 +2788,8 @@
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
-    else if (e.ctrlKey && e.shiftKey && k.toLowerCase() === 'p') { e.preventDefault(); runCmd('printNow'); }
+    else if (e.ctrlKey && e.shiftKey && !e.altKey && { p: 1, l: 1, o: 1 }[k.toLowerCase()]) { e.preventDefault(); runCmd({ p: 'printNow', l: 'library', o: 'offline' }[k.toLowerCase()]); }
+    else if (e.ctrlKey && !e.shiftKey && !e.altKey && /^Digit[1-6]$/.test(e.code)) { e.preventDefault(); runCmd(['explore', 'gallery', 'onthisday', 'world', 'games', 'activities'][e.code.slice(5) - 1]); }
     else if (e.ctrlKey && !e.shiftKey) {
       const map = { i: 'favpane', p: 'print', f: 'find', e: 'search', '/': 'shortcuts', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
@@ -2587,7 +2806,7 @@
     h, svg, icon, store, route, go, maxCanvas: MAX_CANVAS,
     openArticle: (t) => openArticle(t, linkFrom()),
     setCrumbs,
-    setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet,
+    setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet, announce,
     // True when nothing can come from the internet: Offline mode, or no connection.
     offline: () => isOffline() || !Wiki.connected(),
     dialog: (...args) => dialog(...args),

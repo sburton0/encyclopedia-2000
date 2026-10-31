@@ -2,7 +2,7 @@
 // writes a report with every check and screenshot to tools/test/results/<date and time>/report.md.
 //   npm run test:app                      every scenario (about 5–10 minutes; needs an internet connection)
 //   npm run test:app -- --only home,move  just those
-//   npm run test:app -- --group offline   one group ("general", "offline library", "reading offline")
+//   npm run test:app -- --group offline   one group ("general", "offline library", "reading offline", "accessibility")
 //   npm run test:app -- --list            list the scenarios
 // Some scenarios download small libraries from Kiwix (3 and 18 MB). Runs on Windows, Mac, and Linux.
 const { spawn } = require('child_process');
