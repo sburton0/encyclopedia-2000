@@ -67,7 +67,7 @@
     const file = m.File.filter((it) => it[1] !== 'exit');
     if (file[file.length - 1] === '-') file.pop();
     const template = [
-      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library', 'Ctrl+Shift+L']), item(['Work Offline', 'offline', 'Ctrl+Shift+O', isOffline()]), item(['Themes…', 'themes']), '-',
+      { label: 'Encyclopedia 2000', items: [item(['About Encyclopedia 2000', 'about']), '-', item(['Options…', 'options', 'Ctrl+,']), item(['Offline Library…', 'library', 'Ctrl+Shift+L']), item(['Offline Mode', 'offline', 'Ctrl+Shift+O', isOffline()]), item(['Themes…', 'themes']), '-',
         { role: 'services' }, '-', { role: 'hide', label: 'Hide Encyclopedia 2000' }, { role: 'hideOthers' }, { role: 'unhide' }, '-', { role: 'quit', label: 'Quit Encyclopedia 2000' }] },
       { label: 'File', items: [...conv(file), '-', { role: 'close' }] },
       { label: 'Edit', items: [{ role: 'undo' }, { role: 'redo' }, '-', { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }, '-', item(['Find in Article…', 'find', 'Ctrl+F', null, !findable()]), item(['Find an Article', 'search', 'Ctrl+E'])] },
@@ -2212,7 +2212,7 @@
         ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
       // Numbered in the order of Home's Explore shelf.
       ['Features', [['Articles', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
-      ['Tools', [['Offline Library…', 'library', 'Ctrl+Shift+L'], ['Work Offline', 'offline', 'Ctrl+Shift+O', isOffline()], '-', ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
+      ['Tools', [['Offline Library…', 'library', 'Ctrl+Shift+L'], ['Offline Mode', 'offline', 'Ctrl+Shift+O', isOffline()], '-', ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['Keyboard Shortcuts', 'shortcuts', 'Ctrl+/'], '-', ['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
   }
@@ -2542,7 +2542,7 @@
     dialog('Encyclopedia 2000', 'Offline mode needs an offline library', ['Download one to read Wikipedia without the internet. You can keep reading online while it downloads.'],
       [['Not now'], ['Download offline library…', () => { store.set('offlineWhenReady', true); E2KLibrary.open(E2K); }, true]]);
   }
-  // Offline mode on or off from the keyboard (Ctrl+Shift+O) or Tools › Work Offline.
+  // Offline mode on or off from the keyboard (Ctrl+Shift+O) or Tools › Offline Mode.
   function toggleOffline() {
     if (isOffline()) setOffline(false);
     else if (hasLib || libMissing) setOffline(true);

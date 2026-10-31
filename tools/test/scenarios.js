@@ -975,8 +975,8 @@ module.exports = [
       t.check('…with focus in it', await t.waitFor('document.querySelector(".overlay").contains(document.activeElement)', 3000));
       await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
       await t.sleep(400);
-      await t.command('Work Offline', 'O', { ctrlKey: true, shiftKey: true });
-      t.check(`${mac ? 'Work Offline' : 'Ctrl+Shift+O'} without a library offers to download one`, await t.waitFor('/needs an offline library/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 4000));
+      await t.command('Offline Mode', 'O', { ctrlKey: true, shiftKey: true });
+      t.check(`${mac ? 'Offline Mode' : 'Ctrl+Shift+O'} without a library offers to download one`, await t.waitFor('/needs an offline library/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 4000));
       await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
       await t.sleep(400);
       await t.command('Keyboard Shortcuts', '/');
