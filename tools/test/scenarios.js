@@ -122,6 +122,32 @@ module.exports = [
     },
   },
   {
+    name: 'article-speed', group: 'General', title: 'Articles come from Wikipedia’s ready copy (no Accept-Language header), and how long they take',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 15000);
+      const wc = t.win.webContents;
+      const sent = {};
+      wc.debugger.attach('1.3');
+      await wc.debugger.sendCommand('Network.enable');
+      wc.debugger.on('message', (_e, m, p) => {
+        if (m === 'Network.requestWillBeSentExtraInfo' && /en\.wikipedia\.org/.test(p.headers[':authority'] || p.headers.host || '')) {
+          sent[p.headers[':path'] || ''] = Object.keys(p.headers).some((k) => k.toLowerCase() === 'accept-language');
+        }
+      });
+      const times = [];
+      for (const title of ['Moon', 'Cat', 'United States']) {
+        await t.js(`performance.clearMarks(); E2K.openArticle(${JSON.stringify(title)});`);
+        await t.waitFor('performance.getEntriesByName("article:done").length', 20000);
+        times.push(`${title} ${Math.round(await t.js('const m = (n) => performance.getEntriesByName("article:" + n)[0]?.startTime; return m("done") - m("start");'))} ms`);
+      }
+      const pages = Object.entries(sent).filter(([p]) => p.includes('/page/html/'));
+      t.check('Article requests to Wikipedia carry no Accept-Language header', pages.length >= 3 && pages.every(([, lang]) => !lang),
+        pages.map(([p, lang]) => `${p.split('/').pop()}: ${lang ? 'sent' : 'none'}`).join(', '));
+      t.check('Each article is ready within 3 seconds', times.every((x) => Number(x.split(' ').at(-2)) < 3000), times.join(', '));
+    },
+  },
+  {
     name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
     route: 'article/Moon',
     async run(t) {

@@ -722,11 +722,15 @@
     pg.text.append(loading('Retrieving article…'));
     if (!mount(pg.root, token)) return;
     setStatus(`Retrieving “${title}”…`, true);
+    // Timing marks for each step (read by tools/test; nothing is recorded or sent).
+    const mark = (step) => performance.mark('article:' + step, { detail: title });
+    mark('start');
 
     // Ask for the summary and the article together; the article only waits on its own download.
     const htmlP = Wiki.html(title);
     htmlP.catch(() => {});
     const sum = await Wiki.summary(title);
+    mark('summary');
     if (!live(token)) return;
     const name = sum.titles?.normalized || title;
     const canon = sum.titles?.canonical || name.replace(/ /g, '_');
@@ -735,8 +739,10 @@
     wikiBtn.onclick = () => window.e2k.openExternal(Wiki.pageUrl(canon));
 
     const html = await htmlP;
+    mark('html');
     if (!live(token)) return;
     const { nodes, facts, toc, related, infoImg, pron, decor } = cleanArticle(html);
+    mark('cleaned');
     if (pron) pg.titleRow.append(pronButton(name, pron));
 
     current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
@@ -747,6 +753,8 @@
       'This article uses material from the Wikipedia article ', h('a', { href: '#', 'data-ext': Wiki.pageUrl(canon) }, `“${name}”`),
       ', which is released under the Creative Commons Attribution-ShareAlike 4.0 License. Retrieved ', new Date().toLocaleDateString('en-US'), '.');
     pg.text.replaceChildren(...nodes, attrib);
+    mark('inserted');
+    requestAnimationFrame(() => setTimeout(() => mark('painted'), 0));
     Wiki.sharpen(pg.text);
     // Sounds often have no caption of their own, so borrow the title the article's "Listen" box gives them.
     const soundNames = [...pg.text.querySelectorAll('.aslot')].map((s) => [s.dataset.file, s.dataset.label]).filter(([, l]) => l);
@@ -822,6 +830,7 @@
 
     updateToolbar();
     setIdle(sum.type === 'disambiguation' ? `“${name}” may refer to several subjects` : 'Done');
+    mark('done');
   }
 
   // link handling inside article text (and anywhere else data-* links appear)

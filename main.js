@@ -349,6 +349,13 @@ app.whenReady().then(() => {
   library.setup({ offline: () => !!settings.offlineMode });
   // Offline mode: the window's requests to the internet are refused. (Requests from the main process have no window.)
   session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => cb({ cancel: !!settings.offlineMode && d.webContentsId != null }));
+  // Wikipedia keeps each article ready to send, but only for requests without an Accept-Language header; with one
+  // (Chromium always adds it) the article is put together again each time, which takes 1 to 3 seconds instead of a
+  // tenth of one. English Wikipedia has only one version of each article, so nothing else changes.
+  session.defaultSession.webRequest.onBeforeSendHeaders({ urls: ['https://en.wikipedia.org/*'] }, (d, cb) => {
+    for (const k of Object.keys(d.requestHeaders)) if (k.toLowerCase() === 'accept-language') delete d.requestHeaders[k];
+    cb({ requestHeaders: d.requestHeaders });
+  });
   // Windows and Linux use the menus drawn inside the window. macOS keeps its default menu until the page sends its own.
   if (!MAC) Menu.setApplicationMenu(null);
   // Run from source, macOS shows Electron's icon in the Dock; the built app uses its own.
