@@ -103,7 +103,6 @@ window.E2KLibrary = (() => {
     // As a download goes on, only the bar and its lines change, and only when what they show does: redrawing the whole
     // window replaced the button that had focus (so screen readers announced it again), and every new bar made NVDA beep.
     let prog = null, drawn = '';
-    const LIVE = new Set(['received', 'done', 'copied', 'speed', 'eta', 'free']);
     function setProg(g) {
       const v = String(Math.floor(g.pct));
       prog.fill.style.width = `${g.pct.toFixed(1)}%`;
@@ -123,11 +122,7 @@ window.E2KLibrary = (() => {
       if (freeTxt.textContent !== t) freeTxt.textContent = t;
     };
     function draw() {
-      // Nothing but the progress (and the free space) changed: update just those.
-      const shape = JSON.stringify([st, showAll], (k, v) => (LIVE.has(k) ? undefined : v));
-      const g = prog && shape === drawn && progNow();
-      if (g) { setProg(g); setFree(); return; }
-      drawn = shape;
+      const before = prog;
       prog = null;
       // Focus on a pack's button stays with that pack when the window redraws (Download becomes Pause, Pause becomes
       // Resume): the same button if it's still there, or else the pack's first one.
@@ -135,15 +130,16 @@ window.E2KLibrary = (() => {
       const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
       const dot = (c) => h('span', { class: 'dotc', style: `background:${c};box-shadow:0 0 6px ${c}` });
+      let said;
       if (st.missing && cur) {
-        status.replaceChildren(dot('#e8a33a'), h('span', {}, h('b', {}, `${cur.label} can’t be found.`),
-          ` It isn’t in ${st.missing.where}. If it’s on a drive that was disconnected, reconnect it and it will open again on its own. If you moved it, choose its new folder with Change…`));
-      } else if (mv && cur) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, `Moving ${cur.label} to its new folder.`), ' Its articles keep working while it moves.'));
-      else if (st.override) status.replaceChildren(dot('#4fa3ff'), h('span', {}, h('b', {}, 'Using a test library: '), st.override + '.'));
+        said = [dot('#e8a33a'), h('span', {}, h('b', {}, `${cur.label} can’t be found.`),
+          ` It isn’t in ${st.missing.where}. If it’s on a drive that was disconnected, reconnect it and it will open again on its own. If you moved it, choose its new folder with Change…`)];
+      } else if (mv && cur) said = [dot('#4fa3ff'), h('span', {}, h('b', {}, `Moving ${cur.label} to its new folder.`), ' Its articles keep working while it moves.')];
+      else if (st.override) said = [dot('#4fa3ff'), h('span', {}, h('b', {}, 'Using a test library: '), st.override + '.')];
       else if (cur && st.open) {
-        status.replaceChildren(dot('#5fbf6a'), h('span', {}, h('b', {}, `${cur.label} is installed.`), ' Its articles work without internet.',
-          st.update ? h('span', { class: 'upd' }, ` A newer edition (${edition(st.update.date)}) is available.`) : null));
-      } else status.replaceChildren(dot('#8f9dbd'), h('span', {}, h('b', {}, 'No offline library yet.'), ' Articles load from Wikipedia while you’re online.'));
+        said = [dot('#5fbf6a'), h('span', {}, h('b', {}, `${cur.label} is installed.`), ' Its articles work without internet.',
+          st.update ? h('span', { class: 'upd' }, ` A newer edition (${edition(st.update.date)}) is available.`) : null)];
+      } else said = [dot('#8f9dbd'), h('span', {}, h('b', {}, 'No offline library yet.'), ' Articles load from Wikipedia while you’re online.')];
       // the packs
       const visible = !st.current || showAll ? [...st.packs] : st.packs.filter((p) => p.id === st.current.pack || (d && d.pack === p.id));
       if (cur && !st.packs.some((p) => p.id === cur.id)) visible.push(cur);
@@ -151,7 +147,7 @@ window.E2KLibrary = (() => {
       const rank = (p) => (st.current && p.id === st.current.pack ? 0 : 1);
       visible.sort((a, b) => rank(a) - rank(b));
       const toggle = st.current ? h('button', { class: 'linkbtn', onclick: () => { showAll = !showAll; draw(); } }, showAll ? 'Hide other libraries' : '') : null;
-      list.replaceChildren(...visible.map((p) => {
+      const packs = [...visible.map((p) => {
         const tags = [], acts = [];
         let desc = p.desc, extra = null, why = null;
         if (st.current && st.current.pack === p.id && st.missing) {
@@ -188,8 +184,9 @@ window.E2KLibrary = (() => {
           const busy = (d && d.status === 'downloading') || !!mv;
           // A pack that can't go on this drive is greyed out, with the reason in red (one that would fit once the
           // current library is removed stays clickable, and asks first).
+          // (Not during a download or a move: the free space it gives goes down as the download goes on.)
           const f = p.fit, blocked = f && !f.ok && !f.canRemoveOld;
-          if (blocked) {
+          if (blocked && !busy) {
             why = h('p', { class: 'why' }, f.noWrite ? 'Can’t save files in this folder. Choose another with Change…'
               : f.tooSmall ? `Too big for this drive (it holds ${size(f.total)}).`
               : f.fat32 && f.size > 4 * 1024 ** 3 ? 'FAT32 drives can’t hold files over 4 GB. Reformat as exFAT or use another drive.'
@@ -206,7 +203,21 @@ window.E2KLibrary = (() => {
           role: 'group', 'aria-label': [p.label, ...tags.map((t) => t.textContent.toLowerCase())].join(', '), 'aria-describedby': id + '-d', 'data-pack': p.id },
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
           h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', { id: id + '-d' }, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
-      }), ...((!st.current || showAll) && !mv && !st.override ? [haveRow] : []), ...(toggle && showAll ? [toggle] : []));
+      }), ...((!st.current || showAll) && !mv && !st.override ? [haveRow] : []), ...(toggle && showAll ? [toggle] : [])];
+      // What the window would show, less the progress: when that's unchanged (a download or a move going on), only the
+      // progress and the free space are updated, so the button that has focus stays (screen readers announced a new
+      // one each time) and the bar stays (each new one made NVDA beep).
+      const shape = [...said, ...packs].map((n) => { const c = n.cloneNode(true); c.querySelectorAll?.('.bar, .prog').forEach((e) => e.remove()); return c.outerHTML; })
+        .join('') + [!!d, !!mv, mv && mv.to, st.dir, st.portableFallback].join('|');
+      if (before && shape === drawn) {
+        prog = before;
+        setProg(progNow());
+        setFree();
+        return;
+      }
+      drawn = shape;
+      status.replaceChildren(...said);
+      list.replaceChildren(...packs);
       haveRow.querySelector('button').disabled = !!d;
       if (wasPack && !document.activeElement?.closest?.('.overlay')) {
         const btns = [...list.querySelectorAll('.pack')].find((e) => e.dataset.pack === wasPack)?.querySelectorAll('.acts button:not(:disabled)') || [];

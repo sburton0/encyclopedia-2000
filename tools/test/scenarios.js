@@ -1151,7 +1151,10 @@ module.exports = [
       let sent = 0;
       const send = (status = 'downloading') => {
         const received = Math.min(d.size - 1, d.received + ++sent * 40000);
-        t.win.webContents.send('library:update', { ...paused, download: { ...d, status, received, speed: 1e6 + sent * 1000, eta: 30 - sent } });
+        // Like the app's own: the free space, and how much more each pack needs, go down as it downloads.
+        const less = (n) => (typeof n === 'number' ? n - sent * 40000 : n);
+        const packs = paused.packs.map((p) => (p.fit ? { ...p, fit: { ...p.fit, need: less(p.fit.need), free: less(p.fit.free) } } : p));
+        t.win.webContents.send('library:update', { ...paused, packs, free: less(paused.free), download: { ...d, status, received, speed: 1e6 + sent * 1000, eta: 30 - sent } });
       };
       send();
       if (!(await t.waitFor(`${label('Pause')} && document.querySelector('.offline .prog span')`, 3000))) {
