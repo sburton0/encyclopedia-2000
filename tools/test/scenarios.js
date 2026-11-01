@@ -1127,14 +1127,23 @@ module.exports = [
     },
   },
   {
-    name: 'download-quiet', group: 'Accessibility', title: 'During a download only the progress changes: the window isn’t redrawn, focus stays on Pause, the bar moves in whole percents',
+    name: 'download-quiet', group: 'Accessibility', title: 'Packs are named groups; Download moves focus to Pause; during a download only the progress changes, focus stays put, the bar moves in whole percents',
     route: 'home', env: { E2K_LIBRARY_TEST: KNOTS },
     async run(t) {
       await openLibrary(t);
       await t.waitFor('document.querySelectorAll(".offline .pack .size").length >= 5', 20000);
       // A real download, paused partway; then progress updates like the app's own, sent to the window (the test
       // library downloads in a few seconds, in only three or four steps).
-      await t.js('window.e2k.library.download("test");');
+      // Each pack is a group named after it, so a screen reader says which pack a button is in.
+      const groups = await t.js(`return [...document.querySelectorAll('.offline .pack')].map((p) => [p.getAttribute('role'), p.getAttribute('aria-label')]);`);
+      t.check('Each pack is a group named after it', groups.length >= 5 && groups.every(([r, n]) => r === 'group' && n), JSON.stringify(groups.slice(0, 3)));
+      // Space on the test pack's Download button (Enter does the same, but its keypress can't be sent this way): focus moves to its Pause button, not the first button in the window.
+      const inTest = (b) => `[...document.querySelectorAll('.offline .pack')].find((p) => p.dataset.pack === 'test')?.querySelector('.acts button:not(:disabled)')?.textContent.trim() === ${JSON.stringify(b)}`;
+      await t.js(`[...document.querySelectorAll('.offline .pack')].find((p) => p.dataset.pack === 'test').querySelector('.acts button.primary').focus();`);
+      await t.key('Space');
+      await t.waitFor(inTest('Pause'), 8000);
+      const f = await t.js('const e = document.activeElement; return { text: e.textContent.trim(), pack: e.closest(".pack")?.dataset.pack };');
+      t.check('Download from the keyboard: focus goes to that pack’s Pause button', f.text === 'Pause' && f.pack === 'test', JSON.stringify(f));
       if (!(await whenPartway(t))) return t.skip('Download partway', 'the download finished too quickly to pause (fast connection)');
       const paused = await t.js('return await window.e2k.library.pause();');
       const d = paused.download;
@@ -1168,7 +1177,8 @@ module.exports = [
       t.check('The bar’s value changed in whole percents only, each one once', nums.length > 0 && nums.length < 20 && nums.every((n, i) => Number.isInteger(n) && (i === 0 || n > nums[i - 1])), q.values.join(', '));
       // Pausing is a real change: the window is redrawn with Resume.
       send('paused');
-      t.check('Paused, it shows Resume', await t.waitFor(`${label('Resume')}`, 3000));
+      t.check('Paused, it shows Resume, and focus moves to it', await t.waitFor(`${label('Resume')} && document.activeElement === ${label('Resume')}`, 3000),
+        await t.js('return document.activeElement.textContent.trim();'));
       await t.js('await window.e2k.library.cancel();');
     },
   },

@@ -129,6 +129,9 @@ window.E2KLibrary = (() => {
       if (g) { setProg(g); setFree(); return; }
       drawn = shape;
       prog = null;
+      // Focus on a pack's button stays with that pack when the window redraws (Download becomes Pause, Pause becomes
+      // Resume): the same button if it's still there, or else the pack's first one.
+      const was = document.activeElement?.closest?.('.offline .pack'), wasPack = was?.dataset.pack, wasText = document.activeElement?.textContent;
       const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
       const dot = (c) => h('span', { class: 'dotc', style: `background:${c};box-shadow:0 0 6px ${c}` });
@@ -197,11 +200,18 @@ window.E2KLibrary = (() => {
             : h('button', { class: 'go primary', disabled: busy || !p.url || blocked, onclick: () => start(p) }, 'Download'));
         }
         const off = p.fit && !p.fit.ok && !p.fit.canRemoveOld && !(st.current && st.current.pack === p.id) && !(d && d.pack === p.id);
-        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') + (mv && st.current && st.current.pack === p.id ? ' dl' : '') },
+        // A named group, so a screen reader says which pack a button belongs to ("Essentials, grouping, Download").
+        const id = 'pk-' + p.id.replace(/\W/g, '');
+        return h('div', { class: 'pack' + (p.recommended && !st.current && !off ? ' rec' : '') + (off ? ' off' : '') + (d && d.pack === p.id ? ' dl' : '') + (mv && st.current && st.current.pack === p.id ? ' dl' : ''),
+          role: 'group', 'aria-label': [p.label, ...tags.map((t) => t.textContent.toLowerCase())].join(', '), 'aria-describedby': id + '-d', 'data-pack': p.id },
           // The text lines in their own column, evenly spaced; the size and button in theirs; each centered in the box.
-          h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', {}, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
+          h('div', { class: 'txt' }, h('h3', {}, p.label, ...tags), h('p', { id: id + '-d' }, desc), why), h('div', { class: 'acts' }, acts), ...(extra || []));
       }), ...((!st.current || showAll) && !mv && !st.override ? [haveRow] : []), ...(toggle && showAll ? [toggle] : []));
       haveRow.querySelector('button').disabled = !!d;
+      if (wasPack && !document.activeElement?.closest?.('.overlay')) {
+        const btns = [...list.querySelectorAll('.pack')].find((e) => e.dataset.pack === wasPack)?.querySelectorAll('.acts button:not(:disabled)') || [];
+        ([...btns].find((b) => b.textContent === wasText) || btns[0])?.focus({ preventScroll: true });
+      }
       // One line: a long path is shortened in the middle, with the whole path on hover.
       // While a library downloads, its folder can't change; while one moves, the row shows where it's going.
       whereLbl.textContent = mv ? 'Moving to' : 'Library folder';
