@@ -1080,6 +1080,47 @@ module.exports = [
     },
   },
   {
+    name: 'keyboard-right-click', group: 'Accessibility', title: 'Shift+F10 opens the right-click menu: on the heading, a link, selected text, and with nothing focused',
+    route: 'article/Moon',
+    async run(t) {
+      if (t.platform === 'darwin') return t.skip('Shift+F10', 'Macs have no menu key, and Shift+F10 isn’t a shortcut there');
+      t.check('The article opens', await t.waitFor(`${pageOf('Moon')}?.querySelectorAll(".text p").length > 5`, 20000));
+      await t.sleep(800);
+      // Shift+F10 the way the keyboard sends it (the menu key does the same, but can't be sent this way). Returns the
+      // menu's items, what has focus, and whether the menu is in the window.
+      const open = async (prep) => {
+        await t.js(`document.querySelector('.menu.ctx') && document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); ${prep}`);
+        await t.key('F10', ['shift']);
+        await t.sleep(200);
+        return t.js(`const m = document.querySelector('.menu.ctx'); if (!m) return { items: [] };
+          const r = m.getBoundingClientRect(), v = document.getElementById('view').getBoundingClientRect();
+          return { items: [...m.querySelectorAll('.mi')].map((i) => i.firstChild.textContent), focus: document.activeElement.closest('.menu.ctx') ? 'menu' : document.activeElement.tagName,
+            onPage: r.left >= v.left && r.top >= v.top };`);
+      };
+      const page = pageOf('Moon');
+      let m = await open(`${page}.querySelector('h1').focus();`);
+      t.check('On the article’s heading: the page’s menu, with focus on its first item', m.items.includes('Back to the Top') && m.focus === 'menu', JSON.stringify(m));
+      m = await open(`${page}.querySelector('.text a[data-title]').focus();`);
+      t.check('On a link: Open, Open on Wikipedia, Copy Link', ['Open', 'Open on Wikipedia', 'Copy Link'].every((l) => m.items.includes(l)), JSON.stringify(m));
+      m = await open('document.activeElement.blur(); getSelection().removeAllRanges();');
+      t.check('With nothing focused: the page’s menu, over the page', m.items.includes('Back to the Top') && m.onPage && m.focus === 'menu', JSON.stringify(m));
+      m = await open(`document.activeElement.blur(); const p = ${page}.querySelector('.text p'); const r = document.createRange();
+        r.setStart(p.firstChild, 0); r.setEnd(p.firstChild, 3); getSelection().removeAllRanges(); getSelection().addRange(r);`);
+      t.check('With text selected: Copy and Look Up, over the page', m.items.includes('Copy') && m.items.some((l) => l.startsWith('Look Up')) && m.onPage, JSON.stringify(m));
+      await t.shot('keyboard-right-click');
+      await t.key('Escape');
+      t.check('Escape closes it', !(await t.js('return !!document.querySelector(".menu.ctx");')));
+      // An article opened from the search box with the keyboard.
+      await t.js('document.getElementById("q").focus();');
+      for (const c of 'Sun') await t.key(c, c === 'S' ? ['shift'] : []);
+      await t.key('Enter');
+      await t.waitFor('document.querySelector(".page .results a, .page .result a")', 15000);
+      const where = await t.focused();
+      m = await open('');
+      t.check('After a search from the keyboard: a menu opens', m.items.length > 0, JSON.stringify({ ...m, before: where }));
+    },
+  },
+  {
     name: 'accessibility-checks', group: 'Accessibility', title: 'axe-core finds no serious problems on the main screens and windows; pictures have names; Star Chart marks answers',
     route: 'home',
     async run(t) {

@@ -2421,10 +2421,25 @@
     } else groups.push([['Select All', selectAll, 'Ctrl+A']]);
     return groups.flatMap((g, i) => (i ? ['-', ...g] : g));
   }
-  document.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
+  // Opened from the keyboard with nothing focused, Chromium aims the menu at the window's top-left corner, outside the
+  // page. It's for the selected text instead (shown below it), or else for the page on screen.
+  function ctxTarget(e) {
+    if (e.button === 2 || document.activeElement !== document.body) return e;
+    const sel = getSelection(), node = sel.rangeCount && !sel.isCollapsed ? sel.anchorNode : null;
+    const el = node && (node.nodeType === 1 ? node : node.parentElement);
+    if (el?.closest('#view')) {
+      const r = sel.getRangeAt(0).getBoundingClientRect();
+      return { target: el, clientX: r.left, clientY: r.bottom };
+    }
+    const page = current?.content || $('#view');
+    const r = page.getBoundingClientRect();
+    return { target: page, clientX: r.left + 24, clientY: r.top + 24 };
+  }
+  document.addEventListener('contextmenu', (ev) => {
+    ev.preventDefault();
     closeMenus();
     closeCtx();
+    const e = ctxTarget(ev);
     const items = ctxItems(e);
     if (!items.length) return;
     const box = h('div', { class: 'menu ctx', role: 'menu', 'aria-label': 'Shortcut menu', tabindex: -1,
