@@ -272,6 +272,29 @@ button { font-family: inherit; cursor: default; }
                background: linear-gradient(rgba(var(--glass), .55), rgba(var(--glass), .75)); border: 1px solid rgba(var(--edge), .25);
                box-shadow: 0 6px 20px rgba(0, 0, 0, .35), inset 0 1px rgba(255, 255, 255, .12); }
 .home .shelf small { display: block; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+/* news from encyclopedia2000.com (notices.js), in the gap above Explore, with a warm wash behind its label; the line saying
+   where news can be turned off takes its place once, with no box */
+.home .news, .home .newshint { position: absolute; left: 34px; top: 404px; width: 740px; height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 14px;
+  padding: 0 10px 0 20px; font: 12.5px "Segoe UI"; color: #e6eefc; transition: opacity .15s; animation: fade-in .4s; }
+/* (the wash and edge follow each theme's accent, like the NEWS label) */
+.home .news { border-radius: 8px; border: 1px solid color-mix(in srgb, var(--orange) 55%, transparent);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--orange) 22%, transparent), color-mix(in srgb, var(--orange) 6%, transparent) 45%, rgba(255, 255, 255, .06)), rgba(var(--glass), .55); }
+.home .news small { flex: none; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--orange); }
+.home .news > span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.home .news .more { flex: none; background: none; border: 0; padding: 0; font: 600 12.5px "Segoe UI"; color: #fff; cursor: pointer; }
+.home .news .x, .home .newshint .x { flex: none; width: 22px; height: 22px; background: none; border: 0; border-radius: 3px; color: #b9c6ea; font: 13px "Segoe UI"; cursor: pointer; }
+.home .newshint { color: rgba(230, 238, 252, .9); text-shadow: 0 1px 3px rgba(0, 0, 0, .5); transition: opacity .4s; }
+.home .newshint > span { flex: 1; }
+.home .newshint a { color: #fff; font-weight: 600; }
+.home .gone { opacity: 0; }
+@keyframes fade-in { from { opacity: 0; } }
+/* an important notice: a banner under the toolbar on every screen */
+.notice { display: flex; align-items: center; gap: 12px; padding: 7px 14px 7px 16px; font: 13.5px "Segoe UI", Selawik, sans-serif;
+  color: #2b1d00; background: linear-gradient(180deg, #ffd27a, #f4bd52); border-bottom: 1px solid #b98722; }
+.notice .ni { flex: none; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 700 12px "Segoe UI"; color: #ffd27a; background: #5a3d00; }
+.notice .nt { flex: 1; }
+.notice .nl { flex: none; padding: 4px 12px; font: 600 12.5px "Segoe UI"; color: #2b1d00; background: rgba(255, 255, 255, .45); border: 1px solid rgba(90, 61, 0, .45); border-radius: 3px; cursor: pointer; }
+.notice .nx { flex: none; width: 24px; height: 24px; display: grid; place-items: center; font: 16px "Segoe UI"; color: #5a3d00; background: none; border: 0; border-radius: 3px; cursor: pointer; }
 .home .shelf .row { display: flex; justify-content: space-around; margin-top: 18px; }
 .home .disc .row { display: flex; gap: 10px; }
 .home .disc .thumb { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #3a5f99 center/cover; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 0 14px rgba(140, 180, 255, .5); }
@@ -854,6 +877,8 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 /* Windows High Contrast and other contrast themes (forced colors). They remove gradients and keep transparency, so
    windows and menus get the theme's solid colors, nothing is faded, and choices are marked by more than color. */
 @media (forced-colors: active) {
+  .home .news, .notice { background: Canvas; color: CanvasText; border: 1px solid CanvasText; }
+  .home .news small, .notice .ni { color: CanvasText; background: Canvas; forced-color-adjust: none; }
   .dialog, .netpop, .menu, .mviewer, .suggest, .volpop, .findbar, .sc-award { background: Canvas !important; color: CanvasText; border: 1px solid CanvasText !important; }
   .dialog .dt, .mviewer .dt { background: Canvas !important; color: CanvasText; border-bottom: 1px solid CanvasText; }
   .dialog *, .netpop *, .sc-choice { opacity: 1 !important; }

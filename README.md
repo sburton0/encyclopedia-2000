@@ -14,7 +14,7 @@ Get the newest version from [encyclopedia2000.com](https://encyclopedia2000.com/
 | Computer | File | Notes |
 | --- | --- | --- |
 | **Windows** | **Encyclopedia-2000-Installer-….exe** | Recommended. Installs like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
-| Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, but you download it yourself. |
+| Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, and updates itself where it is only when you choose to. |
 | **Mac** | **Encyclopedia-2000-….dmg** | Open it and drag Encyclopedia 2000 to Applications. Updates automatically. For Apple Silicon and Intel Macs. (On version 0.4.1 or 0.4.2? Those can't update themselves, so download 0.5 once; updates are automatic again after that.) |
 | **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. It tells you when a new version is out; install updates the same way with `sudo apt install`. |
 

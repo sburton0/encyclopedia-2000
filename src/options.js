@@ -21,6 +21,7 @@ window.E2KOptions = (() => {
       windowMode: main.windowMode,
       hardwareAcceleration: main.hardwareAcceleration !== false,
       autoUpdate: main.autoUpdate !== false,
+      showNews: main.showNews !== false,
       theme: store.get('theme', 'bloom'),
       clock24: store.get('clock24', false),
       units: E2KUnits.system(),
@@ -157,7 +158,9 @@ window.E2KOptions = (() => {
           api.setIdle('Recently viewed list cleared');
         } }, 'Clear Recently Viewed'))),
       group('Updates',
-        check('autoUpdate', 'Check for updates automatically', 'Downloads new versions from the Encyclopedia 2000 page on GitHub, and asks before restarting. Only GitHub is contacted, and nothing about you is sent. You can always use Help › Check for Updates.')),
+        check('autoUpdate', 'Check for updates automatically', 'Downloads new versions from the Encyclopedia 2000 page on GitHub, and asks before restarting. Only GitHub is contacted, and nothing about you is sent. You can always use Help › Check for Updates. Notices about problems that need your attention come with it.')),
+      group('News',
+        check('showNews', 'Show news on the Home page', 'An occasional line above Explore about Encyclopedia 2000 itself, such as new editions. Checked at most once a day from encyclopedia2000.com; nothing about you is sent.')),
       group('Reset',
         h('p', { class: 'onote' }, 'Put every option back the way it was when you first installed Encyclopedia 2000. Your favorites and game progress aren’t affected.'),
         h('div', { class: 'orow end' }, h('button', { class: 'go', onclick: () => {
@@ -205,11 +208,13 @@ window.E2KOptions = (() => {
 
     async function apply() {
       const restart = draft.hardwareAcceleration !== (main.hardwareAcceleration !== false);
-      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration, autoUpdate: draft.autoUpdate });
+      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration, autoUpdate: draft.autoUpdate, showNews: draft.showNews });
       main.showSplash = draft.showSplash;
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
       main.autoUpdate = draft.autoUpdate;
+      main.showNews = draft.showNews;
+      window.e2k.notice.refresh();
       if (draft.units !== E2KUnits.system()) E2KUnits.clearPicks();
       ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);

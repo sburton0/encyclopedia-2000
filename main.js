@@ -41,7 +41,7 @@ const env = process.env;
 const FRAME = MAC ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 10, y: 8 } } : { frame: false };
 
 // Settings the main process needs before any window opens. Everything else lives in the page's storage.
-const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true, autoUpdate: true };
+const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true, autoUpdate: true, showNews: true };
 const settingsFile = () => path.join(app.getPath('userData'), 'settings.json');
 let settings = { ...SETTINGS_DEFAULTS };
 function loadSettings() {
@@ -232,7 +232,7 @@ ipcMain.handle('picture:save', async (e, urls) => {
   return 'saved';
 });
 
-const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate });
+const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate, showNews: settings.showNews });
 ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
@@ -240,6 +240,7 @@ ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
   if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;
   if (typeof patch.autoUpdate === 'boolean') settings.autoUpdate = patch.autoUpdate;
+  if (typeof patch.showNews === 'boolean') settings.showNews = patch.showNews;
   saveSettings();
   return mainSettings();
 });
@@ -365,6 +366,7 @@ app.whenReady().then(() => {
   require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false && !settings.offlineMode,
     // The portable version's Restart Now: closes without asking about a library download (it pauses, as on Quit anyway).
     quitForUpdate: () => { quitConfirmed = true; library.pauseForQuit(); app.quit(); } });
+  require('./notices').setup({ getWindows: () => BrowserWindow.getAllWindows(), settings: () => settings });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));

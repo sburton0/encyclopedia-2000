@@ -60,6 +60,12 @@ contextBridge.exposeInMainWorld('e2k', {
     onConfirmQuit: (cb) => ipcRenderer.on('library:confirm-quit', (_e, info) => cb(info)),
     quit: () => ipcRenderer.send('library:quit'),
   },
+  // Notices from encyclopedia2000.com (notices.js): { news, important }, and a nudge after the switches change.
+  notice: {
+    get: () => ipcRenderer.invoke('notice:get'),
+    onChange: (cb) => ipcRenderer.on('notice', (_e, n) => cb(n)),
+    refresh: () => ipcRenderer.send('notice:refresh'),
+  },
   update: {
     state: () => ipcRenderer.invoke('update:state'),
     check: () => ipcRenderer.invoke('update:check'),

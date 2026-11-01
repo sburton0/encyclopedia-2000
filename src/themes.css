@@ -161,6 +161,15 @@
 [data-theme="classic"] .home .alm .ev::before { background: #000080; }
 [data-theme="classic"] .home .brand { color: #fff; text-shadow: 2px 2px #004040; }
 [data-theme="classic"] .home .brand .tag { color: #c0ffff; }
+[data-theme="classic"] .home .news { background: #c0c0c0; border: 2px outset #fff; border-radius: 0; color: #000; }
+[data-theme="classic"] .home .news small { color: #000080; }
+[data-theme="classic"] .home .news .more, [data-theme="classic"] .home .news .x { color: #000; }
+[data-theme="classic"] .home .newshint { color: #fff; text-shadow: 1px 1px #004040; }
+[data-theme="classic"] .home .newshint .x { color: #fff; }
+[data-theme="classic"] .notice { color: #000; background: #ffffe1; border-bottom: 1px solid #808080; font-family: Tahoma, "Segoe UI", sans-serif; font-size: 12px; }
+[data-theme="classic"] .notice .ni { background: #000080; color: #fff; border-radius: 0; }
+[data-theme="classic"] .notice .nl { color: #000; background: #c0c0c0; border: 2px outset #fff; border-radius: 0; font-weight: 400; }
+[data-theme="classic"] .notice .nx { color: #000; }
 [data-theme="classic"] .home .dial { border-radius: 0; border: 2px solid; border-color: #404040 #fff #fff #404040; box-shadow: none; }
 [data-theme="classic"] .home .dial::after { display: none; }
 [data-theme="classic"] .home .orb { color: #000; text-shadow: none; }

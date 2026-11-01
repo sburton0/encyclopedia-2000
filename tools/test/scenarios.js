@@ -851,6 +851,99 @@ module.exports = [
     },
   },
 
+  // ---------- notices from encyclopedia2000.com ----------
+  {
+    name: 'notices', group: 'General', title: 'News on Home and an important banner from a notice file; closing them, the one-time hint, and its link to Options',
+    route: 'home', env: (profile) => ({ E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => {
+      fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({
+        news: { id: 'test-news', text: 'The USB Offline Edition is here: all of Wikipedia on a stick.', link: { label: 'Learn more ›', url: 'https://encyclopedia2000.com/usb' } },
+        important: { id: 'test-important', text: 'Version 0.5.5 fixes a problem updating the portable version.', link: { label: 'Get the Fix', url: 'https://github.com/sburton0/encyclopedia-2000/releases/latest' } },
+      }));
+      return { settings: { autoUpdate: true } };   // the important notice comes with update checks
+    },
+    async run(t) {
+      t.check('The news shows above Explore', await t.waitFor('/USB Offline Edition/.test(document.querySelector(".home .news")?.textContent || "")', 8000));
+      const news = await t.js('const n = document.querySelector(".home .news"), s = document.querySelector(".home .shelf").getBoundingClientRect(), r = n.getBoundingClientRect(); return { link: n.querySelector(".more")?.textContent, above: r.bottom <= s.top, label: n.getAttribute("aria-label") };');
+      t.check('…with its link, in the gap above Explore, as a named region', news.link === 'Learn more ›' && news.above && news.label === 'News', JSON.stringify(news));
+      t.check('The important notice shows under the toolbar', await t.js('return /fixes a problem/.test(document.getElementById("notice")?.textContent || "") && document.getElementById("notice").nextElementSibling?.classList.contains("stage");'));
+      await t.sleep(600);                     // the news fades in
+      await t.shot('notices-home');
+      await t.js('E2K.openArticle("Moon");');
+      await t.waitFor(`${pageOf('Moon')}`, 20000);
+      t.check('The important notice stays on other screens; news is only on Home', await t.js('return !!document.getElementById("notice") && !document.querySelector(".news");'));
+      await t.js('E2K.go("home");');
+      await t.waitFor('document.querySelector(".home .news")', 8000);
+      // Closing the news: it goes, and the hint takes its place once, with a link to Options › Privacy › News.
+      await t.js('document.querySelector(".home .news .x").click();');
+      await t.sleep(400);
+      const hint = await t.js('const h = document.querySelector(".home .newshint"); return { news: !!document.querySelector(".home .news"), text: h?.textContent || "", role: h?.getAttribute("role") };');
+      t.check('Closing the news shows where it can be turned off, in its place', !hint.news && /You can turn off news anytime in Options/.test(hint.text) && hint.role === 'status', JSON.stringify(hint));
+      await t.shot('news-hint');
+      await t.js('document.querySelector(".home .newshint a").click();');
+      await t.waitFor('document.querySelector(".options")', 4000);
+      await t.sleep(600);                     // the hint fades out
+      const opt = await t.js(`const tab = document.querySelector(".options .otab.on")?.textContent; const g = [...document.querySelectorAll(".options .ogroup")].find((g) => g.querySelector("legend")?.textContent === "News");
+        return { tab, news: !!g, checked: g?.querySelector("input")?.checked, hint: !!document.querySelector(".home .newshint") };`);
+      t.check('Its Options link opens Privacy, at Show news (on), and the hint goes', opt.tab === 'Privacy' && opt.news && opt.checked === true && !opt.hint, JSON.stringify(opt));
+      await t.shot('options-news');
+      await t.js(`[...document.querySelectorAll(".options .go")].find((b) => b.textContent === "Cancel").click();`);
+      await t.js('document.querySelector("#notice .nx").click();');
+      t.check('Closing the important notice removes it', !(await t.js('return !!document.getElementById("notice");')));
+    },
+  },
+  {
+    name: 'notices-restart', group: 'General', title: '…after a restart: closed notices stay closed, and the hint isn’t shown again',
+    route: 'home', reuse: 'notices', env: (profile) => ({ E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(2500);
+      t.check('Neither notice comes back', !(await t.js('return !!(document.querySelector(".home .news") || document.getElementById("notice"));')));
+      // A new news item (a new id) does show, and closing it now just closes it.
+      const file = path.join(t.profile, 'notice-test.json');
+      fs.writeFileSync(file, JSON.stringify({ news: { id: 'test-news-2', text: 'Encyclopedia 2000 is on Discord.' } }));
+      await t.js('window.e2k.notice.refresh();');
+      t.check('A new news item shows (no link is fine)', await t.waitFor('/on Discord/.test(document.querySelector(".home .news")?.textContent || "") && !document.querySelector(".home .news .more")', 5000));
+      await t.js('document.querySelector(".home .news .x").click();');
+      await t.sleep(400);
+      t.check('Closing it again doesn’t show the hint a second time', !(await t.js('return !!document.querySelector(".home .newshint") || !!document.querySelector(".home .news");')));
+    },
+  },
+  {
+    name: 'notices-rules', group: 'General', title: 'Notice rules: HTML, other sites, past dates, other platforms and versions are ignored; Show news off and Offline mode hide them',
+    route: 'home', env: (profile) => ({ E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => { fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({ news: { id: 'n1', text: 'News for this copy.' }, important: { id: 'i1', text: 'Important for this copy.' } })); return { settings: { autoUpdate: true } }; },
+    async run(t) {
+      const { pick } = require(path.join(process.env.E2K_TEST_APP, 'notices.js'));
+      const semver = require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'semver'));
+      const env = { platform: 'win32', version: '0.5.4-beta', today: '2026-11-01', satisfies: (v, r) => semver.satisfies(semver.coerce(v).version, r) };
+      const one = (x) => pick({ news: { id: 'a', text: 'Hello.', ...x } }, env).news;
+      t.check('A plain item is shown', one({})?.text === 'Hello.');
+      t.check('Text with HTML is ignored', one({ text: 'Hi <b>there</b>' }) === null);
+      t.check('A link to another site is ignored', one({ link: { label: 'Go', url: 'https://example.com/' } }) === null);
+      t.check('A plain-http link is ignored', one({ link: { label: 'Go', url: 'http://encyclopedia2000.com/' } }) === null);
+      t.check('A link to someone else’s GitHub is ignored', one({ link: { label: 'Go', url: 'https://github.com/someone/else' } }) === null);
+      t.check('Links to the website and the app’s GitHub page are allowed', !!one({ link: { label: 'Go', url: 'https://encyclopedia2000.com/usb' } }) && !!one({ link: { label: 'Go', url: 'https://github.com/sburton0/encyclopedia-2000/releases' } }));
+      t.check('After its end date it isn’t shown', one({ until: '2026-10-31' }) === null && !!one({ until: '2026-11-01' }));
+      t.check('Only on the platforms it names', one({ platforms: ['linux'] }) === null && !!one({ platforms: ['win32', 'darwin'] }));
+      t.check('Only for the versions it names (0.5.4 Beta counts as 0.5.4)', one({ versions: '<0.5.4' }) === null && !!one({ versions: '<=0.5.4' }) && !!one({ versions: '<0.6' }) && one({ versions: 'nonsense!!' }) === null);
+      t.check('A broken file shows nothing', JSON.stringify(pick('oops', env)) === '{"news":null,"important":null}' && JSON.stringify(pick(null, env)) === '{"news":null,"important":null}');
+      t.check('An id that isn’t simple is ignored', one({ id: '<x>' }) === null && one({ id: '' }) === null);
+      // In the app: both show; Show news off hides the news; Offline mode hides both.
+      t.check('Both show in the app', await t.waitFor('document.querySelector(".home .news") && document.getElementById("notice")', 8000));
+      await t.js('await window.e2k.settings.set({ showNews: false }); window.e2k.notice.refresh();');
+      t.check('Show news off: no news, the important notice stays', await t.waitFor('!document.querySelector(".home .news") && document.getElementById("notice")', 4000));
+      await t.js('await window.e2k.settings.set({ showNews: true, autoUpdate: false }); window.e2k.notice.refresh();');
+      t.check('Update checks off: no important notice, news is back', await t.waitFor('document.querySelector(".home .news") && !document.getElementById("notice")', 4000));
+      await t.js('await window.e2k.settings.set({ autoUpdate: true }); window.e2k.notice.refresh();');
+      await t.waitFor('document.getElementById("notice")', 4000);
+      await t.js('window.e2k.net.setOffline(true); window.e2k.notice.refresh();');
+      t.check('Offline mode hides both', await t.waitFor('!document.querySelector(".home .news") && !document.getElementById("notice")', 4000));
+      await t.js('window.e2k.net.setOffline(false); window.e2k.notice.refresh();');
+      t.check('…and they come back online', await t.waitFor('document.querySelector(".home .news") && document.getElementById("notice")', 4000));
+    },
+  },
+
   // ---------- USB edition: the portable version updating itself ----------
   {
     name: 'portable-update', group: 'USB edition', title: 'Portable self-update: download, checks, swap, and cleanup; a stick pulled out, a bad download, a read-only drive, a damaged update, a failed swap',

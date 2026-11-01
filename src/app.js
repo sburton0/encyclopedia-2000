@@ -415,6 +415,7 @@
         h('button', { class: 'more', onclick: () => go('onthisday') }, 'See all of today’s events ›')),
     );
     if (!mount(h('div', { class: 'home' }, art, canvas), token)) return;
+    showNews(canvas);
     fitHome();
     setStatus('Gathering today’s discoveries…', true);
 
@@ -1568,6 +1569,57 @@
     ov.querySelector('.fbopt').focus();
   }
 
+  // ---------- notices ----------
+  // From encyclopedia2000.com (notices.js): a news item on Home, above Explore, and an important notice as a banner
+  // under the toolbar on every screen. Each is shown until it's closed, then never again. The first time news is
+  // closed, a line in its place says where news can be turned off, and fades away by itself.
+  let notices = { news: null, important: null };
+  const noticeSeen = (id) => store.get('noticeSeen', []).includes(id);
+  const closeNotice = (id) => store.set('noticeSeen', [...store.get('noticeSeen', []), id].slice(-50));
+  const noticeLink = (link, cls) => (link ? h('button', { class: cls, onclick: () => window.e2k.openExternal(link.url) }, link.label) : null);
+  function showBanner() {
+    $('#notice')?.remove();
+    const n = notices.important;
+    if (!n || noticeSeen(n.id)) return;
+    const bar = h('div', { class: 'notice', id: 'notice', role: 'region', 'aria-label': 'Important notice' },
+      h('span', { class: 'ni', 'aria-hidden': 'true' }, '!'), h('span', { class: 'nt' }, n.text), noticeLink(n.link, 'nl'),
+      h('button', { class: 'nx', title: 'Close', 'aria-label': 'Close notice', onclick: () => { closeNotice(n.id); bar.remove(); fitHome(); } }, '✕'));
+    $('.stage').before(bar);
+    fitHome();
+  }
+  function showNews(canvas = $('.home-canvas')) {
+    if (!canvas) return;
+    canvas.querySelector('.news')?.remove();
+    const n = notices.news;
+    if (!n || noticeSeen(n.id)) return;
+    const strip = h('div', { class: 'news', role: 'region', 'aria-label': 'News' },
+      h('small', {}, 'NEWS'), h('span', { title: n.text }, n.text), noticeLink(n.link, 'more'),
+      h('button', { class: 'x', title: 'Close', 'aria-label': 'Close news', onclick: () => {
+        closeNotice(n.id);
+        strip.classList.add('gone');
+        setTimeout(() => { strip.remove(); if (!store.get('newsHintShown', false)) newsHint(canvas); }, 150);
+      } }, '✕'));
+    canvas.append(strip);
+  }
+  // Where news can be turned off, once: in the news strip's place, until it fades (not while pointed at or focused).
+  function newsHint(canvas) {
+    store.set('newsHintShown', true);
+    let timer = 0;
+    const hide = () => { clearTimeout(timer); hint.classList.add('gone'); setTimeout(() => hint.remove(), 400); };
+    const later = () => { clearTimeout(timer); timer = setTimeout(hide, 8000); };
+    const hint = h('div', { class: 'newshint', role: 'status' },
+      h('span', {}, 'You can turn off news anytime in ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); hide(); E2KOptions.open(E2K, 'Privacy', 'News'); } }, 'Options'), '.'),
+      h('button', { class: 'x', title: 'Close', 'aria-label': 'Close', onclick: () => hide() }, '✕'));
+    hint.addEventListener('mouseenter', () => clearTimeout(timer));
+    hint.addEventListener('focusin', () => clearTimeout(timer));
+    hint.addEventListener('mouseleave', later);
+    hint.addEventListener('focusout', later);
+    canvas.append(hint);
+    later();
+  }
+  window.e2k.notice.onChange((n) => { notices = n || notices; showBanner(); showNews(); });
+  window.e2k.notice.get().then((n) => { notices = n || notices; showBanner(); showNews(); }).catch(() => {});
+
   // ---------- updates ----------
   // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
   const updateBar = $('#updatebar');
@@ -2612,6 +2664,7 @@
     closeNet();
     if (on === isOffline()) return;
     window.e2k.net.setOffline(on);
+    window.e2k.notice.refresh();   // notices hide in Offline mode, and come back after
     updateNet();
     announce(on ? 'Offline mode is on. Only the offline library is used.' : 'Online.');
     reload();   // the page on screen comes again, from the right place

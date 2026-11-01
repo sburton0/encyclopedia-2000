@@ -49,6 +49,7 @@
       "preload.js",
       "updater.js",
     "portable-update.js",
+    "notices.js",
       "library.js",
       "zim-reader.js",
       "src/**/*",

@@ -30,6 +30,7 @@ To show you articles and keep itself up to date, the app connects to these servi
 | **Wikimedia** (wikimedia.org) | Pictures of math formulas in articles |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
 | **GitHub** (github.com) | Checking for and downloading updates |
+| **encyclopedia2000.com** | News and notices about the app (a small file, notice.json), at most once a day. The site is hosted on GitHub Pages and served through Cloudflare, which process your IP address to deliver it, as any web host does |
 | **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, at most once a day, and otherwise at most once a month once you have a library), and the address of each download |
 | **Download mirrors** (listed by Kiwix, for example dumps.wikimedia.org and your.org) | Only while you download an offline library: the file itself, from mirror servers run by universities, companies, and volunteers. The app uses them in the order Kiwix lists |
 
@@ -37,11 +38,13 @@ These services are covered by their own privacy policies: the [Wikimedia Foundat
 
 When you read an article from your offline library while you're connected, the app may load sharper copies of its pictures from Wikipedia (unless you choose **Use the library's images only** in **Tools → Offline Library**).
 
-You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version only checks for updates; it never downloads them.
+You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version only checks for updates; it downloads one only when you choose **Update**, and installs it only when you choose **Restart Now**.
+
+You can turn off news on the Home page in **Tools → Options → Privacy**. Notices about problems that need your attention come with the update check. With both turned off, the app doesn't check for news or notices at all.
 
 ## Offline mode
 
-In **Offline mode** (chosen from the connection light in the status bar), the app's window loads nothing from the internet: articles, search, pictures, and everything else come only from your offline library, and automatic update checks are skipped. A library download you start yourself, or one already in progress, still runs. Links you choose to open in your web browser still open there.
+In **Offline mode** (chosen from the connection light in the status bar), the app's window loads nothing from the internet: articles, search, pictures, and everything else come only from your offline library, and automatic update checks and news checks are skipped. A library download you start yourself, or one already in progress, still runs. Links you choose to open in your web browser still open there.
 
 ## Links that open in your web browser
 
