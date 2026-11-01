@@ -1,11 +1,11 @@
-// The portable version updating itself where it is (a USB stick), on Windows. Nothing happens unless the user asks:
-// updater.js only says a new version exists; download() runs after Update… and its confirmation, and swap() only on
-// Restart Now. The new version downloads beside the .exe under a name that can't be run by double-clicking, and is
+// The portable version updating itself where it is (a USB stick), on Windows, as the user chooses (see selfUpdate in
+// updater.js). The new version downloads beside the .exe under a name that can't be run by double-clicking, and is
 // used only once its size, its checksum (portable.yml, published with each Windows release by
 // tools/portable-manifest.js), and its code signature (Scott Burton) all check out.
 // Swapping is two renames (Windows lets a running .exe be renamed, not deleted): the current .exe becomes
 // "… (previous version).exe", which still runs if anything goes wrong, and the new one takes its place. The previous
-// version is deleted at the next start (cleanup). Every function takes the .exe's path, so the tests can drive it.
+// version is deleted once the new one has started (removePrevious). Every function takes the .exe's path, so the tests
+// can drive it.
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -128,10 +128,11 @@ function swap(exe, current, { signature = true } = {}) {
   return target;
 }
 
-// At the start of the new version: the previous version is deleted (its launcher may take a moment to quit), and so
-// is an unfinished download from a run that was closed partway.
-function cleanup(exe, { tries = 10, every = 1000 } = {}) {
-  try { fs.unlinkSync(pendingOf(exe)); } catch {}
+// At each start, an unfinished download from a run that was closed partway is deleted.
+function cleanupPending(exe) { try { fs.unlinkSync(pendingOf(exe)); } catch {} }
+// Once the new version has started and drawn its first screen, the previous one is deleted (its launcher may take a
+// moment to quit). Until then it stays beside it, still runnable, in case the new version doesn't start.
+function removePrevious(exe, { tries = 10, every = 1000 } = {}) {
   const previous = previousOf(exe);
   if (!fs.existsSync(previous)) return;
   let n = 0;
@@ -139,4 +140,4 @@ function cleanup(exe, { tries = 10, every = 1000 } = {}) {
   attempt();
 }
 
-module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swap, cleanup, previousOf, readyOf, pendingOf };
+module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swap, cleanupPending, removePrevious, previousOf, readyOf, pendingOf };

@@ -988,8 +988,10 @@ module.exports = [
         const target = pu.swap(exe, '0.5.4-beta', opts);
         t.check('Restart Now swaps it in under the new version’s name', path.basename(target) === 'Encyclopedia-2000-Portable-0.5.5-beta.exe' && fs.readFileSync(target).equals(body), left().join(', '));
         t.check('…and the old version is kept, runnable, as “(previous version)”', fs.readFileSync(pu.previousOf(exe), 'utf8') === 'old version');
-        pu.cleanup(exe);
-        t.check('At the next start the previous version is deleted', left().join() === path.basename(target), left().join(', '));
+        pu.cleanupPending(exe);
+        t.check('At the next start, before the new version has started, the previous one is still there', fs.existsSync(pu.previousOf(exe)));
+        pu.removePrevious(exe);
+        t.check('Once the new version has started, the previous one is deleted', left().join() === path.basename(target), left().join(', '));
 
         // A copy named without a version keeps its name.
         const plain = path.join(stick, 'Encyclopedia 2000.exe');
@@ -997,7 +999,7 @@ module.exports = [
         await pu.download(plain, m, opts);
         const t2 = pu.swap(plain, '0.5.4-beta', opts);
         t.check('A copy named “Encyclopedia 2000.exe” keeps its name', t2 === plain && fs.readFileSync(plain).equals(body));
-        pu.cleanup(plain);
+        pu.removePrevious(plain);
 
         // Months later: an update that was damaged on the stick isn't used, and is deleted.
         fs.writeFileSync(plain, 'plain old');
@@ -1038,7 +1040,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-update-window', group: 'USB edition', title: 'Portable self-update in the window: Update…, the confirmation, downloading with Cancel, Restart Now and Discard, a failure told; other copies unchanged',
+    name: 'portable-update-window', group: 'USB edition', title: 'Portable self-update in the window: Download and ✕, downloading, Restart Now and Install on Close, a failure told; other copies unchanged',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 10000);
@@ -1046,38 +1048,124 @@ module.exports = [
       const send = async (s) => { t.win.webContents.send('update', s); await t.sleep(250); };
       const bar = () => t.js('const b = document.getElementById("updatebar"); return b.hidden ? "" : [...b.childNodes].map((n) => n.textContent).join(" | ");');
       const dlg = () => t.js('return document.querySelector(".overlay .dialog")?.innerText || "";');
+      const buttons = () => t.js('return [...document.querySelectorAll(".overlay .dialog .df .go")].map((b) => b.textContent);');
       const press = (label) => t.js(`[...document.querySelectorAll(".overlay .dialog .go")].find((b) => b.textContent === ${JSON.stringify(label)})?.click();`);
-      // The installed app, and a portable copy whose release has no portable.yml, are as before.
+      // The installed app, and a portable copy whose release has no portable.yml, are exactly as before.
       await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', file: '' });
-      t.check('A copy that can’t update itself still offers Download', /is available \| Download$/.test(await bar()), await bar());
+      t.check('A copy that can’t update itself still offers Download (the website)', /is available \| Download$/.test(await bar()), await bar());
       await send({ state: 'ready', version: '0.5.5-beta' });
       t.check('The installed app’s ready message is as before (Restart Now only)', /is ready \| Restart Now$/.test(await bar()), await bar());
       await send({ state: 'downloading', version: '0.5.5-beta', percent: 42 });
-      t.check('…and its downloading message (no Cancel)', /^Downloading version .* 42%$/.test(await bar()), await bar());
-      // The portable version, step by step.
-      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 98 * 1048576, readonly: false });
-      t.check('Portable: Update… in the status bar', /is available \| Update…$/.test(await bar()), await bar());
-      await t.js('[...document.querySelectorAll("#updatebar button")].pop().click();');
-      await t.sleep(300);
-      const c = await dlg();
-      t.check('Update… asks first, saying the size and that nothing is installed', /Update to version/.test(c) && /98 MB/.test(c) && /nothing is installed/.test(c) && /Not Now/.test(c), c.slice(0, 300));
-      await t.shot('portable-confirm');
-      await press('Not Now');
+      t.check('…and its downloading message', /^Downloading version .* 42%$/.test(await bar()), await bar());
+      // The portable version.
+      const avail = { state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 98 * 1048576, readonly: false };
+      await send(avail);
+      t.check('Portable: Download and ✕ in the status bar', /is available \| Download \| ✕$/.test(await bar()), await bar());
       await send({ state: 'downloading', version: '0.5.5-beta', percent: 42, self: true });
-      t.check('Downloading shows its progress and Cancel', /Downloading version .* 42% \| Cancel$/.test(await bar()), await bar());
+      t.check('Downloading shows its progress (no buttons, like the installed app)', /^Downloading version .* 42%$/.test(await bar()), await bar());
       await send({ state: 'ready', version: '0.5.5-beta', self: true });
-      t.check('Ready: Restart Now and Discard', /is ready \| Restart Now \| Discard$/.test(await bar()), await bar());
+      t.check('Ready: Restart Now and Install on Close', /is ready \| Restart Now \| Install on Close$/.test(await bar()), await bar());
       await t.shot('portable-ready');
-      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 1, readonly: false, failed: 'The drive was disconnected, or the download stopped, before the new version finished downloading.' });
+      await send({ state: 'ready', version: '0.5.5-beta', self: true, onQuit: true });
+      t.check('After Install on Close, the notice goes away', (await bar()) === '');
+      // ✕ hides the notice until the next version.
+      await send(avail);
+      await t.js('document.querySelector("#updatebar .ux").click();');
+      t.check('✕ hides the notice', (await bar()) === '');
+      await send(avail);
+      t.check('…and it stays hidden for that version', (await bar()) === '');
+      await send({ ...avail, version: '0.5.6-beta' });
+      t.check('…but the next version shows again', /0\.5\.6 Beta is available/.test(await bar()), await bar());
+      // A failure is told, and says nothing changed.
+      await send({ ...avail, version: '0.5.6-beta', failed: 'The drive was disconnected, or the download stopped, before the new version finished downloading.' });
       const f = await dlg();
       t.check('A failure is told, and says nothing has changed', /couldn’t be finished/.test(f) && /Nothing has changed/.test(f), f.slice(0, 200));
       await press('OK');
-      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 1, readonly: true });
-      await t.js('[...document.querySelectorAll("#updatebar button")].pop().click();');
+      // A read-only drive: Download explains and offers the download page.
+      await send({ ...avail, version: '0.5.6-beta', readonly: true });
+      await t.js('[...document.querySelectorAll("#updatebar button")].find((b) => b.textContent === "Download").click();');
       await t.sleep(300);
       const ro = await dlg();
-      t.check('On a read-only drive, Update… explains and offers the download page', /can’t be updated/.test(ro) && /Open the Download Page/.test(ro), ro.slice(0, 200));
+      t.check('On a read-only drive, Download explains and offers the download page', /can’t be updated/.test(ro) && /Open the Download Page/.test(ro), ro.slice(0, 200));
       await press('Not Now');
+    },
+  },
+  {
+    name: 'portable-first-run', group: 'USB edition', title: 'Portable first run: the update question with its checkbox; the answer goes to Options; asked once',
+    route: 'home',
+    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
+    setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
+    async run(t) {
+      const ask = await t.waitFor('/Check for updates automatically\\?/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 8000);
+      t.check('The portable asks about updates on its first run', ask);
+      if (!ask) return;
+      const d = await t.js(`const d = document.querySelector('.overlay .dialog'), l = d.querySelector('.askauto span'), r = l.getBoundingClientRect();
+        return { text: d.innerText, buttons: [...d.querySelectorAll('.df .go')].map((b) => b.textContent), oneLine: r.height < 24, inside: r.right <= d.getBoundingClientRect().right - 8, checked: d.querySelector('.askauto input').checked };`);
+      t.check('…with Help › Check for Updates mentioned, and Check for Updates / Don’t Check', /Help › Check for Updates/.test(d.text) && d.buttons.join() === 'Check for Updates,Don’t Check', JSON.stringify(d.buttons));
+      t.check('…and the checkbox on one line, inside the window, unticked', d.oneLine && d.inside && d.checked === false, JSON.stringify(d));
+      await t.sleep(400);                     // the window fades in
+      await t.shot('first-run-question');
+      t.check('No update check happens until it’s answered', (await t.js('return (await window.e2k.settings.get()).updateAsked;')) === false);
+      await t.js(`document.querySelector('.overlay .dialog .askauto input').click(); [...document.querySelectorAll('.overlay .dialog .go')].find((b) => b.textContent === 'Check for Updates').click();`);
+      await t.sleep(500);
+      const s = await t.js('return await window.e2k.settings.get();');
+      t.check('Check for Updates with the box ticked: checks on, download and install automatically on, answered', s.autoUpdate === true && s.autoInstall === true && s.updateAsked === true, JSON.stringify(s));
+      await t.js('E2KOptions.open(E2K, "Privacy", "Updates");');
+      await t.waitFor('document.querySelector(".options")', 4000);
+      const o = await t.js(`const g = [...document.querySelectorAll('.options .ogroup')].find((g) => g.querySelector('legend')?.textContent === 'Updates');
+        return [...g.querySelectorAll('label')].map((l) => l.querySelector('b').textContent + '=' + l.querySelector('input').checked);`);
+      t.check('Options › Privacy shows both, as answered', o.join() === 'Check for updates automatically=true,Also download and install updates automatically=true', o.join());
+      await t.shot('first-run-options');
+    },
+  },
+  {
+    name: 'portable-first-run-restart', group: 'USB edition', title: '…after a restart: not asked again',
+    route: 'home', reuse: 'portable-first-run',
+    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(2500);
+      t.check('The question isn’t asked again', !(await t.js('return /Check for updates automatically/.test(document.querySelector(".overlay .dialog")?.innerText || "");')));
+    },
+  },
+  {
+    name: 'portable-first-run-closed', group: 'USB edition', title: 'Portable first run: closing the question counts as Don’t Check; the installed app never asks',
+    route: 'home',
+    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
+    setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
+    async run(t) {
+      await t.waitFor('document.querySelector(".overlay .dialog.askupdate")', 8000);
+      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      await t.sleep(500);
+      const s = await t.js('return await window.e2k.settings.get();');
+      t.check('Escape closes it as Don’t Check (checks off, answered)', s.autoUpdate === false && s.updateAsked === true && !(await t.js('return !!document.querySelector(".overlay .dialog.askupdate");')), JSON.stringify(s));
+    },
+  },
+
+  {
+    name: 'portable-check-ready', group: 'USB edition', title: 'Portable: Help › Check for Updates with an update downloaded offers Restart Now, Install on Close, and Delete Update',
+    route: 'home', env: { E2K_FAKE_UPDATE: 'ready', E2K_FAKE_SELF: '1' },
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(800);
+      await t.js('E2K.command("updates");');
+      await t.waitFor('document.querySelector(".overlay .dialog")', 4000);
+      const b = await t.js('return [...document.querySelectorAll(".overlay .dialog .df .go")].map((b) => b.textContent);');
+      t.check('Restart Now, Install on Close, Delete Update', b.join() === 'Restart Now,Install on Close,Delete Update', b.join());
+      t.check('The status bar shows Restart Now and Install on Close', await t.js('const b = document.getElementById("updatebar").innerText; return b.includes("Restart Now") && b.includes("Install on Close");'));
+    },
+  },
+  {
+    name: 'portable-check-available', group: 'USB edition', title: 'Portable: Help › Check for Updates with a new version offers Download, Download from Website…, and Later',
+    route: 'home', env: { E2K_FAKE_UPDATE: 'available', E2K_FAKE_KIND: 'portable', E2K_FAKE_SELF: '1' },
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(800);
+      await t.js('E2K.command("updates");');
+      await t.waitFor('document.querySelector(".overlay .dialog")', 4000);
+      const d = await t.js('const d = document.querySelector(".overlay .dialog"); return { b: [...d.querySelectorAll(".df .go")].map((b) => b.textContent), text: d.innerText };');
+      t.check('Download, Download from Website…, Later, with the size and the manual route', d.b.join() === 'Download,Download from Website…,Later' && /98 MB/.test(d.text) && /Encyclopedia 2000 Data/.test(d.text), d.b.join());
+      await t.shot('portable-check-available');
     },
   },
 

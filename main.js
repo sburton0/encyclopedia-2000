@@ -232,7 +232,12 @@ ipcMain.handle('picture:save', async (e, urls) => {
   return 'saved';
 });
 
-const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate, showNews: settings.showNews });
+// The Windows portable that can update itself asks on its first run whether to check for updates (see app.js), and
+// doesn't check until it's answered. (E2K_TEST_SELF_UPDATE lets the tests show the question in a copy run from source.)
+const PORTABLE_SELF = require('./updater').SELF && (app.isPackaged || !!env.E2K_TEST_SELF_UPDATE);
+const updatesOn = () => settings.autoUpdate !== false && (!PORTABLE_SELF || settings.updateAsked === true);
+const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate, showNews: settings.showNews,
+  ...(PORTABLE_SELF ? { portableSelf: true, autoInstall: settings.autoInstall === true, updateAsked: settings.updateAsked === true } : {}) });
 ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
@@ -241,6 +246,8 @@ ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;
   if (typeof patch.autoUpdate === 'boolean') settings.autoUpdate = patch.autoUpdate;
   if (typeof patch.showNews === 'boolean') settings.showNews = patch.showNews;
+  if (PORTABLE_SELF && typeof patch.autoInstall === 'boolean') settings.autoInstall = patch.autoInstall;
+  if (PORTABLE_SELF && patch.updateAsked === true) settings.updateAsked = true;
   saveSettings();
   return mainSettings();
 });
@@ -363,10 +370,10 @@ app.whenReady().then(() => {
   if (MAC && !app.isPackaged) app.dock.setIcon(ICON);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
-  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false && !settings.offlineMode,
+  require('./updater').setup({ getWindow: () => main, isEnabled: () => updatesOn() && !settings.offlineMode, getSettings: () => settings,
     // The portable version's Restart Now: closes without asking about a library download (it pauses, as on Quit anyway).
     quitForUpdate: () => { quitConfirmed = true; library.pauseForQuit(); app.quit(); } });
-  require('./notices').setup({ getWindows: () => BrowserWindow.getAllWindows(), settings: () => settings });
+  require('./notices').setup({ getWindows: () => BrowserWindow.getAllWindows(), settings: () => ({ ...settings, autoUpdate: updatesOn() }) });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));

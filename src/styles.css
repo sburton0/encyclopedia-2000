@@ -643,6 +643,12 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 /* ---------- overlays ---------- */
 .overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .45); animation: viewin .15s ease-out; }
 .dialog { width: 400px; background: linear-gradient(var(--ink-2), var(--ink-0)); border: 1px solid var(--ink-3); box-shadow: 0 12px 40px rgba(0, 0, 0, .6); }
+.dialog.askupdate { width: 448px; }   /* its checkbox fits on one line */
+.dialog .askauto { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0 2px; white-space: nowrap; }
+.dialog .askauto input { margin-top: 3px; }
+#updatebar .ux { margin-left: 2px; padding: 0 6px; background: none; border: 0; color: inherit; opacity: .8; cursor: pointer; }
+#updatebar .ux:hover { opacity: 1; }
+.options .osub { margin-left: 28px; }
 .dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; user-select: none; }
 .dialog .dt img { width: 16px; height: 16px; }
 .dialog .db { display: flex; gap: 14px; padding: 18px 18px 8px; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }

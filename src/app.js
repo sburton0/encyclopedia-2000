@@ -283,12 +283,15 @@
     drawCrumbs();
   }
 
+  let drawn = false;
   function mount(el, token) {
     if (token !== renderToken) return false;
     el.classList.add('fade-in');
     view.replaceChildren(el);
     updateToolbar();
     focusScreen(el);
+    // The first screen is up: a portable that just updated can now delete its previous version (updater.js).
+    if (!drawn) { drawn = true; window.e2k.update.started(); }
     return true;
   }
   // A new screen takes focus on its heading, so a screen reader reads where you are and the next Tab is the screen's
@@ -1623,39 +1626,79 @@
   // ---------- updates ----------
   // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
   const updateBar = $('#updatebar');
-  // The Windows portable updates itself on its drive, one step at a time as the user asks (updater.js); everything
-  // else (the installed app, Mac, Linux) is handled after this, as before.
+  // The Windows portable updates itself on its drive, as the user chose on its first run (updater.js): Download (unless
+  // it downloads by itself), then Restart Now or Install on Close. ✕ hides a version's notice until the next one.
+  // Everything else (the installed app, Mac, Linux) is handled after this, as before.
+  const releasePage = (version) => window.e2k.openExternal(`https://github.com/sburton0/encyclopedia-2000/releases/tag/v${version}`);
   function showSelfUpdate(s) {
     const v = prettyVersion(s.version);
-    if (s.state === 'available') {
-      updateBar.replaceChildren(`Version ${v} is available`, h('button', { onclick: () => confirmSelfUpdate(s) }, 'Update…'));
-      updateBar.title = 'Shows what updating does before anything is downloaded.';
+    let shown = true;
+    if (s.state === 'available' && store.get('updateHidden', '') !== s.version) {
+      updateBar.replaceChildren(`Version ${v} is available`, h('button', { onclick: () => selfDownload(s) }, 'Download'),
+        h('button', { class: 'ux', title: 'Hide until the next version', 'aria-label': 'Hide until the next version',
+          onclick: () => { store.set('updateHidden', s.version); updateBar.hidden = true; } }, '✕'));
+      updateBar.title = 'Downloads the new version to this drive, next to this one. Nothing is installed on this computer.';
     } else if (s.state === 'downloading') {
-      updateBar.replaceChildren(`Downloading version ${v} · ${s.percent || 0}%`, h('button', { onclick: () => window.e2k.update.cancel() }, 'Cancel'));
+      updateBar.replaceChildren(`Downloading version ${v} · ${s.percent || 0}%`);
       updateBar.title = '';
-    } else if (s.state === 'ready') {
+    } else if (s.state === 'ready' && !s.onQuit) {
       updateBar.replaceChildren(`Version ${v} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'),
-        h('button', { onclick: () => window.e2k.update.discard() }, 'Discard'));
-      updateBar.title = 'Restart Now starts the new version. Nothing changes until you do; Discard deletes the download.';
-    } else { updateBar.hidden = true; return; }
-    updateBar.hidden = false;
+        h('button', { onclick: () => window.e2k.update.installOnQuit() }, 'Install on Close'));
+      updateBar.title = 'Restart Now starts the new version; Install on Close switches to it when you close Encyclopedia 2000.';
+    } else shown = false;
+    updateBar.hidden = !shown;
     if (s.failed) dialog('Update Encyclopedia 2000', 'The update couldn’t be finished', [s.failed,
       'Nothing has changed: the version you have still works. You can try again from the status bar.']);
   }
-  function confirmSelfUpdate(s) {
-    const v = prettyVersion(s.version);
-    if (s.readonly) {
-      return dialog('Update Encyclopedia 2000', 'This drive can’t be updated', [
-        'Encyclopedia 2000 is running from a drive it can’t save to (it may be locked, or a DVD).',
-        `To update, download version ${v} from the website and copy it onto a drive you can write to.`],
-      [['Open the Download Page', () => window.e2k.update.install(), true], ['Not Now']]);
-    }
-    dialog('Update Encyclopedia 2000', `Update to version ${v}?`, [
-      `The new version (${Math.ceil((s.size || 0) / 1048576)} MB) downloads to this drive, next to the one you’re using. You can keep reading while it downloads.`,
-      'When it’s ready, you choose when to restart with it. Your offline library, favorites, and settings stay as they are, and nothing is installed on this computer.'],
-    [['What’s New…', () => window.e2k.openExternal(`https://github.com/sburton0/encyclopedia-2000/releases/tag/v${s.version}`)],
-      ['Update', () => window.e2k.update.download(), true], ['Not Now']]);
+  function readOnlyDrive(s) {
+    dialog('Update Encyclopedia 2000', 'This drive can’t be updated', [
+      'Encyclopedia 2000 is running from a drive it can’t save to (it may be locked, or a DVD).',
+      `To update, download version ${prettyVersion(s.version)} from the website and copy it onto a drive you can write to.`],
+    [['Open the Download Page', () => window.e2k.update.install(), true], ['Not Now']]);
   }
+  const selfDownload = (s) => (s.readonly ? readOnlyDrive(s) : window.e2k.update.download());
+  // Help › Check for Updates on the portable: the same choices as the status bar, plus the website and deleting a
+  // downloaded update.
+  function selfUpdateDialog(s) {
+    const title = 'Check for Updates', v = prettyVersion(s.version);
+    if (s.state === 'available' && s.readonly) return readOnlyDrive(s);
+    if (s.state === 'available') {
+      return dialog(title, 'A new version is available', [
+        `Version ${v} is ready to download (${Math.ceil((s.size || 0) / 1048576)} MB). It downloads to this drive, next to the version you’re using, and nothing is installed on this computer.`,
+        h('p', { class: 'fine' }, 'Or download it yourself from the website and use it in place of this copy. Keep the “Encyclopedia 2000 Data” folder next to it to keep your settings.')],
+      [['Download', () => selfDownload(s), true], ['Download from Website…', () => releasePage(s.version)], ['Later']]);
+    }
+    if (s.state === 'ready') {
+      return dialog(title, 'An update is ready', [
+        `Version ${v} is downloaded and saved on this drive, next to the version you’re using.`,
+        'Restart now to start using it, or it installs when you close Encyclopedia 2000. If you’d rather not have it, delete it.'],
+      [['Restart Now', () => window.e2k.update.install(), true], ['Install on Close', () => window.e2k.update.installOnQuit()], ['Delete Update', () => window.e2k.update.discard()]]);
+    }
+    return dialog(title, 'An update is on its way', [`Version ${v} is downloading. Restart Now appears in the status bar when it’s ready.`]);
+  }
+  // The portable's first run (and its first run of 0.5.4): whether to check for updates, and whether to download and
+  // install them by itself. Closing the question without an answer counts as Don't Check.
+  async function askAboutUpdates() {
+    const main = await window.e2k.settings.get().catch(() => ({}));
+    if (!main.portableSelf || main.updateAsked) return;
+    let answered = false;
+    const answer = async (on) => {
+      answered = true;
+      await window.e2k.settings.set({ autoUpdate: on, autoInstall: on && auto.checked, updateAsked: true });
+      window.e2k.update.settingsChanged();
+      if (on) window.e2k.update.check().then(showUpdate).catch(() => {});
+    };
+    const auto = h('input', { type: 'checkbox' });
+    dialog('Encyclopedia 2000', 'Check for updates automatically?', [
+      'Once a day, along with important notices. You can also check anytime in Help › Check for Updates.',
+      h('label', { class: 'askauto' }, auto, h('span', {}, 'Also download and install updates automatically')),
+      h('p', { class: 'fine' }, 'You can change this anytime in Options.'),
+    ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]]);
+    const ov = $$('.overlay').at(-1);
+    ov.querySelector('.dialog').classList.add('askupdate');
+    new MutationObserver((_r, mo) => { if (!ov.isConnected) { mo.disconnect(); if (!answered) answer(false); } }).observe(document.body, { childList: true });
+  }
+
   function showUpdate(s) {
     if (s.self) return showSelfUpdate(s);
     if (s.state === 'ready') {
@@ -1682,9 +1725,7 @@
     setIdle();
     showUpdate(s);
     const title = 'Check for Updates';
-    if (s.self && s.state === 'available') return confirmSelfUpdate(s);
-    if (s.self && s.state === 'ready') return dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Now starts it; nothing changes until you do.`],
-      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
+    if (s.self && ['available', 'ready', 'downloading'].includes(s.state)) return selfUpdateDialog(s);
     if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
       [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
     else if (s.state === 'available' && s.kind === 'deb') {
@@ -2942,6 +2983,7 @@
     // True when nothing can come from the internet: Offline mode, or no connection.
     offline: () => isOffline() || !Wiki.connected(),
     dialog: (...args) => dialog(...args),
+    command: (cmd) => runCmd(cmd),   // a menu command by name (the tests use it)
     soundOn: () => soundOn(),
     sfx: (kind) => { if (soundOn()) { try { E2KAudio.sfx(kind); } catch {} } },
   };
@@ -2956,4 +2998,5 @@
   else if (startOn === 'featured') { go('home'); runCmd('featured'); }
   else go('home');
   maybeWhatsNew();
+  setTimeout(askAboutUpdates, 1500);
 })();

@@ -70,10 +70,13 @@ contextBridge.exposeInMainWorld('e2k', {
     state: () => ipcRenderer.invoke('update:state'),
     check: () => ipcRenderer.invoke('update:check'),
     install: () => ipcRenderer.invoke('update:install'),
-    // The Windows portable only (see updater.js): download after the user confirms, stop it, or delete a downloaded one.
+    // The Windows portable only (see selfUpdate in updater.js): download an update, install a downloaded one when the
+    // app closes, or delete it; tell it the update options changed, and that the first screen is up.
     download: () => ipcRenderer.invoke('update:download'),
-    cancel: () => ipcRenderer.invoke('update:cancel'),
+    installOnQuit: () => ipcRenderer.invoke('update:install-on-quit'),
     discard: () => ipcRenderer.invoke('update:discard'),
+    settingsChanged: () => ipcRenderer.send('update:settings'),
+    started: () => ipcRenderer.send('update:started'),
     onChange: (cb) => ipcRenderer.on('update', (_e, s) => cb(s)),
   },
   printPreview: () => ipcRenderer.invoke('print:open'),

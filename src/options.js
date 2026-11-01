@@ -22,6 +22,7 @@ window.E2KOptions = (() => {
       hardwareAcceleration: main.hardwareAcceleration !== false,
       autoUpdate: main.autoUpdate !== false,
       showNews: main.showNews !== false,
+      autoInstall: main.autoInstall === true,
       theme: store.get('theme', 'bloom'),
       clock24: store.get('clock24', false),
       units: E2KUnits.system(),
@@ -158,7 +159,11 @@ window.E2KOptions = (() => {
           api.setIdle('Recently viewed list cleared');
         } }, 'Clear Recently Viewed'))),
       group('Updates',
-        check('autoUpdate', 'Check for updates automatically', 'Downloads new versions from the Encyclopedia 2000 page on GitHub, and asks before restarting. Only GitHub is contacted, and nothing about you is sent. You can always use Help › Check for Updates. Notices about problems that need your attention come with it.')),
+        main.portableSelf
+          // The Windows portable (updater.js): checking only tells, unless it also downloads and installs by itself.
+          ? [check('autoUpdate', 'Check for updates automatically', 'Checks the Encyclopedia 2000 page on GitHub once a day and tells you about new versions. Only GitHub is contacted, and nothing about you is sent. Notices about problems that need your attention come with it.'),
+            h('div', { class: 'osub' }, check('autoInstall', 'Also download and install updates automatically', 'Downloads new versions to this drive by itself, and installs them when you close Encyclopedia 2000. Otherwise you choose when: Download, then Restart Now or Install on Close.'))]
+          : check('autoUpdate', 'Check for updates automatically', 'Downloads new versions from the Encyclopedia 2000 page on GitHub, and asks before restarting. Only GitHub is contacted, and nothing about you is sent. You can always use Help › Check for Updates. Notices about problems that need your attention come with it.')),
       group('News',
         check('showNews', 'Show news on the Home page', 'An occasional line above Explore about Encyclopedia 2000 itself, such as new editions. Checked at most once a day from encyclopedia2000.com; nothing about you is sent.')),
       group('Reset',
@@ -208,13 +213,16 @@ window.E2KOptions = (() => {
 
     async function apply() {
       const restart = draft.hardwareAcceleration !== (main.hardwareAcceleration !== false);
-      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration, autoUpdate: draft.autoUpdate, showNews: draft.showNews });
+      await window.e2k.settings.set({ showSplash: draft.showSplash, windowMode: draft.windowMode, hardwareAcceleration: draft.hardwareAcceleration, autoUpdate: draft.autoUpdate, showNews: draft.showNews,
+        ...(main.portableSelf ? { autoInstall: draft.autoInstall } : {}) });
       main.showSplash = draft.showSplash;
       main.windowMode = draft.windowMode;
       main.hardwareAcceleration = draft.hardwareAcceleration;
       main.autoUpdate = draft.autoUpdate;
       main.showNews = draft.showNews;
+      main.autoInstall = draft.autoInstall;
       window.e2k.notice.refresh();
+      window.e2k.update.settingsChanged();
       if (draft.units !== E2KUnits.system()) E2KUnits.clearPicks();
       ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
