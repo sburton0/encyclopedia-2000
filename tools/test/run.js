@@ -69,7 +69,7 @@ function runOne(s) {
     const env = {
       ...process.env, E2K_PROFILE: profile, E2K_MUTE: '1', E2K_NOSPLASH: '1', E2K_SIZE: '1260x900', E2K_ROUTE: s.route || 'home',
       E2K_TEST_APP: REPO, E2K_TEST_OUT: out, E2K_TEST_SCENARIO: s.name, E2K_TEST_FIXTURES: FIXTURES,
-      E2K_TEST_SWITCHES: (s.switches || []).join('|'), ...s.env,
+      E2K_TEST_SWITCHES: (s.switches || []).join('|'), ...(typeof s.env === 'function' ? s.env(profile) : s.env),
     };
     for (const k of ['E2K_CAPTURE', 'E2K_EVAL', 'E2K_ZIM']) delete env[k];
     const electron = require(path.join(REPO, 'node_modules', 'electron'));

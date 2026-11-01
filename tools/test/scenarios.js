@@ -5,7 +5,8 @@
 //   setup(ctx):  files for the profile before the app starts: { library, settings } (library.json and settings.json)
 //   reuse:       start from the profile another scenario left (a restart)
 //   needs:       'fixture' when the scenario needs the small test library that "download" saves
-//   env:         extra environment (E2K_LIBRARY_TEST=1 adds the tiny Ray Charles library, 3 MB)
+//   env:         extra environment (E2K_LIBRARY_TEST=1 adds the tiny Ray Charles library, 3 MB), or a function of the
+//                profile's folder that returns it
 //   only:        a platform ('win32', 'darwin', 'linux') when the scenario only applies there
 //   run(t):      the test; t is described in runner.js
 //   after(ctx):  runs in run.js once the app has quit
@@ -791,6 +792,41 @@ module.exports = [
       process.env.E2K_TEST_CHOOSE_DIR = path.join(t.profile, 'Old library');
       const r = await t.js('return await window.e2k.library.chooseDir();');
       t.check('The library in it is used', !!(r.current && r.open) && r.dir.endsWith('Old library'), r.error || JSON.stringify(r.current));
+    },
+  },
+
+  {
+    name: 'usb-library', group: 'Offline library', title: 'USB edition: a library beside the portable app is used at the first start, saved relative to the drive; Stop using…',
+    route: 'home', needs: 'fixture', env: (profile) => ({ E2K_LIBRARY_TEST: '1', PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick') }),
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, '..', 'stick')); return {}; },
+    async run(t) {
+      const s = await t.lib();
+      t.check('The library beside the app is in use', !!(s.current && s.open), JSON.stringify(s.current));
+      t.check('…where it is, as the user’s own file (Stop using… never deletes it)', s.current?.own === true && path.resolve(s.dir) === path.resolve(t.profile, '..', 'stick'), s.dir);
+      const saved = JSON.parse(fs.readFileSync(path.join(t.profile, 'library.json'), 'utf8'));
+      t.check('Its folder is saved relative to the app, so a new drive letter doesn’t lose it', saved.dir && !path.isAbsolute(saved.dir), saved.dir);
+      t.check('Its article is found', !!(await t.js('return await window.e2k.library.find("Ray Charles");')));
+      await openLibrary(t);
+      await t.shot('usb-library');
+      const r = await t.js('return await window.e2k.library.remove();');
+      t.check('Stop using… leaves the file on the drive', !r.current && fs.existsSync(path.join(t.profile, '..', 'stick', s.current.file)));
+    },
+  },
+  {
+    name: 'usb-library-restart', group: 'Offline library', title: '…after the restart: the library the user stopped using isn’t picked up again',
+    route: 'home', reuse: 'usb-library', env: (profile) => ({ E2K_LIBRARY_TEST: '1', PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick') }),
+    async run(t) {
+      const s = await t.lib();
+      t.check('No library is in use', !s.current, JSON.stringify(s.current));
+    },
+  },
+  {
+    name: 'library-folder-at-start', group: 'Offline library', title: 'A library already in the library folder (after reinstalling) is used at the first start',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Library')); return {}; },
+    async run(t) {
+      const s = await t.lib();
+      t.check('The library in the library folder is in use', !!(s.current && s.open) && path.resolve(s.dir) === path.resolve(t.profile, 'Library'), JSON.stringify({ dir: s.dir, current: s.current }));
     },
   },
 

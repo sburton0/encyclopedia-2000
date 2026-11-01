@@ -52,10 +52,16 @@ let state = { dir: '', current: null, download: null, catalog: null, checked: 0 
 // state.moving:   the unfinished copy of a move, deleted at the next start if the app closed mid-move
 const stateFile = () => path.join(app.getPath('userData'), 'library.json');
 // A folder inside the app's data folder is saved relative to it, so a portable copy on a USB drive keeps finding its
-// library when the drive gets a different letter.
+// library when the drive gets a different letter. For the portable version, so is any folder on its own drive (the
+// folder beside the .exe, where the USB Offline Edition keeps its library).
 const dataDir = () => app.getPath('userData');
 const libDir = () => (state.dir ? path.resolve(dataDir(), state.dir) : path.join(dataDir(), 'Library'));
-const storeDir = (dir) => { const rel = path.relative(dataDir(), dir); return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? rel : dir; };
+const portable = () => !!process.env.PORTABLE_EXECUTABLE_DIR && !process.env.E2K_PORTABLE_FALLBACK;
+const storeDir = (dir) => {
+  const rel = path.relative(dataDir(), dir);
+  if (!rel || path.isAbsolute(rel)) return dir;
+  return !rel.startsWith('..') || (portable() && path.parse(dir).root === path.parse(dataDir()).root) ? rel : dir;
+};
 // The catalog is saved too, so it's asked for at most once a day across restarts (as Kiwix asked), not once per launch.
 function save() { try { fs.writeFileSync(stateFile(), JSON.stringify(state, null, 2)); } catch {} }
 function load() { try { state = { ...state, ...JSON.parse(fs.readFileSync(stateFile(), 'utf8')) }; } catch {} }
@@ -165,6 +171,16 @@ function libraryIn(dir) {
   const ids = names.map((n) => identify(path.join(dir, n))).filter((id) => id && id.wiki);
   ids.sort((a, b) => rank(b) - rank(a) || b.date.localeCompare(a.date) || b.size - a.size);
   return ids[0] ? path.join(dir, ids[0].file) : '';
+}
+
+// With no library yet, one already next to the app is used without asking, where it is (like Open library file…):
+// one in the library folder (left after reinstalling, or copied there), or, for the portable version, one beside the
+// .exe (the USB Offline Edition ships that way; also on a read-only drive). Not one the user stopped using.
+function useNearby() {
+  for (const dir of [libDir(), process.env.PORTABLE_EXECUTABLE_DIR]) {
+    const file = dir && libraryIn(dir);
+    if (file && !(state.passedOver || []).includes(path.basename(file))) { useFile(file); return; }
+  }
 }
 
 // ---------- reading ----------
@@ -649,6 +665,8 @@ function removeCurrent({ forDownload = false } = {}) {
   // Forgetting a missing library: a new download goes to the app's own folder, not a drive that isn't there.
   if (missing) { found(); if (!fs.existsSync(libDir())) state.dir = ''; }
   if (own && !forDownload) state.dir = state.appDir && fs.existsSync(path.resolve(dataDir(), state.appDir)) ? state.appDir : '';
+  // Stopped using on purpose: it isn't picked up again at the next start (see useNearby).
+  if (own && !forDownload) state.passedOver = [...new Set([...(state.passedOver || []), state.current.file])];
   if (own) delete state.appDir;
   state.current = null; save(); broadcast();
 }
@@ -777,6 +795,7 @@ function setup({ offline = () => false } = {}) {
   override = process.env.E2K_ZIM || '';
   if (override) openFile(override);
   else if (state.current && !openFile(path.join(libDir(), state.current.file))) lost();
+  else if (!state.current && !state.download) useNearby();
   watchPresence();
   // A download that was running when the app last closed (quit mid-download, or closed unexpectedly) carries on a few
   // seconds after startup; one the user paused stays paused.
