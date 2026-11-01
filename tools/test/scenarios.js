@@ -1127,6 +1127,52 @@ module.exports = [
     },
   },
   {
+    name: 'download-quiet', group: 'Accessibility', title: 'During a download only the progress changes: the window isn’t redrawn, focus stays on Pause, the bar moves in whole percents',
+    route: 'home', env: { E2K_LIBRARY_TEST: KNOTS },
+    async run(t) {
+      await openLibrary(t);
+      await t.waitFor('document.querySelectorAll(".offline .pack .size").length >= 5', 20000);
+      // A real download, paused partway; then progress updates like the app's own, sent to the window (the test
+      // library downloads in a few seconds, in only three or four steps).
+      await t.js('window.e2k.library.download("test");');
+      if (!(await whenPartway(t))) return t.skip('Download partway', 'the download finished too quickly to pause (fast connection)');
+      const paused = await t.js('return await window.e2k.library.pause();');
+      const d = paused.download;
+      if (!d || d.status !== 'paused') return t.skip('Download partway', 'it finished before it could be paused');
+      let sent = 0;
+      const send = (status = 'downloading') => {
+        const received = Math.min(d.size - 1, d.received + ++sent * 40000);
+        t.win.webContents.send('library:update', { ...paused, download: { ...d, status, received, speed: 1e6 + sent * 1000, eta: 30 - sent } });
+      };
+      send();
+      if (!(await t.waitFor(`${label('Pause')} && document.querySelector('.offline .prog span')`, 3000))) {
+        return t.check('The download shows Pause and its progress', false, await t.js('return document.querySelector(".offline .packs").innerText.slice(0, 300);'));
+      }
+      // Focus on Pause, then watch the window as the progress goes on.
+      await t.js(`const ov = document.querySelector('.offline').closest('.overlay'); ${label('Pause')}.focus();
+        window.__q = { pause: ${label('Pause')}, bar: ov.querySelector('.bar[role="progressbar"]'), text: ov.querySelector('.prog span').textContent, other: [], values: [] };
+        new MutationObserver((rs) => { for (const r of rs) {
+          const el = r.target.nodeType === 1 ? r.target : r.target.parentElement;
+          if (r.attributeName === 'aria-valuenow') window.__q.values.push(el.getAttribute('aria-valuenow'));
+          else if (!el.closest('.bar, .prog, .where > span:last-child')) window.__q.other.push((el.className || el.tagName) + ' ' + r.type);
+        } }).observe(ov, { subtree: true, childList: true, attributes: true, characterData: true });`);
+      for (let i = 0; i < 20; i++) { send(); await t.sleep(60); }
+      await t.sleep(200);
+      const q = await t.js(`const q = window.__q, ov = document.querySelector('.offline').closest('.overlay');
+        return { samePause: q.pause.isConnected && document.activeElement === q.pause, sameBar: q.bar.isConnected,
+          moved: ov.querySelector('.prog span').textContent !== q.text, other: q.other.slice(0, 5), values: q.values };`);
+      t.check('Nothing in the window but the progress changed', q.other.length === 0, q.other.join(', '));
+      t.check('Focus stayed on the same Pause button', q.samePause);
+      t.check('The progress bar is the same one, and its line moved on', q.sameBar && q.moved, JSON.stringify(q));
+      const nums = q.values.map(Number);
+      t.check('The bar’s value changed in whole percents only, each one once', nums.length > 0 && nums.length < 20 && nums.every((n, i) => Number.isInteger(n) && (i === 0 || n > nums[i - 1])), q.values.join(', '));
+      // Pausing is a real change: the window is redrawn with Resume.
+      send('paused');
+      t.check('Paused, it shows Resume', await t.waitFor(`${label('Resume')}`, 3000));
+      await t.js('await window.e2k.library.cancel();');
+    },
+  },
+  {
     name: 'accessibility-checks', group: 'Accessibility', title: 'axe-core finds no serious problems on the main screens and windows; pictures have names; Star Chart marks answers',
     route: 'home',
     async run(t) {

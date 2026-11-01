@@ -85,7 +85,50 @@ window.E2KLibrary = (() => {
       said = now;
       E2K.announce(`${label}: ${what.replace('…', '')} ${Math.floor(pct)}%`);
     };
+    // A download's or a move's progress, from the latest state: what's said, and the bar and its two lines.
+    function progNow() {
+      const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
+      if (mv && cur && !st.missing) {
+        const pct = mv.size ? Math.min(100, (100 * mv.copied) / mv.size) : 0;
+        return { label: cur.label, what: 'Moving…', name: `Moving ${cur.label}`, pct,
+          text: `Moving… ${size(mv.copied) || '0 MB'} of ${size(mv.size)} (${Math.floor(pct)}%)`, rate: mv.speed ? `${size(mv.speed)}/s · ${left(mv.eta)}` : '' };
+      }
+      const p = d && !(st.current && st.current.pack === d.pack) && packOf(d.pack);
+      if (!p) return null;
+      const pct = d.size ? Math.min(100, (100 * d.received) / d.size) : 0;
+      const what = d.status === 'downloading' ? 'Downloading…' : d.status === 'error' ? 'Stopped.' : 'Paused.';
+      return { label: p.label, what, name: `Downloading ${p.label}`, pct, text: `${what} ${size(d.received) || '0 MB'} of ${size(d.size)} (${Math.floor(pct)}%)`,
+        rate: d.status === 'downloading' && d.speed ? `${size(d.speed)}/s · ${left(d.eta)}` : d.status === 'error' ? d.error || '' : '' };
+    }
+    // As a download goes on, only the bar and its lines change, and only when what they show does: redrawing the whole
+    // window replaced the button that had focus (so screen readers announced it again), and every new bar made NVDA beep.
+    let prog = null, drawn = '';
+    const LIVE = new Set(['received', 'done', 'copied', 'speed', 'eta', 'free']);
+    function setProg(g) {
+      const v = String(Math.floor(g.pct));
+      prog.fill.style.width = `${g.pct.toFixed(1)}%`;
+      if (prog.bar.getAttribute('aria-valuenow') !== v) prog.bar.setAttribute('aria-valuenow', v);
+      if (prog.text.textContent !== g.text) prog.text.textContent = g.text;
+      if (prog.rate.textContent !== g.rate) prog.rate.textContent = g.rate;
+      sayProgress(g.label, g.what, g.pct);
+    }
+    function progEls(g) {
+      prog = { fill: h('i'), text: h('span'), rate: h('span') };
+      prog.bar = h('div', { class: 'bar', role: 'progressbar', 'aria-label': g.name, 'aria-valuemin': 0, 'aria-valuemax': 100 }, prog.fill);
+      setProg(g);
+      return [prog.bar, h('div', { class: 'prog' }, prog.text, prog.rate)];
+    }
+    const setFree = () => {
+      const t = !st.move && !st.missing && st.free ? `${size(st.free)} free` : '';
+      if (freeTxt.textContent !== t) freeTxt.textContent = t;
+    };
     function draw() {
+      // Nothing but the progress (and the free space) changed: update just those.
+      const shape = JSON.stringify([st, showAll], (k, v) => (LIVE.has(k) ? undefined : v));
+      const g = prog && shape === drawn && progNow();
+      if (g) { setProg(g); setFree(); return; }
+      drawn = shape;
+      prog = null;
       const cur = st.current && packOf(st.current.pack), d = st.download, mv = st.move;
       // the status box
       const dot = (c) => h('span', { class: 'dotc', style: `background:${c};box-shadow:0 0 6px ${c}` });
@@ -117,12 +160,8 @@ window.E2KLibrary = (() => {
           // Moving to another drive: progress like a download's, and Cancel (the library stays where it was).
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           desc = `${edition(st.current.date)} edition · ${size(st.current.size)} on this computer`;
-          const pct = mv.size ? Math.min(100, (100 * mv.copied) / mv.size) : 0;
           acts.push(h('button', { class: 'go', onclick: async () => { st = await L.cancelMove(); draw(); } }, 'Cancel'));
-          sayProgress(cur.label, 'Moving…', pct);
-          extra = [h('div', { class: 'bar', role: 'progressbar', 'aria-label': `Moving ${cur.label}`, 'aria-valuenow': Math.floor(pct) }, h('i', { style: `width:${pct.toFixed(1)}%` })),
-            h('div', { class: 'prog' }, h('span', {}, `Moving… ${size(mv.copied) || '0 MB'} of ${size(mv.size)} (${Math.floor(pct)}%)`),
-              h('span', {}, mv.speed ? `${size(mv.speed)}/s · ${left(mv.eta)}` : ''))];
+          extra = progEls(progNow());
         } else if (st.current && st.current.pack === p.id) {
           tags.push(h('span', { class: 'tag ok' }, 'INSTALLED'));
           if (own()) tags.push(h('span', { class: 'tag inc' }, 'YOUR FILE'));
@@ -131,16 +170,11 @@ window.E2KLibrary = (() => {
           if (!showAll) acts.push(h('button', { class: 'go', onclick: () => { showAll = true; draw(); } }, 'Change library…'));
           acts.push(h('button', { class: 'go', onclick: () => remove(p), disabled: !!(d && d.status === 'downloading') }, own() ? 'Stop using…' : 'Remove…'));
         } else if (d && d.pack === p.id) {
-          const pct = d.size ? Math.min(100, (100 * d.received) / d.size) : 0;
           acts.push(h('span', { class: 'size' }, size(d.size || p.size)));
           if (d.status === 'downloading') acts.push(h('button', { class: 'go', onclick: async () => { st = await L.pause(); draw(); } }, 'Pause'));
           else acts.push(h('button', { class: 'go primary', onclick: () => start(p, true) }, 'Resume'));
           acts.push(h('button', { class: 'go', onclick: () => cancel(p) }, 'Cancel'));
-          const what = d.status === 'downloading' ? 'Downloading…' : d.status === 'error' ? 'Stopped.' : 'Paused.';
-          sayProgress(p.label, what, pct);
-          extra = [h('div', { class: 'bar', role: 'progressbar', 'aria-label': `Downloading ${p.label}`, 'aria-valuenow': Math.floor(pct) }, h('i', { style: `width:${pct.toFixed(1)}%` })),
-            h('div', { class: 'prog' }, h('span', {}, `${what} ${size(d.received) || '0 MB'} of ${size(d.size)} (${Math.floor(pct)}%)`),
-              h('span', {}, d.status === 'downloading' && d.speed ? `${size(d.speed)}/s · ${left(d.eta)}` : d.status === 'error' ? d.error || '' : ''))];
+          extra = progEls(progNow());
         } else {
           const covered = cur && cur.covers.includes(p.id);
           if (covered) tags.push(h('span', { class: 'tag inc' }, 'INCLUDED IN YOUR LIBRARY'));
@@ -179,7 +213,7 @@ window.E2KLibrary = (() => {
       changeBtn.disabled = !!(d || mv);
       whereNote.hidden = !d;
       portableNote.hidden = !st.portableFallback;
-      freeTxt.textContent = !mv && !st.missing && st.free ? `${size(st.free)} free` : '';
+      setFree();
     }
     dlg = (s) => { st = s; if (s.moveError) showErr(s.moveError); draw(); fitUp(); };
 
