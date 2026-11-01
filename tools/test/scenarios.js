@@ -1091,7 +1091,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-first-run', group: 'USB edition', title: 'Portable first run: the update question with its checkbox; the answer goes to Options; asked once',
+    name: 'portable-first-run', group: 'USB edition', only: 'win32', title: 'Portable first run: the update question with its checkbox; the answer goes to Options; asked once',
     route: 'home',
     env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
     setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
@@ -1119,7 +1119,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-first-run-restart', group: 'USB edition', title: '…after a restart: not asked again',
+    name: 'portable-first-run-restart', group: 'USB edition', only: 'win32', title: '…after a restart: not asked again',
     route: 'home', reuse: 'portable-first-run',
     env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
     async run(t) {
@@ -1129,7 +1129,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-first-run-closed', group: 'USB edition', title: 'Portable first run: closing the question counts as Don’t Check; the installed app never asks',
+    name: 'portable-first-run-closed', group: 'USB edition', only: 'win32', title: 'Portable first run: closing the question counts as Don’t Check; the installed app never asks',
     route: 'home',
     env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
     setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
