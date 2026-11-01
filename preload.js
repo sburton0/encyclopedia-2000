@@ -64,6 +64,10 @@ contextBridge.exposeInMainWorld('e2k', {
     state: () => ipcRenderer.invoke('update:state'),
     check: () => ipcRenderer.invoke('update:check'),
     install: () => ipcRenderer.invoke('update:install'),
+    // The Windows portable only (see updater.js): download after the user confirms, stop it, or delete a downloaded one.
+    download: () => ipcRenderer.invoke('update:download'),
+    cancel: () => ipcRenderer.invoke('update:cancel'),
+    discard: () => ipcRenderer.invoke('update:discard'),
     onChange: (cb) => ipcRenderer.on('update', (_e, s) => cb(s)),
   },
   printPreview: () => ipcRenderer.invoke('print:open'),

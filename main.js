@@ -362,7 +362,9 @@ app.whenReady().then(() => {
   if (MAC && !app.isPackaged) app.dock.setIcon(ICON);
   const route = env.E2K_ROUTE || '';
   const main = createMain(route);
-  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false && !settings.offlineMode });
+  require('./updater').setup({ getWindow: () => main, isEnabled: () => settings.autoUpdate !== false && !settings.offlineMode,
+    // The portable version's Restart Now: closes without asking about a library download (it pauses, as on Quit anyway).
+    quitForUpdate: () => { quitConfirmed = true; library.pauseForQuit(); app.quit(); } });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));

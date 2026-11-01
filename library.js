@@ -173,10 +173,11 @@ function libraryIn(dir) {
   return ids[0] ? path.join(dir, ids[0].file) : '';
 }
 
-// With no library yet, one already next to the app is used without asking, where it is (like Open library file…):
-// one in the library folder (left after reinstalling, or copied there), or, for the portable version, one beside the
-// .exe (the USB Offline Edition ships that way; also on a read-only drive). Not one the user stopped using.
+// The portable version with no library yet uses one already next to it without asking, where it is (like Open library
+// file…): one in its library folder, or one beside the .exe (the USB Offline Edition ships that way; also on a
+// read-only drive). Not one the user stopped using. The installed app doesn't do this.
 function useNearby() {
+  if (!process.env.PORTABLE_EXECUTABLE_DIR) return;
   for (const dir of [libDir(), process.env.PORTABLE_EXECUTABLE_DIR]) {
     const file = dir && libraryIn(dir);
     if (file && !(state.passedOver || []).includes(path.basename(file))) { useFile(file); return; }
@@ -666,7 +667,7 @@ function removeCurrent({ forDownload = false } = {}) {
   if (missing) { found(); if (!fs.existsSync(libDir())) state.dir = ''; }
   if (own && !forDownload) state.dir = state.appDir && fs.existsSync(path.resolve(dataDir(), state.appDir)) ? state.appDir : '';
   // Stopped using on purpose: it isn't picked up again at the next start (see useNearby).
-  if (own && !forDownload) state.passedOver = [...new Set([...(state.passedOver || []), state.current.file])];
+  if (own && !forDownload && process.env.PORTABLE_EXECUTABLE_DIR) state.passedOver = [...new Set([...(state.passedOver || []), state.current.file])];
   if (own) delete state.appDir;
   state.current = null; save(); broadcast();
 }

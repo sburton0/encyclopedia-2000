@@ -38,6 +38,7 @@
   "build": {
     "appId": "com.svid.encyclopedia2000",
     "productName": "Encyclopedia 2000",
+    "afterAllArtifactBuild": "tools/portable-manifest.js",
     "copyright": "© 2026 Scott Burton",
     "directories": {
       "output": "dist",
@@ -47,6 +48,7 @@
       "main.js",
       "preload.js",
       "updater.js",
+    "portable-update.js",
       "library.js",
       "zim-reader.js",
       "src/**/*",

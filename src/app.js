@@ -1571,7 +1571,41 @@
   // ---------- updates ----------
   // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
   const updateBar = $('#updatebar');
+  // The Windows portable updates itself on its drive, one step at a time as the user asks (updater.js); everything
+  // else (the installed app, Mac, Linux) is handled after this, as before.
+  function showSelfUpdate(s) {
+    const v = prettyVersion(s.version);
+    if (s.state === 'available') {
+      updateBar.replaceChildren(`Version ${v} is available`, h('button', { onclick: () => confirmSelfUpdate(s) }, 'Update…'));
+      updateBar.title = 'Shows what updating does before anything is downloaded.';
+    } else if (s.state === 'downloading') {
+      updateBar.replaceChildren(`Downloading version ${v} · ${s.percent || 0}%`, h('button', { onclick: () => window.e2k.update.cancel() }, 'Cancel'));
+      updateBar.title = '';
+    } else if (s.state === 'ready') {
+      updateBar.replaceChildren(`Version ${v} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'),
+        h('button', { onclick: () => window.e2k.update.discard() }, 'Discard'));
+      updateBar.title = 'Restart Now starts the new version. Nothing changes until you do; Discard deletes the download.';
+    } else { updateBar.hidden = true; return; }
+    updateBar.hidden = false;
+    if (s.failed) dialog('Update Encyclopedia 2000', 'The update couldn’t be finished', [s.failed,
+      'Nothing has changed: the version you have still works. You can try again from the status bar.']);
+  }
+  function confirmSelfUpdate(s) {
+    const v = prettyVersion(s.version);
+    if (s.readonly) {
+      return dialog('Update Encyclopedia 2000', 'This drive can’t be updated', [
+        'Encyclopedia 2000 is running from a drive it can’t save to (it may be locked, or a DVD).',
+        `To update, download version ${v} from the website and copy it onto a drive you can write to.`],
+      [['Open the Download Page', () => window.e2k.update.install(), true], ['Not Now']]);
+    }
+    dialog('Update Encyclopedia 2000', `Update to version ${v}?`, [
+      `The new version (${Math.ceil((s.size || 0) / 1048576)} MB) downloads to this drive, next to the one you’re using. You can keep reading while it downloads.`,
+      'When it’s ready, you choose when to restart with it. Your offline library, favorites, and settings stay as they are, and nothing is installed on this computer.'],
+    [['What’s New…', () => window.e2k.openExternal(`https://github.com/sburton0/encyclopedia-2000/releases/tag/v${s.version}`)],
+      ['Update', () => window.e2k.update.download(), true], ['Not Now']]);
+  }
   function showUpdate(s) {
+    if (s.self) return showSelfUpdate(s);
     if (s.state === 'ready') {
       updateBar.replaceChildren(`Version ${prettyVersion(s.version)} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
       updateBar.title = 'Restart Encyclopedia 2000 to finish updating. Otherwise the update installs the next time you close it.';
@@ -1596,6 +1630,9 @@
     setIdle();
     showUpdate(s);
     const title = 'Check for Updates';
+    if (s.self && s.state === 'available') return confirmSelfUpdate(s);
+    if (s.self && s.state === 'ready') return dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Now starts it; nothing changes until you do.`],
+      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
     if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
       [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
     else if (s.state === 'available' && s.kind === 'deb') {

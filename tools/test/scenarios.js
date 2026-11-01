@@ -821,12 +821,21 @@ module.exports = [
     },
   },
   {
-    name: 'library-folder-at-start', group: 'Offline library', title: 'A library already in the library folder (after reinstalling) is used at the first start',
+    name: 'library-folder-at-start', group: 'Offline library', title: 'Portable: a library already in its library folder is used at the first start (the installed app doesn’t look)',
+    route: 'home', needs: 'fixture', env: (profile) => ({ E2K_LIBRARY_TEST: '1', PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick') }),
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Library')); fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return {}; },
+    async run(t) {
+      const s = await t.lib();
+      t.check('The library in the library folder is in use', !!(s.current && s.open) && path.resolve(s.dir) === path.resolve(t.profile, 'Library'), JSON.stringify({ dir: s.dir, current: s.current }));
+    },
+  },
+  {
+    name: 'installed-no-nearby', group: 'Offline library', title: 'The installed app doesn’t pick up a library left in its library folder',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Library')); return {}; },
     async run(t) {
       const s = await t.lib();
-      t.check('The library in the library folder is in use', !!(s.current && s.open) && path.resolve(s.dir) === path.resolve(t.profile, 'Library'), JSON.stringify({ dir: s.dir, current: s.current }));
+      t.check('No library is in use', !s.current, JSON.stringify(s.current));
     },
   },
 
@@ -839,6 +848,143 @@ module.exports = [
       await openLibrary(t);
       t.check('The Offline Library window says so', await t.js('return !document.querySelectorAll(".offline .wherenote")[1].hidden && /can’t save to/.test(document.querySelector(".offline").innerText);'));
       await t.shot('portable-fallback');
+    },
+  },
+
+  // ---------- USB edition: the portable version updating itself ----------
+  {
+    name: 'portable-update', group: 'USB edition', title: 'Portable self-update: download, checks, swap, and cleanup; a stick pulled out, a bad download, a read-only drive, a damaged update, a failed swap',
+    route: 'home',
+    async run(t) {
+      const http = require('http'), crypto = require('crypto');
+      const pu = require(path.join(process.env.E2K_TEST_APP, 'portable-update.js'));
+      // A stand-in for GitHub's release files: portable.yml and the new version (random bytes), or a broken copy.
+      const body = crypto.randomBytes(3 * 1024 * 1024), sha512 = crypto.createHash('sha512').update(body).digest('base64');
+      let mode = 'good';
+      const server = http.createServer((req, res) => {
+        if (req.url.endsWith('/portable.yml')) return res.end(`version: 0.5.5-beta\nfile: Encyclopedia-2000-Portable-0.5.5-beta.exe\nsha512: ${sha512}\nsize: ${body.length}\n`);
+        res.writeHead(200, { 'content-length': body.length });
+        if (mode === 'cut') { res.write(body.subarray(0, body.length / 2)); return setTimeout(() => res.destroy(), 50); }
+        res.end(mode === 'bad' ? crypto.randomBytes(body.length) : body);
+      });
+      await new Promise((r) => server.listen(0, '127.0.0.1', r));
+      const base = `http://127.0.0.1:${server.address().port}/v0.5.5-beta`;
+      try {
+        const m = await pu.manifest('0.5.5-beta', base);
+        t.check('The release’s portable.yml is read', m && m.size === body.length && m.sha512 === sha512 && m.url.endsWith('/Encyclopedia-2000-Portable-0.5.5-beta.exe'), JSON.stringify(m));
+        const stick = path.join(t.out, 'stick'), exe = path.join(stick, 'Encyclopedia-2000-Portable-0.5.4-beta.exe');
+        fs.mkdirSync(stick, { recursive: true });
+        fs.writeFileSync(exe, 'old version');
+        const left = () => fs.readdirSync(stick).sort();
+        const opts = { signature: false };   // the stand-in isn't signed; the signature check is tested below
+
+        // A stick pulled out partway, and a download that doesn't match: an error, and nothing left behind.
+        for (const [how, want] of [['cut', /disconnected|stopped/], ['bad', /didn’t match/]]) {
+          mode = how;
+          const err = await pu.download(exe, m, opts).then(() => '', (e) => e.message);
+          t.check(`${how === 'cut' ? 'A download cut off partway' : 'A download that doesn’t match'} fails, and leaves only the current version`, want.test(err) && left().join() === path.basename(exe), `${err} · ${left().join(', ')}`);
+        }
+        // A good download: ready, and offered again later (checked again), but nothing swapped yet.
+        mode = 'good';
+        let pct = 0;
+        await pu.download(exe, m, { ...opts, onProgress: (p) => { pct = p; } });
+        t.check('A good download is ready beside the current version, which is untouched', fs.existsSync(pu.readyOf(exe)) && fs.readFileSync(exe, 'utf8') === 'old version' && pct === 100, left().join(', '));
+        t.check('…and the ready update can’t be started by double-clicking (no .exe name)', !/\.exe$/.test(pu.readyOf(exe)));
+        t.check('…and is found again at the next start', pu.ready(exe, opts)?.version === '0.5.5-beta');
+        // Restart Now: the new version takes the name with its version in it; the old one stays runnable until cleanup.
+        const target = pu.swap(exe, '0.5.4-beta', opts);
+        t.check('Restart Now swaps it in under the new version’s name', path.basename(target) === 'Encyclopedia-2000-Portable-0.5.5-beta.exe' && fs.readFileSync(target).equals(body), left().join(', '));
+        t.check('…and the old version is kept, runnable, as “(previous version)”', fs.readFileSync(pu.previousOf(exe), 'utf8') === 'old version');
+        pu.cleanup(exe);
+        t.check('At the next start the previous version is deleted', left().join() === path.basename(target), left().join(', '));
+
+        // A copy named without a version keeps its name.
+        const plain = path.join(stick, 'Encyclopedia 2000.exe');
+        fs.writeFileSync(plain, 'plain old');
+        await pu.download(plain, m, opts);
+        const t2 = pu.swap(plain, '0.5.4-beta', opts);
+        t.check('A copy named “Encyclopedia 2000.exe” keeps its name', t2 === plain && fs.readFileSync(plain).equals(body));
+        pu.cleanup(plain);
+
+        // Months later: an update that was damaged on the stick isn't used, and is deleted.
+        fs.writeFileSync(plain, 'plain old');
+        await pu.download(plain, m, opts);
+        fs.appendFileSync(pu.readyOf(plain), 'x');
+        t.check('A downloaded update damaged since is not offered, and is deleted', pu.ready(plain, opts) === null && !fs.existsSync(pu.readyOf(plain)));
+        const err = (() => { try { pu.swap(plain, '0.5.4-beta', opts); return ''; } catch (e) { return e.message; } })();
+        t.check('…and Restart Now then changes nothing', /missing or damaged/.test(err) && fs.readFileSync(plain, 'utf8') === 'plain old', err);
+
+        // A swap whose second step fails puts the current version back.
+        fs.writeFileSync(exe, 'old version');
+        await pu.download(exe, m, opts);
+        fs.rmSync(target, { force: true });
+        fs.mkdirSync(target);                // a folder where the new version would go: the rename fails
+        const swapErr = (() => { try { pu.swap(exe, '0.5.4-beta', opts); return ''; } catch (e) { return e.message || 'failed'; } })();
+        t.check('A swap that fails halfway puts the current version back under its name', !!swapErr && fs.readFileSync(exe, 'utf8') === 'old version' && !fs.existsSync(pu.previousOf(exe)), `${swapErr} · ${left().join(', ')}`);
+        fs.rmSync(target, { recursive: true, force: true });
+        pu.discard(exe);
+
+        // A drive that can't be written to (Windows' own folder stands in for a locked stick).
+        if (process.platform === 'win32') {
+          const ro = path.join(process.env.WINDIR, 'Encyclopedia 2000.exe');
+          const e2 = await pu.download(ro, m, opts).then(() => '', (e) => e.message);
+          t.check('On a drive it can’t write to, nothing is downloaded', !pu.writable(ro) && /can’t be written/.test(e2), e2);
+        }
+        // The signature: the stand-in (unsigned) is refused; a real signed release passes, if one is built here.
+        await pu.download(plain, m, opts);
+        t.check('An unsigned download is refused', /isn’t signed by Scott Burton/.test(pu.check(pu.readyOf(plain), m)));
+        pu.discard(plain);
+        t.check('Discard deletes a downloaded update', !fs.existsSync(pu.readyOf(plain)) && !fs.existsSync(path.join(stick, 'Encyclopedia 2000 update.json')));
+        const dist = path.join(process.env.E2K_TEST_APP, 'dist');
+        const signed = fs.existsSync(dist) && fs.readdirSync(dist).find((f) => /-Portable-.+\.exe$/.test(f));
+        if (signed && process.platform === 'win32') {
+          const b = fs.readFileSync(path.join(dist, signed));
+          t.check('A signed release passes every check', pu.check(path.join(dist, signed), { size: b.length, sha512: crypto.createHash('sha512').update(b).digest('base64') }) === '', signed);
+        } else t.skip('A signed release passes every check', 'no signed portable build in dist');
+      } finally { server.close(); }
+    },
+  },
+  {
+    name: 'portable-update-window', group: 'USB edition', title: 'Portable self-update in the window: Update…, the confirmation, downloading with Cancel, Restart Now and Discard, a failure told; other copies unchanged',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(1000);
+      const send = async (s) => { t.win.webContents.send('update', s); await t.sleep(250); };
+      const bar = () => t.js('const b = document.getElementById("updatebar"); return b.hidden ? "" : [...b.childNodes].map((n) => n.textContent).join(" | ");');
+      const dlg = () => t.js('return document.querySelector(".overlay .dialog")?.innerText || "";');
+      const press = (label) => t.js(`[...document.querySelectorAll(".overlay .dialog .go")].find((b) => b.textContent === ${JSON.stringify(label)})?.click();`);
+      // The installed app, and a portable copy whose release has no portable.yml, are as before.
+      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', file: '' });
+      t.check('A copy that can’t update itself still offers Download', /is available \| Download$/.test(await bar()), await bar());
+      await send({ state: 'ready', version: '0.5.5-beta' });
+      t.check('The installed app’s ready message is as before (Restart Now only)', /is ready \| Restart Now$/.test(await bar()), await bar());
+      await send({ state: 'downloading', version: '0.5.5-beta', percent: 42 });
+      t.check('…and its downloading message (no Cancel)', /^Downloading version .* 42%$/.test(await bar()), await bar());
+      // The portable version, step by step.
+      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 98 * 1048576, readonly: false });
+      t.check('Portable: Update… in the status bar', /is available \| Update…$/.test(await bar()), await bar());
+      await t.js('[...document.querySelectorAll("#updatebar button")].pop().click();');
+      await t.sleep(300);
+      const c = await dlg();
+      t.check('Update… asks first, saying the size and that nothing is installed', /Update to version/.test(c) && /98 MB/.test(c) && /nothing is installed/.test(c) && /Not Now/.test(c), c.slice(0, 300));
+      await t.shot('portable-confirm');
+      await press('Not Now');
+      await send({ state: 'downloading', version: '0.5.5-beta', percent: 42, self: true });
+      t.check('Downloading shows its progress and Cancel', /Downloading version .* 42% \| Cancel$/.test(await bar()), await bar());
+      await send({ state: 'ready', version: '0.5.5-beta', self: true });
+      t.check('Ready: Restart Now and Discard', /is ready \| Restart Now \| Discard$/.test(await bar()), await bar());
+      await t.shot('portable-ready');
+      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 1, readonly: false, failed: 'The drive was disconnected, or the download stopped, before the new version finished downloading.' });
+      const f = await dlg();
+      t.check('A failure is told, and says nothing has changed', /couldn’t be finished/.test(f) && /Nothing has changed/.test(f), f.slice(0, 200));
+      await press('OK');
+      await send({ state: 'available', version: '0.5.5-beta', kind: 'portable', self: true, size: 1, readonly: true });
+      await t.js('[...document.querySelectorAll("#updatebar button")].pop().click();');
+      await t.sleep(300);
+      const ro = await dlg();
+      t.check('On a read-only drive, Update… explains and offers the download page', /can’t be updated/.test(ro) && /Open the Download Page/.test(ro), ro.slice(0, 200));
+      await press('Not Now');
     },
   },
 
