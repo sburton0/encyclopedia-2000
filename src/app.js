@@ -293,9 +293,16 @@
   }
   // A new screen takes focus on its heading, so a screen reader reads where you are and the next Tab is the screen's
   // first control. Not while you're typing or in a window, and nothing shows for mouse users.
+  // At launch, Home starts in the search box instead: NVDA reads a newly loaded window aloud from the focus to the end
+  // (its "Automatic Say All on page load") unless the focus is in a text box, and a search can be typed straight away.
+  // The search box doesn't count as typing: a search moves focus out of it, so focus there is just where it started.
+  let launching = true;
   function focusScreen(el = view) {
     const a = document.activeElement;
-    if (a && a !== document.body && (a.matches('input, textarea, select') || a.closest('.overlay, .netpop, .menu, #menubar'))) return;
+    if (a && a !== document.body && (a.matches('input:not(#q), textarea, select') || a.closest('.overlay, .netpop, .menu, #menubar'))) return;
+    const first = launching;
+    launching = false;
+    if (first && el.classList.contains('home')) return $('#q').focus();
     const head = el.querySelector('h1') || el.querySelector('h2, h3');
     if (!head) return;
     head.tabIndex = -1;
@@ -396,7 +403,7 @@
     const almList = h('div', { class: 'list' }, h('div', { class: 'muted' }, 'Loading…'));
 
     const canvas = h('div', { class: 'home-canvas' },
-      h('div', { class: 'brand' }, h('small', {}, 'Encyclopedia'), h('div', { class: 'y' }, '2000'), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
+      h('div', { class: 'brand' }, h('h1', {}, h('small', {}, 'Encyclopedia'), ' ', h('span', { class: 'y' }, '2000')), h('div', { class: 'tag' }, 'THE WORLD OF KNOWLEDGE')),
       dial,
       h('div', { class: 'dialcap' }, dialHd, h('br'), dialCap),
       h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),

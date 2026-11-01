@@ -1001,12 +1001,14 @@ module.exports = [
     },
   },
   {
-    name: 'keyboard-places', group: 'Accessibility', title: 'Ctrl+1–6 open each section with focus on its heading; Ctrl+Shift+L, Ctrl+Shift+O, and the shortcut list',
+    name: 'keyboard-places', group: 'Accessibility', title: 'Focus starts in the search box; Ctrl+1–6 and Ctrl+H open each section with focus on its heading; Ctrl+Shift+L, Ctrl+Shift+O, and the shortcut list',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 10000);
       await t.sleep(1000);
       const mac = t.platform === 'darwin';
+      // At launch focus starts in the search box, which keeps NVDA from reading the whole Home screen aloud.
+      t.check('At launch, focus is in the search box', await t.js('return document.activeElement?.id === "q";'), JSON.stringify(await t.focused()));
       // Each section, and the heading it opens on.
       const places = [['Articles', 'Explore the encyclopedia'], ['Media', 'Picture of the Day'], ['Timeline', 'On this day'], ['World Explorer', 'Countries of the World'],
         ['Games', 'Games'], ['Activities', 'Activities']];
@@ -1017,6 +1019,10 @@ module.exports = [
         t.check(`${mac ? `Features › ${name}` : `Ctrl+${i + 1}`} opens ${name}, with focus on its heading`, there,
           await t.js('return (document.activeElement?.tagName || "") + " " + (document.activeElement?.textContent || "").trim().slice(0, 40);'));
       }
+      if (mac) t.menu('Home'); else await t.key('h', ['control']);
+      const home = await t.waitFor(`document.activeElement?.matches('.home h1') && document.activeElement.textContent === 'Encyclopedia 2000'`, 8000);
+      t.check(`${mac ? 'File › Home' : 'Ctrl+H'} goes Home, with focus on its heading (Encyclopedia 2000)`, home,
+        await t.js('return (document.activeElement?.tagName || "") + " " + (document.activeElement?.textContent || "").trim().slice(0, 40);'));
       await t.command('Offline Library…', 'L', { ctrlKey: true, shiftKey: true });
       t.check(`${mac ? 'Offline Library…' : 'Ctrl+Shift+L'} opens the Offline Library`, await t.waitFor('document.querySelector(".overlay .offline")', 6000));
       t.check('…with focus in it', await t.waitFor('document.querySelector(".overlay").contains(document.activeElement)', 3000));
