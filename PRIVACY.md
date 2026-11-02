@@ -1,6 +1,6 @@
 # Encyclopedia 2000 Privacy Policy
 
-**Effective October 28, 2026**
+**Effective November 1, 2026**
 
 Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
