@@ -187,6 +187,22 @@ module.exports = [
     },
   },
   {
+    name: 'text-drawing', group: 'General', title: 'On a Mac, light text on dark is drawn thinner and its shadows are lighter (crisper on low-resolution screens); Windows and Linux are unchanged',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('document.querySelector(".home .orb")', 10000);
+      const r = await t.js(`const html = getComputedStyle(document.documentElement), orb = getComputedStyle(document.querySelector('.home .orb'));
+        return { smoothing: html.webkitFontSmoothing, orbShadow: orb.textShadow };`);
+      if (t.platform === 'darwin') {
+        t.check('Mac: text is drawn with thin antialiasing', r.smoothing === 'antialiased', r.smoothing);
+        t.check('Mac: Explore’s labels have one light shadow, not a heavy glow', !/6px/.test(r.orbShadow) && /0\.6\)/.test(r.orbShadow), r.orbShadow);
+      } else {
+        t.check('Windows and Linux: text drawing unchanged', r.smoothing !== 'antialiased', r.smoothing);
+        t.check('…and Explore’s labels keep their glow', /6px/.test(r.orbShadow), r.orbShadow);
+      }
+    },
+  },
+  {
     name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
     route: 'article/Moon',
     async run(t) {
