@@ -1602,7 +1602,8 @@
         strip.classList.add('gone');
         setTimeout(() => { strip.remove(); if (!store.get('newsHintShown', false)) newsHint(canvas); }, 150);
       } }, '✕'));
-    canvas.append(strip);
+    // Before Explore in the page, so Tab reaches it where it's seen (above Explore), not after the Almanac.
+    canvas.insertBefore(strip, canvas.querySelector('.shelf'));
   }
   // Where news can be turned off, once: in the news strip's place, until it fades (not while pointed at or focused).
   function newsHint(canvas) {
@@ -1617,7 +1618,7 @@
     hint.addEventListener('focusin', () => clearTimeout(timer));
     hint.addEventListener('mouseleave', later);
     hint.addEventListener('focusout', later);
-    canvas.append(hint);
+    canvas.insertBefore(hint, canvas.querySelector('.shelf'));
     later();
   }
   window.e2k.notice.onChange((n) => { notices = n || notices; showBanner(); showNews(); });

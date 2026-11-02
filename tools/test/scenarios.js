@@ -170,6 +170,23 @@ module.exports = [
     },
   },
   {
+    name: 'floating-boxes', group: 'General', title: 'Boxes Wikipedia floats beside the text (an album’s review scores) float in the article, with the text beside them',
+    route: 'article/Phoenix (Pedro the Lion album)',
+    async run(t) {
+      const page = pageOf('Phoenix (Pedro the Lion album)');
+      t.check('The article opens', await t.waitFor(`/fifth studio album/.test(${page}?.querySelector(".text")?.textContent || "")`, 20000));
+      await t.sleep(800);
+      const r = await t.js(`const p = ${page}, box = [...p.querySelectorAll('.text table.floatright')].find((t) => /Professional ratings/.test(t.innerText));
+        if (!box) return null;
+        const lead = [...p.querySelectorAll('.text p')].find((x) => /fifth studio album/.test(x.textContent)), b = box.getBoundingClientRect(), l = lead.getBoundingClientRect();
+        return { float: getComputedStyle(box).float, boxRight: Math.round(b.right), leadLeft: Math.round(l.left), leadTop: Math.round(l.top), boxTop: Math.round(b.top), boxBottom: Math.round(b.bottom), textRight: Math.round(p.querySelector('.text').getBoundingClientRect().right) };`);
+      if (!r) return t.skip('The ratings box floats', 'Wikipedia no longer puts a ratings box in this article');
+      t.check('The ratings box floats right', r.float === 'right' && r.boxRight >= r.textRight - 4, JSON.stringify(r));
+      t.check('…and the opening paragraph runs beside it, not below it', r.leadTop < r.boxBottom, JSON.stringify(r));
+      await t.shot('ratings-box');
+    },
+  },
+  {
     name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
     route: 'article/Moon',
     async run(t) {
@@ -866,6 +883,7 @@ module.exports = [
       t.check('The news shows above Explore', await t.waitFor('/USB Offline Edition/.test(document.querySelector(".home .news")?.textContent || "")', 8000));
       const news = await t.js('const n = document.querySelector(".home .news"), s = document.querySelector(".home .shelf").getBoundingClientRect(), r = n.getBoundingClientRect(); return { link: n.querySelector(".more")?.textContent, above: r.bottom <= s.top, label: n.getAttribute("aria-label") };');
       t.check('…with its link, in the gap above Explore, as a named region', news.link === 'Learn more ›' && news.above && news.label === 'News', JSON.stringify(news));
+      t.check('…and Tab reaches it before Explore (it comes first in the page)', await t.js('return !!(document.querySelector(".home .news").compareDocumentPosition(document.querySelector(".home .shelf")) & Node.DOCUMENT_POSITION_FOLLOWING);'));
       t.check('The important notice shows under the toolbar', await t.js('return /fixes a problem/.test(document.getElementById("notice")?.textContent || "") && document.getElementById("notice").nextElementSibling?.classList.contains("stage");'));
       await t.sleep(600);                     // the news fades in
       await t.shot('notices-home');
