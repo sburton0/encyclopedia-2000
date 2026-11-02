@@ -39,7 +39,7 @@
     "appId": "com.svid.encyclopedia2000",
     "productName": "Encyclopedia 2000",
     "afterAllArtifactBuild": "tools/portable-manifest.js",
-    "copyright": "© 2026 Scott Burton",
+    "copyright": "\u00a9 2026 Scott Burton",
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -157,6 +157,26 @@
     ],
     "portable": {
       "artifactName": "Encyclopedia-2000-Portable-${version}.${ext}"
+    }
+  },
+  "overrides": {
+    "app-builder-lib": {
+      "builder-util-runtime": "9.7.0"
+    },
+    "builder-util": {
+      "builder-util-runtime": "9.7.0"
+    },
+    "dmg-builder": {
+      "builder-util-runtime": "9.7.0"
+    },
+    "electron-builder": {
+      "builder-util-runtime": "9.7.0"
+    },
+    "electron-publish": {
+      "builder-util-runtime": "9.7.0"
+    },
+    "electron-updater": {
+      "builder-util-runtime": "9.7.0"
     }
   }
 }
