@@ -373,7 +373,9 @@ app.whenReady().then(() => {
   require('./updater').setup({ getWindow: () => main, isEnabled: () => updatesOn() && !settings.offlineMode, getSettings: () => settings,
     // The portable version's Restart Now: closes without asking about a library download (it pauses, as on Quit anyway).
     quitForUpdate: () => { quitConfirmed = true; library.pauseForQuit(); app.quit(); } });
-  require('./notices').setup({ getWindows: () => BrowserWindow.getAllWindows(), settings: () => ({ ...settings, autoUpdate: updatesOn() }) });
+  // (The portable contacts nothing until its first-run question is answered: news waits for it too.)
+  require('./notices').setup({ getWindows: () => BrowserWindow.getAllWindows(),
+    settings: () => ({ ...settings, autoUpdate: updatesOn(), showNews: settings.showNews !== false && (!PORTABLE_SELF || settings.updateAsked === true) }) });
 
   if (route || env.E2K_NOSPLASH || !settings.showSplash) {
     main.once('ready-to-show', () => present(main));

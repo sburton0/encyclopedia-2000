@@ -932,7 +932,11 @@ module.exports = [
     route: 'home', env: (profile) => ({ E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
     setup: (ctx) => { fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({ news: { id: 'n1', text: 'News for this copy.' }, important: { id: 'i1', text: 'Important for this copy.' } })); return { settings: { autoUpdate: true } }; },
     async run(t) {
-      const { pick } = require(path.join(process.env.E2K_TEST_APP, 'notices.js'));
+      const { pick, due } = require(path.join(process.env.E2K_TEST_APP, 'notices.js'));
+      const H = 3600 * 1000, now = Date.now();
+      t.check('With nothing showing, it checks once a day', due(now - 23 * H, false, now, true) === false && due(now - 25 * H, false, now, false) === true);
+      t.check('With a notice showing, it checks at every start and every 3 hours (a removal goes quickly)', due(now - 1 * H, true, now, true) === true && due(now - 1 * H, true, now, false) === false && due(now - 4 * H, true, now, false) === true);
+      t.check('Never checked: it checks', due(0, false, now, false) === true);
       const semver = require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'semver'));
       const env = { platform: 'win32', version: '0.5.4-beta', today: '2026-11-01', satisfies: (v, r) => semver.satisfies(semver.coerce(v).version, r) };
       const one = (x) => pick({ news: { id: 'a', text: 'Hello.', ...x } }, env).news;
@@ -1111,23 +1115,29 @@ module.exports = [
   {
     name: 'portable-first-run', group: 'USB edition', only: 'win32', title: 'Portable first run: the update question with its checkbox; the answer goes to Options; asked once',
     route: 'home',
-    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
-    setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
+    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1', E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => {
+      fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true });
+      fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({ news: { id: 'first-run-news', text: 'News for the first-run test.' } }));
+      return { settings: { autoUpdate: true } };
+    },
     async run(t) {
       const ask = await t.waitFor('/Check for updates automatically\\?/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 8000);
       t.check('The portable asks about updates on its first run', ask);
       if (!ask) return;
       const d = await t.js(`const d = document.querySelector('.overlay .dialog'), l = d.querySelector('.askauto span'), r = l.getBoundingClientRect();
         return { text: d.innerText, buttons: [...d.querySelectorAll('.df .go')].map((b) => b.textContent), oneLine: r.height < 24, inside: r.right <= d.getBoundingClientRect().right - 8, checked: d.querySelector('.askauto input').checked };`);
-      t.check('…with Help › Check for Updates mentioned, and Check for Updates / Don’t Check', /Help › Check for Updates/.test(d.text) && d.buttons.join() === 'Check for Updates,Don’t Check', JSON.stringify(d.buttons));
+      t.check('…saying news comes with it, with Help › Check for Updates mentioned, and Check for Updates / Don’t Check', /news and important notices/.test(d.text) && /Help › Check for Updates/.test(d.text) && d.buttons.join() === 'Check for Updates,Don’t Check', JSON.stringify(d.buttons));
       t.check('…and the checkbox on one line, inside the window, unticked', d.oneLine && d.inside && d.checked === false, JSON.stringify(d));
       await t.sleep(400);                     // the window fades in
       await t.shot('first-run-question');
       t.check('No update check happens until it’s answered', (await t.js('return (await window.e2k.settings.get()).updateAsked;')) === false);
+      t.check('…and no news either: nothing is contacted before the answer', !(await t.js('return !!document.querySelector(".home .news");')));
       await t.js(`document.querySelector('.overlay .dialog .askauto input').click(); [...document.querySelectorAll('.overlay .dialog .go')].find((b) => b.textContent === 'Check for Updates').click();`);
       await t.sleep(500);
       const s = await t.js('return await window.e2k.settings.get();');
       t.check('Check for Updates with the box ticked: checks on, download and install automatically on, answered', s.autoUpdate === true && s.autoInstall === true && s.updateAsked === true, JSON.stringify(s));
+      t.check('…and news is on: the news shows', s.showNews !== false && await t.waitFor('document.querySelector(".home .news")', 5000));
       await t.js('E2KOptions.open(E2K, "Privacy", "Updates");');
       await t.waitFor('document.querySelector(".options")', 4000);
       const o = await t.js(`const g = [...document.querySelectorAll('.options .ogroup')].find((g) => g.querySelector('legend')?.textContent === 'Updates');
@@ -1149,14 +1159,19 @@ module.exports = [
   {
     name: 'portable-first-run-closed', group: 'USB edition', only: 'win32', title: 'Portable first run: closing the question counts as Don’t Check; the installed app never asks',
     route: 'home',
-    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1' }),
-    setup: (ctx) => { fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true }); return { settings: { autoUpdate: true } }; },
+    env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1', E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => {
+      fs.mkdirSync(path.join(ctx.profile, '..', 'stick'), { recursive: true });
+      fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({ news: { id: 'first-run-news', text: 'News for the first-run test.' } }));
+      return { settings: { autoUpdate: true } };
+    },
     async run(t) {
       await t.waitFor('document.querySelector(".overlay .dialog.askupdate")', 8000);
       await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
       await t.sleep(500);
       const s = await t.js('return await window.e2k.settings.get();');
       t.check('Escape closes it as Don’t Check (checks off, answered)', s.autoUpdate === false && s.updateAsked === true && !(await t.js('return !!document.querySelector(".overlay .dialog.askupdate");')), JSON.stringify(s));
+      t.check('Don’t Check turns news off too: nothing is contacted', s.showNews === false && !(await t.js('return !!document.querySelector(".home .news");')), JSON.stringify(s));
     },
   },
 

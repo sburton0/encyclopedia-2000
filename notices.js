@@ -1,7 +1,8 @@
 // Notices to everyone who uses the app: one news item for Home and one important notice for a banner on every screen,
-// read from encyclopedia2000.com/notice.json (posted by editing that file in the website). Checked at most once a day,
-// never in Offline mode, and not at all with both "Check for updates automatically" (which covers the important
-// notice) and "Show news on the Home page" turned off. The request sends nothing but itself.
+// read from encyclopedia2000.com/notice.json (posted by editing that file in the website). Checked once a day (every few
+// hours while a notice is showing, so one taken down goes quickly), never in Offline mode, and not at all with both "Check for updates automatically" (which covers the important
+// notice) and "Show news on the Home page" turned off. The request sends nothing but itself. The Windows portable checks
+// nothing until its first-run question is answered, and Don't Check there turns news off too (main.js, app.js).
 // Anything the app doesn't expect (HTML, a link to another site, a broken file) means nothing is shown. The text is
 // only ever shown as plain text. E2K_NOTICE_FILE reads a local file instead, for previewing a notice before posting it.
 const fs = require('fs');
@@ -9,6 +10,15 @@ const path = require('path');
 
 const URL = 'https://encyclopedia2000.com/notice.json';
 const DAY = 24 * 60 * 60 * 1000;
+const SOON = 3 * 60 * 60 * 1000;
+
+// Whether it's time to check again: once a day while nothing is shown, but at every start and every few hours while a
+// notice is on screen, so one that's taken down (or corrected) goes away within hours, not a day.
+function due(checked, showing, now, starting) {
+  if (!checked) return true;
+  if (showing) return starting || now - checked >= SOON;
+  return now - checked >= DAY;
+}
 
 // Links may only go to the website or the app's GitHub page.
 function safeLink(link) {
@@ -55,13 +65,16 @@ function setup({ getWindows, settings }) {
   const current = () => (settings().offlineMode ? { news: null, important: null } : pick(cache.file, env(), wants()));
   const send = () => { for (const w of getWindows()) if (!w.isDestroyed()) w.webContents.send('notice', current()); };
 
+  let starting = true;   // the first check after starting
   async function check() {
     const w = wants();
     if (process.env.E2K_NOTICE_FILE) {
       try { cache = { file: JSON.parse(fs.readFileSync(process.env.E2K_NOTICE_FILE, 'utf8')) }; } catch { cache = {}; }
       return send();
     }
-    if (settings().offlineMode || (!w.news && !w.important) || Date.now() - (cache.checked || 0) < DAY) return;
+    const c = current();
+    if (settings().offlineMode || (!w.news && !w.important) || !due(cache.checked, !!(c.news || c.important), Date.now(), starting)) return;
+    starting = false;
     try {
       const res = await fetch(URL, { headers: { 'User-Agent': 'Encyclopedia 2000' }, cache: 'no-store' });
       let file = null;
@@ -76,7 +89,7 @@ function setup({ getWindows, settings }) {
   // Turning the switches or Offline mode on or off shows (or hides) what's already known straight away.
   ipcMain.on('notice:refresh', () => { send(); check(); });
   setTimeout(check, process.env.E2K_NOTICE_FILE ? 1000 : 10 * 1000);
-  setInterval(check, 6 * 60 * 60 * 1000).unref();
+  setInterval(check, SOON).unref();
 }
 
-module.exports = { setup, pick, item, safeLink };
+module.exports = { setup, pick, item, safeLink, due };
