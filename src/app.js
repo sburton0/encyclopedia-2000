@@ -1678,20 +1678,22 @@
     return dialog(title, 'An update is on its way', [`Version ${v} is downloading. Restart Now appears in the status bar when it’s ready.`]);
   }
   // The portable's first run (and its first run of 0.5.4): whether to check for updates, and whether to download and
-  // install them by itself. Closing the question without an answer counts as Don't Check.
+  // install them by itself. Closing the question without an answer counts as Don't Check, which also turns news off.
   async function askAboutUpdates() {
     const main = await window.e2k.settings.get().catch(() => ({}));
     if (!main.portableSelf || main.updateAsked) return;
     let answered = false;
     const answer = async (on) => {
       answered = true;
-      await window.e2k.settings.set({ autoUpdate: on, autoInstall: on && auto.checked, updateAsked: true });
+      // Don't Check means the app contacts nothing by itself: news goes off too (it can be turned on in Options).
+      await window.e2k.settings.set({ autoUpdate: on, autoInstall: on && auto.checked, updateAsked: true, ...(on ? {} : { showNews: false }) });
       window.e2k.update.settingsChanged();
+      window.e2k.notice.refresh();
       if (on) window.e2k.update.check().then(showUpdate).catch(() => {});
     };
     const auto = h('input', { type: 'checkbox' });
     dialog('Encyclopedia 2000', 'Check for updates automatically?', [
-      'Once a day, along with important notices. You can also check anytime in Help › Check for Updates.',
+      'Once a day, along with news and important notices. You can also check anytime in Help › Check for Updates.',
       h('label', { class: 'askauto' }, auto, h('span', {}, 'Also download and install updates automatically')),
       h('p', { class: 'fine' }, 'You can change this anytime in Options.'),
     ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]]);
