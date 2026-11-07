@@ -298,10 +298,13 @@ Step "Test stick: $main (exFAT) and $fat (FAT32, $fatGB GB)" {
   [bool]($v | Where-Object { $_.FileSystemLabel -eq $main -and $_.FileSystem -eq 'exFAT' }) -and
   [bool]($v | Where-Object { $_.FileSystemLabel -eq $fat -and $_.FileSystem -eq 'FAT32' })
 } {
-  # Never the stick this script is running from, and never a disk that isn't USB.
+  # Never the stick this script is running from, never a disk that isn't USB, and never one Windows starts from.
   $from = $null
   if ($here -match '^([A-Za-z]):') { $from = (Get-Partition -DriveLetter $Matches[1] -ErrorAction SilentlyContinue).DiskNumber }
-  $disks = @(Get-Disk | Where-Object { $_.BusType -eq 'USB' -and $_.Number -ne $from -and -not $_.IsBoot -and -not $_.IsSystem })
+  # Nor any stick holding the "E2K Lab Setup" folder, in case this was copied off the setup stick and run from there.
+  $setup = @(Get-Volume | Where-Object { $_.DriveLetter -and (Test-Path "$($_.DriveLetter):\E2K Lab Setup") } |
+    ForEach-Object { (Get-Partition -DriveLetter $_.DriveLetter -ErrorAction SilentlyContinue).DiskNumber })
+  $disks = @(Get-Disk | Where-Object { $_.BusType -eq 'USB' -and $_.Number -ne $from -and $setup -notcontains $_.Number -and -not $_.IsBoot -and -not $_.IsSystem })
   if (-not $disks.Count) { return 'later: plug in a stick for testing (not the setup stick) and run this again' }
   Write-Host ''
   foreach ($d in $disks) {
