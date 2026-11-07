@@ -120,9 +120,13 @@ Step "Signs in as $Account automatically" {
   if (-not (Get-LocalUser -Name $Account -ErrorAction SilentlyContinue)) { return "later: `"$Account`" isn't a local account on this machine" }
   Add-Type -AssemblyName System.DirectoryServices.AccountManagement
   $ctx = [System.DirectoryServices.AccountManagement.PrincipalContext]::new('Machine')
+  $noPassword = "later: $Account has no password. Add one (Settings > Accounts > Sign-in options > Password), then run this again"
   for ($i = 0; ; $i++) {
     $pw = Read-Secret "The password of $Account (to sign in automatically; not shown or saved in a file)"
-    if ($ctx.ValidateCredentials($Account, $pw)) { break }
+    if (-not $pw) { return $noPassword }
+    # Windows refuses to check a blank password ("Account restrictions..."), so that means there isn't one.
+    try { $ok = $ctx.ValidateCredentials($Account, $pw) } catch { return $noPassword }
+    if ($ok) { break }
     if ($i -ge 2) { return 'later: the password was not accepted' }
     Write-Host '  That password was not accepted. Try again.' -ForegroundColor Yellow
   }
