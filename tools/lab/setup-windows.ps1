@@ -209,6 +209,8 @@ Step 'SSH: on, only the PC''s key, only from this network' {
   else { $key = (Read-Host "The PC's public key (one line, from make-setup-stick.ps1)").Trim() }
   if ($key -notmatch '^ssh-(ed25519|rsa) \S+ e2k-lab') { return 'later: no valid PC key (e2k-lab-key.pub on the setup stick)' }
   if ((Get-WindowsCapability -Online -Name 'OpenSSH.Server*').State -ne 'Installed') {
+    Write-Host '          Installing OpenSSH Server from Windows Update: often 5-15 minutes, with no progress shown.'
+    Write-Host '          (Settings > System > Optional features shows it installing.)'
     Get-WindowsCapability -Online -Name 'OpenSSH.Server*' | Add-WindowsCapability -Online | Out-Null
   }
   Start-Service sshd   # creates sshd_config the first time
