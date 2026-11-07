@@ -186,8 +186,9 @@ Step 'winget (to install the tools)' { [bool](Get-Command winget -ErrorAction Si
   if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { 'later: update "App Installer" in the Microsoft Store, then run this again' }
 }
 
+# The Visual C++ runtime: a fresh Windows lacks it, and Electron's installer needs it (its zip extractor is built with it).
 foreach ($app in @(
-    @{ Id = 'Git.Git'; Name = 'Git' }, @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js' },
+    @{ Id = 'Microsoft.VCRedist.2015+.x64'; Name = 'The Visual C++ runtime' }, @{ Id = 'Git.Git'; Name = 'Git' }, @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js' },
     @{ Id = 'RustDesk.RustDesk'; Name = 'RustDesk' }, @{ Id = 'NVAccess.NVDA'; Name = 'NVDA' })) {
   $id = $app.Id
   Step "$($app.Name) installed" ([scriptblock]::Create("Winget-Has '$id'")) ([scriptblock]::Create(@"
