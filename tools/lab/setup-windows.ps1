@@ -189,13 +189,29 @@ Step 'winget (to install the tools)' { [bool](Get-Command winget -ErrorAction Si
 # The Visual C++ runtime: a fresh Windows lacks it, and Electron's installer needs it (its zip extractor is built with it).
 foreach ($app in @(
     @{ Id = 'Microsoft.VCRedist.2015+.x64'; Name = 'The Visual C++ runtime' }, @{ Id = 'Git.Git'; Name = 'Git' }, @{ Id = 'OpenJS.NodeJS.LTS'; Name = 'Node.js' },
-    @{ Id = 'RustDesk.RustDesk'; Name = 'RustDesk' }, @{ Id = 'NVAccess.NVDA'; Name = 'NVDA' })) {
+    @{ Id = 'NVAccess.NVDA'; Name = 'NVDA' })) {
   $id = $app.Id
   Step "$($app.Name) installed" ([scriptblock]::Create("Winget-Has '$id'")) ([scriptblock]::Create(@"
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return 'later: needs winget' }
     winget install --id '$id' -e --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
     Refresh-Path
 "@))
+}
+
+# RustDesk left winget's catalog, so it comes from its own GitHub releases (the latest), signature checked.
+Step 'RustDesk installed' { Test-Path (Join-Path $env:ProgramFiles 'RustDesk\rustdesk.exe') } {
+  $rel = Invoke-RestMethod 'https://api.github.com/repos/rustdesk/rustdesk/releases/latest' -Headers @{ 'User-Agent' = 'e2k-lab-setup' }
+  $asset = $rel.assets | Where-Object { $_.name -match '^rustdesk-[\d.]+-x86_64\.msi$' } | Select-Object -First 1
+  if (-not $asset) { return 'later: no Windows installer in the latest RustDesk release' }
+  $msi = Join-Path $State $asset.name
+  Write-Host "          Downloading $($asset.name) from github.com/rustdesk/rustdesk"
+  Invoke-WebRequest $asset.browser_download_url -OutFile $msi -UseBasicParsing
+  $sig = Get-AuthenticodeSignature $msi
+  if ($sig.Status -ne 'Valid') { Remove-Item $msi -Force; throw "the RustDesk installer's signature isn't valid ($($sig.Status)); not installed" }
+  Write-Host "          Signed by: $($sig.SignerCertificate.Subject)"
+  $p = Start-Process msiexec.exe -ArgumentList @('/i', "`"$msi`"", '/qn', '/norestart') -Wait -PassThru
+  Remove-Item $msi -Force -ErrorAction SilentlyContinue
+  if ($p.ExitCode -notin 0, 3010) { throw "the RustDesk installer stopped with code $($p.ExitCode)" }
 }
 
 Step 'SSH: on, only the PC''s key, only from this network' {
