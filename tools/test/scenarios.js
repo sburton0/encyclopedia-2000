@@ -1030,10 +1030,11 @@ module.exports = [
         const target = pu.swap(exe, '0.5.4-beta', opts);
         t.check('Restart Now swaps it in under the new version’s name', path.basename(target) === 'Encyclopedia-2000-Portable-0.5.5-beta.exe' && fs.readFileSync(target).equals(body), left().join(', '));
         t.check('…and the old version is kept, runnable, as “(previous version)”', fs.readFileSync(pu.previousOf(exe), 'utf8') === 'old version');
-        pu.cleanupPending(exe);
+        // From here on it's the new version doing the work, from its own path and name (as the real one does).
+        pu.cleanupPending(target);
         t.check('At the next start, before the new version has started, the previous one is still there', fs.existsSync(pu.previousOf(exe)));
-        pu.removePrevious(exe);
-        t.check('Once the new version has started, the previous one is deleted', left().join() === path.basename(target), left().join(', '));
+        pu.removePrevious(target, { current: '0.5.5-beta' });
+        t.check('Once the new version has started, the previous one is deleted (named after the old version)', left().join() === path.basename(target), left().join(', '));
 
         // A copy named without a version keeps its name.
         const plain = path.join(stick, 'Encyclopedia 2000.exe');
@@ -1041,7 +1042,8 @@ module.exports = [
         await pu.download(plain, m, opts);
         const t2 = pu.swap(plain, '0.5.4-beta', opts);
         t.check('A copy named “Encyclopedia 2000.exe” keeps its name', t2 === plain && fs.readFileSync(plain).equals(body));
-        pu.removePrevious(plain);
+        pu.removePrevious(t2, { current: '0.5.5-beta' });
+        t.check('…and its previous version is deleted too', !fs.existsSync(pu.previousOf(plain)));
 
         // Months later: an update that was damaged on the stick isn't used, and is deleted.
         fs.writeFileSync(plain, 'plain old');

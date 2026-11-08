@@ -132,12 +132,28 @@ function swap(exe, current, { signature = true } = {}) {
 function cleanupPending(exe) { try { fs.unlinkSync(pendingOf(exe)); } catch {} }
 // Once the new version has started and drawn its first screen, the previous one is deleted (its launcher may take a
 // moment to quit). Until then it stays beside it, still runnable, in case the new version doesn't start.
-function removePrevious(exe, { tries = 10, every = 1000 } = {}) {
-  const previous = previousOf(exe);
-  if (!fs.existsSync(previous)) return;
-  let n = 0;
-  const attempt = () => { try { fs.unlinkSync(previous); } catch { if (++n < tries) setTimeout(attempt, every).unref?.(); } };
-  attempt();
+// The previous one is named after the old .exe: the same name as this one's, or, when the name has the version in it
+// ("Encyclopedia-2000-Portable-0.5.4-beta.exe"), the old version's name ("…-0.5.4-beta (previous version).exe"), so
+// with current (this version) given, any version in that place counts.
+function previousFiles(exe, current) {
+  const own = previousOf(exe);
+  const found = fs.existsSync(own) ? [own] : [];
+  const stem = path.basename(exe, '.exe');
+  if (!current || !stem.includes(current)) return found;
+  const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const i = stem.indexOf(current);
+  const re = new RegExp(`^${esc(stem.slice(0, i))}\\d[\\w.-]*${esc(stem.slice(i + current.length))} \\(previous version\\)\\.exe$`, 'i');
+  let names = [];
+  try { names = fs.readdirSync(path.dirname(exe)); } catch {}
+  for (const f of names) { const full = path.join(path.dirname(exe), f); if (re.test(f) && !found.includes(full)) found.push(full); }
+  return found;
+}
+function removePrevious(exe, { current, tries = 10, every = 1000 } = {}) {
+  for (const previous of previousFiles(exe, current)) {
+    let n = 0;
+    const attempt = () => { try { fs.unlinkSync(previous); } catch { if (++n < tries) setTimeout(attempt, every).unref?.(); } };
+    attempt();
+  }
 }
 
-module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swap, cleanupPending, removePrevious, previousOf, readyOf, pendingOf };
+module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swap, cleanupPending, removePrevious, previousFiles, previousOf, readyOf, pendingOf };
