@@ -295,6 +295,6 @@ echo
 dev=$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')
 if [ -n "$dev" ]; then
   echo; say "${C}Reserve this machine's address in the router (http://192.168.1.254 > Home Network > IP Allocation):${N}"
-  say "  Address: $(ipconfig getifaddr "$dev")   Network card ID: $(ifconfig "$dev" | awk '/ether/{print $2}')"
+  say "  Address: $(ipconfig getifaddr "$dev")   Network card ID: $(ifconfig "$dev" | awk '$1=="ether"{print $2; exit}')"
 fi
 echo
