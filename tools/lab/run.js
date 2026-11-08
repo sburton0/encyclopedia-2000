@@ -290,7 +290,8 @@ size: ${b.length}
     };
     await send(path.join(CACHE, old), `e2k-lab/update/old/${old}`);
     await send(path.join(CACHE, 'portable-update.js'), 'e2k-lab/update/portable-update.js');
-    await ssh(m, 'Get-ChildItem e2k-lab/update/new | Remove-Item -Force');
+    // Only the new release's two files stay in new/ (any other release's are removed; these two may be reused).
+    await ssh(m, `Get-ChildItem e2k-lab/update/new | Where-Object { $_.Name -ne 'portable.yml' -and $_.Name -ne '${newFile.replace(/'/g, "''")}' } | Remove-Item -Force`);
     await send(yml, 'e2k-lab/update/new/portable.yml');
     await send(path.join(NEW, newFile), `e2k-lab/update/new/${newFile}`);
   }
