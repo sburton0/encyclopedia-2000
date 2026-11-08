@@ -319,7 +319,10 @@ async function buildMac() {
   const branch = takeOpt('--branch') || 'main';
   const upload = takeOpt('--upload');
   const testArgs = ['--script', SETTINGS.build.releaseScript, ...(args.includes('--skip-tests') ? ['--skip-tests'] : []), ...(upload ? ['--upload', upload] : [])];
-  return runJobs([BUILD], { branch, runner: 'tools/lab/build-mac.js', testArgs, title: `Mac build of ${branch}${upload ? `, uploaded to ${upload}` : ''}` });
+  // The build script goes to ~/e2k-lab, since release branches don't have it.
+  const cp = await scpTo(BUILD, path.join(LAB, 'build-mac.js'), 'e2k-lab/build-mac.js');
+  if (cp.code) { console.error(red(`${BUILD.name}: copying the build script failed: ${cp.err}`)); process.exit(1); }
+  return runJobs([BUILD], { branch, runner: 'lab:build-mac.js', testArgs, title: `Mac build of ${branch}${upload ? `, uploaded to ${upload}` : ''}` });
 }
 
 const COMMANDS = { status, test, agent, update, 'build-mac': buildMac };

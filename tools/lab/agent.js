@@ -17,7 +17,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
-const VERSION = 3;
+const VERSION = 4;
 const HOME = os.homedir();
 const LAB = path.join(HOME, 'e2k-lab');
 const JOBS = path.join(LAB, 'jobs');
@@ -155,7 +155,10 @@ async function runJob(job) {
     }
     // The tests themselves; run.js prints where its report is.
     const logBefore = fs.statSync(jobFile(id, 'log')).size;
-    const runner = /^tools\/(test|lab)\/[\w-]+\.js$/.test(job.runner || '') ? job.runner : 'tools/test/run.js';
+    // A script in the code (tools/test or tools/lab), or one the runner copied to ~/e2k-lab ("lab:build-mac.js"), for
+    // scripts that must run on branches that don't have them.
+    const r = job.runner || '';
+    const runner = /^tools\/(test|lab)\/[\w-]+\.js$/.test(r) ? r : /^lab:[\w-]+\.js$/.test(r) ? path.join(LAB, r.slice(4)) : 'tools/test/run.js';
     const code = await step('testing', process.execPath, [runner, ...(job.args || [])]);
     const tail = fs.readFileSync(jobFile(id, 'log'), 'utf8').slice(logBefore);
     const m = tail.match(/(\d+) of (\d+) passed\. Report: (.+report\.md)/);
