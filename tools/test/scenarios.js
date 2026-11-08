@@ -1158,13 +1158,13 @@ module.exports = [
       await t.js(`document.querySelector('.overlay .dialog .askauto input').click(); [...document.querySelectorAll('.overlay .dialog .go')].find((b) => b.textContent === 'Check for Updates').click();`);
       await t.sleep(500);
       const s = await t.js('return await window.e2k.settings.get();');
-      t.check('Check for Updates with the box ticked: checks on, download and install automatically on, answered', s.autoUpdate === true && s.autoInstall === true && s.updateAsked === true, JSON.stringify(s));
+      t.check('Check for Updates with the box ticked: checks on, update automatically on, answered', s.autoUpdate === true && s.autoInstall === true && s.updateAsked === true, JSON.stringify(s));
       t.check('…and news is on: the news shows', s.showNews !== false && await t.waitFor('document.querySelector(".home .news")', 5000));
       await t.js('E2KOptions.open(E2K, "Privacy", "Updates");');
       await t.waitFor('document.querySelector(".options")', 4000);
       const o = await t.js(`const g = [...document.querySelectorAll('.options .ogroup')].find((g) => g.querySelector('legend')?.textContent === 'Updates');
         return [...g.querySelectorAll('label')].map((l) => l.querySelector('b').textContent + '=' + l.querySelector('input').checked);`);
-      t.check('Options › Privacy shows both, as answered', o.join() === 'Check for updates automatically=true,Also download and install updates automatically=true', o.join());
+      t.check('Options › Privacy shows both, as answered', o.join() === 'Check for updates automatically=true,Also update automatically=true', o.join());
       await t.shot('first-run-options');
     },
   },
