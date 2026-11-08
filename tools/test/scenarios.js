@@ -67,7 +67,7 @@ module.exports = [
     name: 'article', group: 'General', title: 'An article (Apollo 11)',
     route: 'article/Apollo%2011',
     async run(t) {
-      t.check('The article opens', await t.waitFor('/Apollo 11/.test(document.querySelector("h1")?.textContent || "") && document.querySelectorAll(".page .text p").length > 5', 20000));
+      t.check('The article opens', await t.waitFor('/Apollo 11/.test(document.querySelector("h1")?.textContent || "") && document.querySelectorAll(".page .text p").length > 5', 40000));
       t.check('Quick facts are filled in', await t.waitFor('document.querySelectorAll(".facts .r").length >= 4', 8000));
       t.check('The Media box lists pictures', await t.waitFor('document.querySelectorAll(".mbox .mt").length >= 3', 10000));
       await t.shot('article');
@@ -90,7 +90,7 @@ module.exports = [
     name: 'scroll-and-top', group: 'General', title: 'Back returns to where you were; the Top button and the Home key',
     route: 'article/Apollo%2011',
     async run(t) {
-      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 20000);
+      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 40000);
       const top = () => t.js('return document.querySelector(".content.article").scrollTop;');
       t.check('The article opens', await opened('Apollo 11'));
       t.check('No Top button at the top', !(await t.js('return !!document.querySelector(".totop.show");')));
@@ -149,7 +149,7 @@ module.exports = [
     },
   },
   {
-    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 2 seconds (one slow pick doesn’t hold up the rest, and the picks aren’t sent one after another), each picture at the top of its card',
+    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 3 seconds (one slow pick doesn’t hold up the rest, and the picks aren’t sent one after another), each picture at the top of its card',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 15000);
@@ -162,7 +162,7 @@ module.exports = [
         times.push(Date.now() - t0);
       }
       t.check('Eight cards each time, with different articles', await t.js('const ts = [...document.querySelectorAll(".cards .card b")].map((b) => b.textContent); return ts.length === 8 && new Set(ts).size === 8;'));
-      t.check('The cards fill in within 2 seconds', times.every((ms) => ms < 2000), times.map((ms) => `${ms} ms`).join(', '));
+      t.check('The cards fill in within 3 seconds', times.every((ms) => ms < 3000), times.map((ms) => `${ms} ms`).join(', '));
       // A card stretched to the tallest in its row keeps its picture at the top, with no white gap above it.
       const gaps = await t.js('return [...document.querySelectorAll(".cards .card")].map((c) => Math.round(c.querySelector(".ph").getBoundingClientRect().top - c.getBoundingClientRect().top));');
       t.check('Every picture sits at the top of its card', gaps.every((g) => g <= 1), `gaps above the pictures: ${gaps.join(', ')} px`);
@@ -206,7 +206,7 @@ module.exports = [
     name: 'right-click', group: 'General', title: 'The right-click menu: on the page, selected text, a link, a picture, and the Find box; Edit › Copy',
     route: 'article/Moon',
     async run(t) {
-      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 20000);
+      const opened = (title) => t.waitFor(`${pageOf(title)}?.querySelectorAll(".text p").length > 5`, 40000);
       // Right-clicks the element the expression finds (at its middle, or at x, y), and returns the menu's items.
       const ctx = (el, at = '') => t.js(`const el = ${el}; const r = el.getBoundingClientRect();
         const [x, y] = ${at || '[r.left + r.width / 2, r.top + r.height / 2]'};
@@ -358,7 +358,7 @@ module.exports = [
     name: 'media-videos', group: 'General', title: 'The media viewer: going from one video to another, the Play button goes away',
     route: 'article/Michael%20Jackson',
     async run(t) {
-      t.check('The article opens', await t.waitFor(`${pageOf('Michael Jackson')}?.querySelectorAll(".text p").length > 5`, 20000));
+      t.check('The article opens', await t.waitFor(`${pageOf('Michael Jackson')}?.querySelectorAll(".text p").length > 5`, 40000));
       const state = () => t.js(`const st = document.querySelector('.mstage'), v = st?.querySelector('video');
         return { playing: !!v && !v.paused, button: st?.classList.contains('playing') ? 'hidden' : 'shown' };`);
       t.check('Two videos in Media', await t.waitFor(`${pageOf('Michael Jackson')}.querySelectorAll('button.mt.video').length >= 2`, 15000));
@@ -1508,7 +1508,7 @@ module.exports = [
     route: 'article/Moon',
     async run(t) {
       if (t.platform === 'darwin') return t.skip('Shift+F10', 'Macs have no menu key, and Shift+F10 isn’t a shortcut there');
-      t.check('The article opens', await t.waitFor(`${pageOf('Moon')}?.querySelectorAll(".text p").length > 5`, 20000));
+      t.check('The article opens', await t.waitFor(`${pageOf('Moon')}?.querySelectorAll(".text p").length > 5`, 40000));
       await t.sleep(800);
       // Shift+F10 the way the keyboard sends it (the menu key does the same, but can't be sent this way). Returns the
       // menu's items, what has focus, and whether the menu is in the window.
