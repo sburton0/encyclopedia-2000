@@ -146,6 +146,8 @@
     },
     "deb": {
       "fpm": [
+        "--deb-compression-level",
+        "6",
         "build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml"
       ]
     },
