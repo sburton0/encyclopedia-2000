@@ -29,6 +29,10 @@ REPO="$HOME/e2k"
 
 say()  { printf '%s\n' "$*"; }
 note() { printf '          %s\n' "$*"; }
+# This network's IPv6 ranges: the local one (fe80::) and the router's /64, so names that resolve to IPv6 work too.
+lan_net6() {
+  { echo fe80::/10; ip -6 -o addr show scope global | awk '{print $4}' |
+    python3 -c 'import ipaddress,sys; [print(ipaddress.ip_interface(l.split("/")[0]+"/64").network) for l in sys.stdin if l.strip()]'; } | sort -u; }
 lan_net() { ip -o -f inet addr show scope global | awk '{print $4; exit}' | python3 -c 'import ipaddress,sys; print(ipaddress.ip_interface(sys.stdin.read().strip()).network)'; }
 has_pkg() { dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q 'install ok installed'; }
 xset_prop() { # channel property type value: set an Xfce setting, creating it if needed
@@ -175,16 +179,20 @@ step "SSH: on, only the PC's key" t_ssh d_ssh
 
 t_fw() {
   local s; s=$(sudo -n ufw status 2>/dev/null) || return 1
-  grep -q 'Status: active' <<<"$s" && grep -q '^22/tcp' <<<"$s" && grep -q '^21118/tcp' <<<"$s" && grep -q '^5353/udp' <<<"$s"
+  grep -q 'Status: active' <<<"$s" && grep -q '^22/tcp' <<<"$s" && grep -q '^21118/tcp' <<<"$s" && grep -q '^5353/udp' <<<"$s" &&
+  grep -q 'fe80::/10' <<<"$s"
 }
 d_fw() {
   has_pkg ufw || { RESULT="later: needs the tools"; return 0; }
   local net; net=$(lan_net) || { RESULT="later: not connected to a network"; return 0; }
-  note "Letting in SSH, RustDesk and network names from $net only"
+  note "Letting in SSH, RustDesk and network names from $net (and its IPv6 ranges) only"
   sudo ufw default deny incoming >/dev/null && sudo ufw default allow outgoing >/dev/null &&
   sudo ufw allow from "$net" to any port 22 proto tcp >/dev/null &&
   sudo ufw allow from "$net" to any port 21118 proto tcp >/dev/null &&
   sudo ufw allow from "$net" to any port 5353 proto udp >/dev/null &&   # so "e2k-linux.local" is found
+  for n in $(lan_net6); do
+    for port in 22/tcp 21118/tcp 5353/udp; do sudo ufw allow from "$n" to any port "${port%/*}" proto "${port#*/}" >/dev/null || return 1; done
+  done &&
   sudo ufw --force enable >/dev/null
 }
 step "Firewall: SSH, RustDesk and network names only from this network" t_fw d_fw
