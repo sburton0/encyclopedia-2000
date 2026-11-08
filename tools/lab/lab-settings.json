@@ -2,6 +2,7 @@
   "repo": "https://github.com/sburton0/encyclopedia-2000.git",
   "account": "e2k",
   "machines": { "win32": "e2k-win", "darwin": "e2k-mac", "linux": "e2k-linux" },
+  "addresses": { "win32": "192.168.1.213", "darwin": "192.168.1.205", "linux": "192.168.1.216" },
   "screen": { "width": 1920, "height": 1080 },
   "stick": { "main": "E2K-TEST", "fat32": "E2K-FAT32", "fat32SizeGB": 4 }
 }
