@@ -2,12 +2,15 @@
 // updater.js). The new version downloads beside the .exe under a name that can't be run by double-clicking, and is
 // used only once its size, its checksum (portable.yml, published with each Windows release by
 // tools/portable-manifest.js), and its code signature (Scott Burton) all check out.
-// Swapping is two renames (Windows lets a running .exe be renamed, not deleted): the current .exe becomes
-// "… (previous version).exe", which still runs if anything goes wrong, and the new one takes its place. The previous
-// version is deleted once the new one has started (removePrevious). Every function takes the .exe's path, so the tests
-// can drive it.
+// Swapping is two renames: the current .exe becomes "… (previous version).exe", which still runs if anything goes
+// wrong, and the new one takes its place. They can't happen while the app runs: the portable .exe is a launcher that
+// unpacks the app to a temporary folder and keeps its own .exe open (Windows then refuses to rename it) until the app
+// has closed. So a small hidden helper does them once it has (swapAfterExit). 0.5.4 and 0.5.5 renamed from inside the
+// app, which always failed ("EBUSY"; found 2026-11-08). The previous version is deleted once the new one has started
+// (removePrevious). Every function takes the .exe's path, so the tests can drive it.
 const crypto = require('crypto');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
 
@@ -114,17 +117,47 @@ function discard(exe) {
   for (const f of [readyOf(exe), pendingOf(exe), infoOf(exe)]) { try { fs.unlinkSync(f); } catch {} }
 }
 
-// Restart Now: swaps the new version in, and returns the path to start. Checked once more first. If the second rename
-// fails, the first is undone, so the current version always keeps its name or a runnable one.
-function swap(exe, current, { signature = true } = {}) {
-  const info = ready(exe, { signature });
-  if (!info) throw new Error('The downloaded update is missing or damaged. Check for updates to download it again.');
-  const target = path.join(path.dirname(exe), targetName(exe, current, info.version));
-  const previous = previousOf(exe);
-  try { fs.unlinkSync(previous); } catch {}
-  fs.renameSync(exe, previous);
-  try { fs.renameSync(readyOf(exe), target); } catch (e) { try { fs.renameSync(previous, exe); } catch {} throw e; }
-  try { fs.unlinkSync(infoOf(exe)); } catch {}
+// The helper, as a PowerShell script. It waits (up to `wait` seconds) until the current .exe can be renamed, that is,
+// until the launcher has quit; then the two renames. If the second fails, the first is undone, so the current version
+// always keeps its name or a runnable one; if the .exe never comes free, nothing changes (the update is offered again
+// at the next start). With start (Restart Now), it then starts the new version, or the current one if anything failed.
+function swapScript({ exe, previous, ready: readyFile, info, target, start, wait }) {
+  const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  return [
+    `$exe = ${q(exe)}; $previous = ${q(previous)}; $ready = ${q(readyFile)}; $info = ${q(info)}; $target = ${q(target)}`,
+    `$deadline = (Get-Date).AddSeconds(${Number(wait) || 120}); $moved = $false; $ok = $false`,
+    'Remove-Item -LiteralPath $previous -Force -ErrorAction SilentlyContinue',
+    'while (-not $moved) {',
+    '  try { [IO.File]::Move($exe, $previous); $moved = $true }',
+    '  catch { if ((Get-Date) -gt $deadline) { break }; Start-Sleep -Milliseconds 300 }',
+    '}',
+    'if ($moved) {',
+    '  try { [IO.File]::Move($ready, $target); $ok = $true }',
+    '  catch { try { [IO.File]::Move($previous, $exe) } catch {} }',
+    '}',
+    'if ($ok) { Remove-Item -LiteralPath $info -Force -ErrorAction SilentlyContinue }',
+    ...(start ? ['$run = if ($ok) { $target } else { $exe }', 'Start-Process -FilePath $run -WorkingDirectory ([IO.Path]::GetDirectoryName($run))'] : []),
+    'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue',
+  ].join('\r\n');
+}
+
+// Restart Now (start: true) and Update on Close: checks the downloaded update once more (unless the caller just did and
+// passes its info), then starts the hidden helper that swaps it in after the app has closed. Returns the new version's
+// path. The helper's script goes in the temporary folder, so nothing on the stick stays open.
+function swapAfterExit(exe, current, { start = false, signature = true, info = null, wait = 120 } = {}) {
+  const i = info || ready(exe, { signature });
+  if (!i) throw new Error('The downloaded update is missing or damaged. Check for updates to download it again.');
+  const target = path.join(path.dirname(exe), targetName(exe, current, i.version));
+  const script = path.join(os.tmpdir(), `encyclopedia-2000-update-${process.pid}-${Date.now()}.ps1`);
+  // With a byte order mark, so Windows PowerShell 5.1 reads the paths as Unicode.
+  fs.writeFileSync(script, '﻿' + swapScript({ exe, previous: previousOf(exe), ready: readyOf(exe), info: infoOf(exe), target, start, wait }), 'utf8');
+  // Started in two steps, so it's hidden and outlives the app: a "detached" PowerShell gets no console and doesn't run,
+  // and an ordinary child is ended with the app. So a hidden PowerShell starts the helper (hidden) as its own child,
+  // which leaves the app's process group, and returns; that first step takes about half a second, waited for here.
+  const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
+  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command',
+    `Start-Process -FilePath powershell.exe -WindowStyle Hidden -WorkingDirectory ${q(os.tmpdir())} -ArgumentList ${q(`-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${script}"`)}`],
+  { stdio: 'ignore', windowsHide: true, cwd: os.tmpdir(), timeout: 30000 });
   return target;
 }
 
@@ -156,4 +189,4 @@ function removePrevious(exe, { current, tries = 10, every = 1000 } = {}) {
   }
 }
 
-module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swap, cleanupPending, removePrevious, previousFiles, previousOf, readyOf, pendingOf };
+module.exports = { parseManifest, manifest, writable, targetName, check, download, ready, discard, swapAfterExit, swapScript, cleanupPending, removePrevious, previousFiles, previousOf, readyOf, pendingOf };

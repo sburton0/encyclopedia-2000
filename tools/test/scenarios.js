@@ -14,6 +14,7 @@
 // quit, cancelling, moving, a library going missing and coming back, no connection, and Offline mode.
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 // Whether a saved file is a picture (JPEG, PNG, GIF, WebP, or SVG), from its first bytes, and its size.
 const savedPicture = (file) => {
   try { const b = fs.readFileSync(file); return { size: b.length, picture: /^(\xff\xd8\xff|\x89PNG|GIF8|RIFF....WEBP|<\?xml|<svg)/.test(b.subarray(0, 16).toString('latin1')) }; } catch { return { size: 0, picture: false }; }
@@ -1010,42 +1011,57 @@ module.exports = [
         t.check('A good download is ready beside the current version, which is untouched', fs.existsSync(pu.readyOf(exe)) && fs.readFileSync(exe, 'utf8') === 'old version' && pct === 100, left().join(', '));
         t.check('…and the ready update can’t be started by double-clicking (no .exe name)', !/\.exe$/.test(pu.readyOf(exe)));
         t.check('…and is found again at the next start', pu.ready(exe, opts)?.version === '0.5.5-beta');
-        // Restart Now: the new version takes the name with its version in it; the old one stays runnable until cleanup.
-        const target = pu.swap(exe, '0.5.4-beta', opts);
-        t.check('Restart Now swaps it in under the new version’s name', path.basename(target) === 'Encyclopedia-2000-Portable-0.5.5-beta.exe' && fs.readFileSync(target).equals(body), left().join(', '));
-        t.check('…and the old version is kept, runnable, as “(previous version)”', fs.readFileSync(pu.previousOf(exe), 'utf8') === 'old version');
-        // From here on it's the new version doing the work, from its own path and name (as the real one does).
-        pu.cleanupPending(target);
-        t.check('At the next start, before the new version has started, the previous one is still there', fs.existsSync(pu.previousOf(exe)));
-        pu.removePrevious(target, { current: '0.5.5-beta' });
-        t.check('Once the new version has started, the previous one is deleted (named after the old version)', left().join() === path.basename(target), left().join(', '));
-
-        // A copy named without a version keeps its name.
         const plain = path.join(stick, 'Encyclopedia 2000.exe');
-        fs.writeFileSync(plain, 'plain old');
-        await pu.download(plain, m, opts);
-        const t2 = pu.swap(plain, '0.5.4-beta', opts);
-        t.check('A copy named “Encyclopedia 2000.exe” keeps its name', t2 === plain && fs.readFileSync(plain).equals(body));
-        pu.removePrevious(t2, { current: '0.5.5-beta' });
-        t.check('…and its previous version is deleted too', !fs.existsSync(pu.previousOf(plain)));
+        // The swap itself is done by a PowerShell helper after the app has closed (Windows only, like the portable).
+        if (process.platform === 'win32') {
+          const until = async (fn, ms = 15000) => { for (const end = Date.now() + ms; Date.now() < end; await t.sleep(250)) if (fn()) return true; return !!fn(); };
+          // Restart Now while the portable's launcher still holds its .exe (a process that has it open without sharing
+          // it for renaming, like the real launcher): nothing changes until it lets go, then the swap.
+          const { spawn } = require('child_process');
+          const holder = spawn('powershell', ['-NoProfile', '-Command', `$f = [IO.File]::Open('${exe.replace(/'/g, "''")}', 'Open', 'Read', 'Read'); 'held'; Start-Sleep 4; $f.Close()`], { windowsHide: true });
+          await new Promise((r) => holder.stdout.once('data', r));
+          const target = pu.swapAfterExit(exe, '0.5.4-beta', { ...opts, wait: 30 });
+          t.check('Restart Now names the new version after itself', path.basename(target) === 'Encyclopedia-2000-Portable-0.5.5-beta.exe', target);
+          await t.sleep(2000);
+          t.check('While the launcher still holds the .exe, nothing changes (0.5.4 and 0.5.5 failed here, “EBUSY”)', fs.readFileSync(exe, 'utf8') === 'old version' && fs.existsSync(pu.readyOf(exe)) && !fs.existsSync(target), left().join(', '));
+          await until(() => fs.existsSync(target) && !fs.existsSync(pu.readyOf(exe)));
+          t.check('Once it lets go, the new version is swapped in under its name', fs.existsSync(target) && fs.readFileSync(target).equals(body), left().join(', '));
+          t.check('…and the old version is kept, runnable, as “(previous version)”', fs.readFileSync(pu.previousOf(exe), 'utf8') === 'old version');
+          t.check('…and the helper’s script is gone from the temporary folder', await until(() => !fs.readdirSync(os.tmpdir()).some((f) => f.startsWith(`encyclopedia-2000-update-${process.pid}-`)), 5000));
+          // From here on it's the new version doing the work, from its own path and name (as the real one does).
+          pu.cleanupPending(target);
+          t.check('At the next start, before the new version has started, the previous one is still there', fs.existsSync(pu.previousOf(exe)));
+          pu.removePrevious(target, { current: '0.5.5-beta' });
+          t.check('Once the new version has started, the previous one is deleted (named after the old version)', left().join() === path.basename(target), left().join(', '));
+
+          // A copy named without a version keeps its name.
+          fs.writeFileSync(plain, 'plain old');
+          await pu.download(plain, m, opts);
+          const t2 = pu.swapAfterExit(plain, '0.5.4-beta', opts);
+          await until(() => !fs.existsSync(pu.readyOf(plain)));
+          t.check('A copy named “Encyclopedia 2000.exe” keeps its name', t2 === plain && fs.readFileSync(plain).equals(body));
+          pu.removePrevious(t2, { current: '0.5.5-beta' });
+          t.check('…and its previous version is deleted too', !fs.existsSync(pu.previousOf(plain)));
+
+          // A swap whose second step fails puts the current version back.
+          fs.writeFileSync(exe, 'old version');
+          await pu.download(exe, m, opts);
+          fs.rmSync(target, { force: true });
+          fs.mkdirSync(target);                // a folder where the new version would go: the rename fails
+          pu.swapAfterExit(exe, '0.5.4-beta', opts);
+          await until(() => false, 4000);
+          t.check('A swap that fails halfway puts the current version back under its name', fs.readFileSync(exe, 'utf8') === 'old version' && !fs.existsSync(pu.previousOf(exe)) && fs.existsSync(pu.readyOf(exe)), left().join(', '));
+          fs.rmSync(target, { recursive: true, force: true });
+          pu.discard(exe);
+        } else t.skip('Restart Now and Update on Close (the swap)', 'Windows only, like the portable');
 
         // Months later: an update that was damaged on the stick isn't used, and is deleted.
         fs.writeFileSync(plain, 'plain old');
         await pu.download(plain, m, opts);
         fs.appendFileSync(pu.readyOf(plain), 'x');
         t.check('A downloaded update damaged since is not offered, and is deleted', pu.ready(plain, opts) === null && !fs.existsSync(pu.readyOf(plain)));
-        const err = (() => { try { pu.swap(plain, '0.5.4-beta', opts); return ''; } catch (e) { return e.message; } })();
+        const err = (() => { try { pu.swapAfterExit(plain, '0.5.4-beta', opts); return ''; } catch (e) { return e.message; } })();
         t.check('…and Restart Now then changes nothing', /missing or damaged/.test(err) && fs.readFileSync(plain, 'utf8') === 'plain old', err);
-
-        // A swap whose second step fails puts the current version back.
-        fs.writeFileSync(exe, 'old version');
-        await pu.download(exe, m, opts);
-        fs.rmSync(target, { force: true });
-        fs.mkdirSync(target);                // a folder where the new version would go: the rename fails
-        const swapErr = (() => { try { pu.swap(exe, '0.5.4-beta', opts); return ''; } catch (e) { return e.message || 'failed'; } })();
-        t.check('A swap that fails halfway puts the current version back under its name', !!swapErr && fs.readFileSync(exe, 'utf8') === 'old version' && !fs.existsSync(pu.previousOf(exe)), `${swapErr} · ${left().join(', ')}`);
-        fs.rmSync(target, { recursive: true, force: true });
-        pu.discard(exe);
 
         // A drive that can't be written to (Windows' own folder stands in for a locked stick).
         if (process.platform === 'win32') {
@@ -1068,7 +1084,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-update-window', group: 'USB edition', title: 'Portable self-update in the window: Download and ✕, downloading, Restart Now and Install on Close, a failure told; other copies unchanged',
+    name: 'portable-update-window', group: 'USB edition', title: 'Portable self-update in the window: Download and ✕, downloading, Restart Now and Update on Close, a failure told; other copies unchanged',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 10000);
@@ -1092,10 +1108,10 @@ module.exports = [
       await send({ state: 'downloading', version: '0.5.5-beta', percent: 42, self: true });
       t.check('Downloading shows its progress (no buttons, like the installed app)', /^Downloading version .* 42%$/.test(await bar()), await bar());
       await send({ state: 'ready', version: '0.5.5-beta', self: true });
-      t.check('Ready: Restart Now and Install on Close', /is ready \| Restart Now \| Install on Close$/.test(await bar()), await bar());
+      t.check('Ready: Restart Now and Update on Close', /is ready \| Restart Now \| Update on Close$/.test(await bar()), await bar());
       await t.shot('portable-ready');
       await send({ state: 'ready', version: '0.5.5-beta', self: true, onQuit: true });
-      t.check('After Install on Close, the notice goes away', (await bar()) === '');
+      t.check('After Update on Close, the notice goes away', (await bar()) === '');
       // ✕ hides the notice until the next version.
       await send(avail);
       await t.js('document.querySelector("#updatebar .ux").click();');
@@ -1188,7 +1204,7 @@ module.exports = [
   },
 
   {
-    name: 'portable-check-ready', group: 'USB edition', title: 'Portable: Help › Check for Updates with an update downloaded offers Restart Now, Install on Close, and Delete Update',
+    name: 'portable-check-ready', group: 'USB edition', title: 'Portable: Help › Check for Updates with an update downloaded offers Restart Now, Update on Close, and Delete Update',
     route: 'home', env: { E2K_FAKE_UPDATE: 'ready', E2K_FAKE_SELF: '1' },
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 10000);
@@ -1196,8 +1212,8 @@ module.exports = [
       await t.js('E2K.command("updates");');
       await t.waitFor('document.querySelector(".overlay .dialog")', 4000);
       const b = await t.js('return [...document.querySelectorAll(".overlay .dialog .df .go")].map((b) => b.textContent);');
-      t.check('Restart Now, Install on Close, Delete Update', b.join() === 'Restart Now,Install on Close,Delete Update', b.join());
-      t.check('The status bar shows Restart Now and Install on Close', await t.js('const b = document.getElementById("updatebar").innerText; return b.includes("Restart Now") && b.includes("Install on Close");'));
+      t.check('Restart Now, Update on Close, Delete Update', b.join() === 'Restart Now,Update on Close,Delete Update', b.join());
+      t.check('The status bar shows Restart Now and Update on Close', await t.js('const b = document.getElementById("updatebar").innerText; return b.includes("Restart Now") && b.includes("Update on Close");'));
     },
   },
   {
