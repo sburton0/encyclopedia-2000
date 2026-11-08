@@ -221,21 +221,7 @@ step "A quick test passes (Home loads)" t_quick d_quick
 
 AGENT_PLIST="$HOME/Library/LaunchAgents/com.encyclopedia2000.lab-agent.plist"
 t_agent() { [ -f "$AGENT_PLIST" ]; }
-d_agent() {
-  [ -f "$REPO/tools/lab/agent.js" ] || { RESULT="later: the lab agent is not built yet; run this again once it is"; return 0; }
-  mkdir -p "$(dirname "$AGENT_PLIST")"
-  cat > "$AGENT_PLIST" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict>
-  <key>Label</key><string>com.encyclopedia2000.lab-agent</string>
-  <key>ProgramArguments</key><array><string>/usr/local/bin/node</string><string>$REPO/tools/lab/agent.js</string></array>
-  <key>WorkingDirectory</key><string>$REPO</string>
-  <key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
-</dict></plist>
-EOF
-  launchctl bootstrap "gui/$(id -u)" "$AGENT_PLIST" 2>/dev/null || launchctl load "$AGENT_PLIST"
-}
+d_agent() { RESULT="later: from the PC, run: npm run lab -- agent (it installs and starts the agent on every machine)"; }
 step "The lab agent starts with the desktop" t_agent d_agent
 
 t_stick() {

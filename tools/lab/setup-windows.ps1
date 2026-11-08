@@ -303,17 +303,7 @@ Step 'A quick test passes (Home loads)' { Test-Path (Join-Path $State 'quick-tes
 
 Step 'The lab agent starts with the desktop' {
   [bool](Get-ScheduledTask -TaskName 'E2K lab agent' -ErrorAction SilentlyContinue)
-} {
-  $agent = Join-Path $Repo 'tools\lab\agent.js'
-  if (-not (Test-Path $agent)) { return 'later: the lab agent is not built yet; run this again once it is' }
-  $node = (Get-Command node).Source
-  $act = New-ScheduledTaskAction -Execute $node -Argument "`"$agent`"" -WorkingDirectory $Repo
-  $trig = New-ScheduledTaskTrigger -AtLogOn -User "$env:COMPUTERNAME\$Account"
-  $prin = New-ScheduledTaskPrincipal -UserId "$env:COMPUTERNAME\$Account" -LogonType Interactive -RunLevel Highest
-  $set = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-  Register-ScheduledTask -TaskName 'E2K lab agent' -Action $act -Trigger $trig -Principal $prin -Settings $set | Out-Null
-  Start-ScheduledTask -TaskName 'E2K lab agent'
-}
+} { 'later: from the PC, run: npm run lab -- agent (it installs and starts the agent on every machine)' }
 
 $main = $settings.stick.main; $fat = $settings.stick.fat32; $fatGB = [int]$settings.stick.fat32SizeGB
 Step "Test stick: $main (exFAT) and $fat (FAT32, $fatGB GB)" {

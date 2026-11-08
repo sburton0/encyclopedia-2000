@@ -234,12 +234,7 @@ step "A quick test passes (Home loads)" t_quick d_quick
 
 AGENT_AUTOSTART="$HOME/.config/autostart/e2k-lab-agent.desktop"
 t_agent() { [ -f "$AGENT_AUTOSTART" ]; }
-d_agent() {
-  [ -f "$REPO/tools/lab/agent.js" ] || { RESULT="later: the lab agent is not built yet; run this again once it is"; return 0; }
-  mkdir -p "$(dirname "$AGENT_AUTOSTART")"
-  printf '[Desktop Entry]\nType=Application\nName=E2K lab agent\nExec=sh -c "cd %s && exec %s tools/lab/agent.js"\n' "$REPO" "$(command -v node)" > "$AGENT_AUTOSTART"
-  (cd "$REPO" && nohup node tools/lab/agent.js >/dev/null 2>&1 &)
-}
+d_agent() { RESULT="later: from the PC, run: npm run lab -- agent (it installs and starts the agent on every machine)"; }
 step "The lab agent starts with the desktop" t_agent d_agent
 
 t_stick() {

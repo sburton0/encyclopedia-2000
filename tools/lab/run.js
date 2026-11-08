@@ -175,7 +175,7 @@ async function test() {
     if (!st.agent) { say(red('the lab agent isn\'t running (npm run lab -- agent)')); return { m, state: 'no agent', os: st.os }; }
     const job = Buffer.from(JSON.stringify({ id, kind: 'test', branch, args: testArgs })).toString('base64');
     if ((await agentCmd(m, 'submit', job)).code) { say(red('couldn\'t hand over the job')); return { m, state: 'failed', os: st.os }; }
-    let offset = 0, step = '', state = {}, misses = 0;
+    let offset = 0, step = '', state = {}, misses = 0, partial = '';
     for (;;) {
       await new Promise((res) => setTimeout(res, 4000));
       const js = parse((await agentCmd(m, 'job', id)).out);
@@ -185,7 +185,10 @@ async function test() {
       const log = await agentCmd(m, 'log', id, offset);
       if (log.code === 0 && log.out) {
         offset += Buffer.byteLength(log.out, 'utf8');
-        for (const line of log.out.split(/\r?\n/)) {
+        // Whole lines only: "home … " is written before its result.
+        const lines = (partial + log.out).split(/\r?\n/);
+        partial = lines.pop();
+        for (const line of lines) {
           // Only the test runner's own lines (one per scenario, its failures, and the total).
           if (/^\s{2}\S.* … |^\s+✗ |passed\. Report:|^- \S+: skipped/.test(line)) say(line.replace(/ Report: .*/, '').replace(/FAILED/, red('FAILED')).replace(/… ok$/, `… ${green('ok')}`));
         }
