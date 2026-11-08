@@ -1163,7 +1163,7 @@ module.exports = [
     },
   },
   {
-    name: 'portable-first-run-closed', group: 'USB edition', only: 'win32', title: 'Portable first run: closing the question counts as Don’t Check; the installed app never asks',
+    name: 'portable-first-run-closed', group: 'USB edition', only: 'win32', title: 'Portable first run: a click outside leaves the question open; Escape counts as Don’t Check; the installed app never asks',
     route: 'home',
     env: (profile) => ({ PORTABLE_EXECUTABLE_DIR: path.join(profile, '..', 'stick'), PORTABLE_EXECUTABLE_FILE: path.join(profile, '..', 'stick', 'Encyclopedia 2000.exe'), E2K_TEST_SELF_UPDATE: '1', E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
     setup: (ctx) => {
@@ -1173,7 +1173,13 @@ module.exports = [
     },
     async run(t) {
       await t.waitFor('document.querySelector(".overlay .dialog.askupdate")', 8000);
-      await t.js(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+      // A click outside it (Scott, 2026-11-08: it used to close as Don't Check, and never asked again).
+      await t.js(`const ov = document.querySelector('.overlay.stay'); for (const type of ['mousedown', 'mouseup', 'click']) ov.dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true }));`);
+      await t.sleep(500);
+      const before = await t.js('return await window.e2k.settings.get();');
+      t.check('A click outside leaves the question open, unanswered, with focus still in it',
+        (await t.js('return !!document.querySelector(".overlay .dialog.askupdate") && !!document.activeElement.closest(".dialog.askupdate");')) && before.updateAsked === false, JSON.stringify(before));
+      await t.js(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));`);
       await t.sleep(500);
       const s = await t.js('return await window.e2k.settings.get();');
       t.check('Escape closes it as Don’t Check (checks off, answered)', s.autoUpdate === false && s.updateAsked === true && !(await t.js('return !!document.querySelector(".overlay .dialog.askupdate");')), JSON.stringify(s));
