@@ -6,7 +6,8 @@
 //
 //   node e2k-lab/agent.js              run: watch ~/e2k-lab/jobs and run each job in turn
 //   node e2k-lab/agent.js status       this machine's state, as JSON (used by "npm run lab -- status")
-//   node e2k-lab/agent.js submit <b64> queue a job (base64 JSON: { id, kind: "test", branch, args })
+//   node e2k-lab/agent.js submit <b64> queue a job (base64 JSON: { id, kind: "test", branch, args, runner })
+//                                      runner: a script in tools/test or tools/lab (default tools/test/run.js)
 //   node e2k-lab/agent.js job <id>     a job's state, as JSON
 //   node e2k-lab/agent.js log <id> <n> a job's log from byte n
 //   node e2k-lab/agent.js cancel <id>  stop a job
@@ -16,7 +17,7 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
-const VERSION = 1;
+const VERSION = 2;
 const HOME = os.homedir();
 const LAB = path.join(HOME, 'e2k-lab');
 const JOBS = path.join(LAB, 'jobs');
@@ -153,7 +154,8 @@ async function runJob(job) {
     }
     // The tests themselves; run.js prints where its report is.
     const logBefore = fs.statSync(jobFile(id, 'log')).size;
-    const code = await step('testing', process.execPath, ['tools/test/run.js', ...(job.args || [])]);
+    const runner = /^tools\/(test|lab)\/[\w-]+\.js$/.test(job.runner || '') ? job.runner : 'tools/test/run.js';
+    const code = await step('testing', process.execPath, [runner, ...(job.args || [])]);
     const tail = fs.readFileSync(jobFile(id, 'log'), 'utf8').slice(logBefore);
     const m = tail.match(/(\d+) of (\d+) passed\. Report: (.+report\.md)/);
     set({ state: 'done', finished: Date.now(), exitCode: code, step: '',

@@ -6,6 +6,7 @@
 //   npm run lab -- test --branch release-0.5.5  a branch as it is on GitHub (what's pushed is what's tested)
 //   npm run lab -- test --only home,move        anything else goes to the test runner (--only, --group)
 //   npm run lab -- agent                        install or update the lab agent on each machine, and start it
+//   npm run lab -- update [--draft dir | --dry] the portable updating itself on the Windows machine's test stick
 // Results: tools/test/results/lab-<date and time>/summary.md, with each machine's own report beside it.
 // Uses the PC's lab key (~/.ssh/e2k-lab, made by make-setup-stick.ps1); the machines accept nothing else.
 const { spawn } = require('child_process');
@@ -154,7 +155,12 @@ async function agent() {
 async function test() {
   const ms = chosen();
   const branch = takeOpt('--branch') || 'main';
-  const testArgs = args.slice();
+  return runJobs(ms, { branch, testArgs: args.slice() });
+}
+
+// Hands a job to each machine's agent, follows it, copies its report back, and writes one summary.
+// runner: the script the agent runs (default the test suite); title: the summary's heading.
+async function runJobs(ms, { branch, testArgs, runner, title = 'Lab test run' }) {
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
   const id = `${stamp}-${Math.random().toString(36).slice(2, 6)}`;
   const OUT = path.join(REPO, 'tools', 'test', 'results', `lab-${stamp}`);
@@ -174,7 +180,7 @@ async function test() {
     const st = parse(sr.out);
     if (!st) { say(red(notInstalled(sr.err) ? 'the lab agent isn\'t installed (npm run lab -- agent)' : 'not reachable')); return { m, state: 'unreachable' }; }
     if (!st.agent) { say(red('the lab agent isn\'t running (npm run lab -- agent)')); return { m, state: 'no agent', os: st.os }; }
-    const job = Buffer.from(JSON.stringify({ id, kind: 'test', branch, args: testArgs })).toString('base64');
+    const job = Buffer.from(JSON.stringify({ id, kind: 'test', branch, args: testArgs, runner })).toString('base64');
     if ((await agentCmd(m, 'submit', job)).code) { say(red('couldn\'t hand over the job')); return { m, state: 'failed', os: st.os }; }
     let offset = 0, step = '', state = {}, misses = 0, partial = '';
     for (;;) {
@@ -207,7 +213,7 @@ async function test() {
   }));
 
   // One summary for all three.
-  const lines = [`# Lab test run: ${new Date().toLocaleString()}`, '', `Branch \`${branch}\`${testArgs.length ? `, \`${testArgs.join(' ')}\`` : ''}.`, '',
+  const lines = [`# ${title}: ${new Date().toLocaleString()}`, '', `Branch \`${branch}\`${testArgs.length ? `, \`${testArgs.join(' ')}\`` : ''}.`, '',
     '| Machine | System | Code | Result | Report |', '|---|---|---|---|---|'];
   const failures = [];
   for (const r of results) {
@@ -227,9 +233,76 @@ async function test() {
   process.exit(allOk ? 0 : 1);
 }
 
-const COMMANDS = { status, test, agent };
+// --- update: the portable updating itself on the Windows machine's test stick -----------------------------------------
+// The released version's own update code (from its tag) against the new release's files, served on that machine as a
+// stand-in for GitHub, on both test-stick partitions. The new release's files come from --draft (default dist/, where a
+// build leaves portable.yml and the .exe); --dry uses the released .exe under the next version's name instead, to try
+// the test itself (its version isn't checked, and the cleanup is the released version's own).
+//   npm run lab -- update [--from v0.5.4-beta] [--draft <folder> | --dry]
+async function update() {
+  const tag = takeOpt('--from') || 'v0.5.4-beta';
+  const oldVersion = tag.replace(/^v/, '');
+  const draft = takeOpt('--draft') || path.join(REPO, 'dist');
+  const dry = args.includes('--dry');
+  const ms = MACHINES.filter((m) => m.platform === 'win32');
+  const CACHE = path.join(REPO, 'tools', 'test', 'results', 'lab-update-cache', tag);
+  fs.mkdirSync(CACHE, { recursive: true });
+  // The released portable and its update code.
+  let old = fs.readdirSync(CACHE).find((f) => /-Portable-.+\.exe$/.test(f));
+  if (!old) {
+    console.log(`Downloading ${tag}'s portable from GitHub...`);
+    const r = await exec('gh', ['release', 'download', tag, '-R', 'sburton0/encyclopedia-2000', '-p', 'Encyclopedia-2000-Portable-*.exe', '-D', CACHE], null, 600000);
+    old = fs.readdirSync(CACHE).find((f) => /-Portable-.+\.exe$/.test(f));
+    if (!old) { console.error(red(`Couldn't download ${tag}'s portable: ${r.err}`)); process.exit(1); }
+  }
+  const code = await exec('git', ['-C', REPO, 'show', `${tag}:portable-update.js`]);
+  if (code.code) { console.error(red(`${tag} has no portable-update.js`)); process.exit(1); }
+  fs.writeFileSync(path.join(CACHE, 'portable-update.js'), code.out);
+  // The new release's files.
+  let NEW;
+  if (dry) {
+    NEW = path.join(CACHE, 'dry');
+    fs.mkdirSync(NEW, { recursive: true });
+    const next = oldVersion.replace(/(\d+)(-|$)/, (_, n, e) => `${Number(n) + 1}${e}`);
+    const file = old.replace(oldVersion, next);
+    if (!fs.existsSync(path.join(NEW, file))) fs.copyFileSync(path.join(CACHE, old), path.join(NEW, file));
+    const b = fs.readFileSync(path.join(NEW, file));
+    fs.writeFileSync(path.join(NEW, 'portable.yml'), `version: ${next}
+file: ${file}
+sha512: ${require('crypto').createHash('sha512').update(b).digest('base64')}
+size: ${b.length}
+`);
+  } else NEW = draft;
+  const yml = path.join(NEW, 'portable.yml');
+  if (!fs.existsSync(yml)) { console.error(red(`No portable.yml in ${NEW}: build the release first, or use --dry`)); process.exit(1); }
+  const newFile = (fs.readFileSync(yml, 'utf8').match(/^file:\s*(.+)$/m) || [])[1]?.trim();
+  if (!newFile || !fs.existsSync(path.join(NEW, newFile))) { console.error(red(`${NEW} doesn't have ${newFile || 'the .exe portable.yml names'}`)); process.exit(1); }
+  // Over to the Windows machine (files it already has, at the same size, aren't sent again).
+  for (const m of ms) {
+    const mk = await ssh(m, 'New-Item -ItemType Directory -Force e2k-lab/update/old, e2k-lab/update/new | Out-Null; Get-ChildItem -Recurse -File e2k-lab/update | ForEach-Object { "$($_.Name)|$($_.Length)" }');
+    if (mk.code) { console.error(red(`${m.name}: not reachable`)); process.exit(1); }
+    const have = new Set(mk.out.split(/\r?\n/).filter(Boolean));
+    const send = async (local, remote) => {
+      if (have.has(`${path.basename(remote)}|${fs.statSync(local).size}`) && !/\.(js|yml)$/.test(remote)) return;
+      console.log(dim(`  copying ${path.basename(local)} to ${m.name}...`));
+      const r = await scpTo(m, local, remote);
+      if (r.code) { console.error(red(`copying failed: ${r.err}`)); process.exit(1); }
+    };
+    await send(path.join(CACHE, old), `e2k-lab/update/old/${old}`);
+    await send(path.join(CACHE, 'portable-update.js'), 'e2k-lab/update/portable-update.js');
+    await ssh(m, 'Get-ChildItem e2k-lab/update/new | Remove-Item -Force');
+    await send(yml, 'e2k-lab/update/new/portable.yml');
+    await send(path.join(NEW, newFile), `e2k-lab/update/new/${newFile}`);
+  }
+  return runJobs(ms, {
+    branch: 'main', runner: 'tools/lab/update-portable.js', title: `Portable self-update, ${old} → ${newFile}${dry ? ' (dry run)' : ''}`,
+    testArgs: ['--code', 'e2k-lab/update/portable-update.js', '--old', `e2k-lab/update/old/${old}`, '--old-version', oldVersion, '--files', 'e2k-lab/update/new', ...(dry ? ['--dry'] : [])],
+  });
+}
+
+const COMMANDS = { status, test, agent, update };
 if (!COMMANDS[command]) {
-  console.error(`Unknown command "${command}". Commands: ${Object.keys(COMMANDS).join(', ')} (install, usb, update and downloads come later).`);
+  console.error(`Unknown command "${command}". Commands: ${Object.keys(COMMANDS).join(', ')} (install, usb and downloads come later).`);
   process.exit(2);
 }
 if (!fs.existsSync(KEY)) { console.error(`The PC's lab key is missing (${KEY}): run tools/lab/make-setup-stick.ps1 once.`); process.exit(2); }
