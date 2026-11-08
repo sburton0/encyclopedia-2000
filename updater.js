@@ -3,7 +3,6 @@
 // "Restart Now" in the status bar. Updates that are ignored install when the app is closed.
 // The check contacts GitHub only; nothing about the user is sent. It can be turned off in Tools > Options > Privacy.
 const { app, ipcMain, shell } = require('electron');
-const path = require('path');
 
 // The portable version can't replace itself, so it only tells people a new version exists and links to the download page.
 // The same goes for Linux's .deb package, which needs an administrator password to update. (An AppImage could update
@@ -14,6 +13,8 @@ const KIND = process.platform === 'linux' ? 'deb' : 'portable';
 // chooses (see selfUpdate). Never true for the installed app, a Mac, or Linux, which keep the behavior below unchanged.
 const SELF = process.platform === 'win32' && !!process.env.PORTABLE_EXECUTABLE_DIR && !!process.env.PORTABLE_EXECUTABLE_FILE;
 const DOWNLOADS = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
+// The lab test's stand-in for GitHub (see setup): accepted only at this computer's own address.
+const TEST_FEED = /^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.E2K_UPDATE_TEST_FEED || '') ? process.env.E2K_UPDATE_TEST_FEED : '';
 
 const FIRST_CHECK = 8 * 1000;
 const EVERY = 6 * 60 * 60 * 1000;
@@ -46,6 +47,10 @@ function setup({ getWindow, isEnabled, quitForUpdate, getSettings }) {
   }
 
   const { autoUpdater } = require('electron-updater');
+  // The lab's test of the portable updating itself (tools/lab/update-portable.js) points it at a stand-in for GitHub on
+  // the same computer. Only for the portable, and only on this computer: nothing is installed unless it's signed by
+  // Scott Burton and matches its portable.yml, the same as from GitHub.
+  if (SELF && TEST_FEED) autoUpdater.setFeedURL({ provider: 'generic', url: TEST_FEED });
   autoUpdater.allowPrerelease = true; // every release is a beta for now
   autoUpdater.autoDownload = !PORTABLE;
   autoUpdater.autoInstallOnAppQuit = !PORTABLE;
@@ -88,13 +93,13 @@ function setup({ getWindow, isEnabled, quitForUpdate, getSettings }) {
 // - off: the status bar says a new version exists, with Download; Restart Now then switches to it, and a downloaded
 //   update waits on the drive (offered again at each start) until then.
 // - on: like the installed app: it downloads by itself, offers Restart Now, and installs when the app closes.
-// Install on Close (or the automatic setting) installs a downloaded update when the app closes; Help › Check for Updates
+// Update on Close (or the automatic setting) switches to a downloaded update when the app closes; Help › Check for Updates
 // can also delete it, and a version the user deleted isn't downloaded again by itself. A release without portable.yml falls back to the download page, and so does a drive that
 // can't be written to. The previous version is deleted only once the new one has started and drawn its first screen.
 function selfUpdate({ send, getState, setState, quitForUpdate, getSettings }) {
   const pu = require('./portable-update');
   const exe = process.env.PORTABLE_EXECUTABLE_FILE;
-  let job = null, offered = null, onQuit = false, restartTo = null;
+  let job = null, offered = null, onQuit = false, restart = null;
   const declined = new Set(), toldFailure = new Set();
   pu.cleanupPending(exe);
   ipcMain.once('update:started', () => setTimeout(() => pu.removePrevious(exe, { current: app.getVersion() }), 3000));
@@ -118,12 +123,15 @@ function selfUpdate({ send, getState, setState, quitForUpdate, getSettings }) {
     try {
       await pu.download(exe, offered, { onProgress: (percent) => send({ state: 'downloading', version: offered.version, percent, self: true }) });
       send({ state: 'ready', version: offered.version, self: true });
+      // The lab test presses Restart Now this way (with its stand-in for GitHub only).
+      if (TEST_FEED && process.env.E2K_UPDATE_TEST_RESTART) setTimeout(() => self.install(), 1000);
     } catch (e) { fail(available(), e.message); } finally { job = null; }
   }
   // Installs a downloaded update as the app closes: on Restart Now (and then starts it), or, when asked to, at any close.
+  // A helper does it once the portable's launcher has quit (see swapAfterExit in portable-update.js).
   app.on('will-quit', () => {
-    if (restartTo) return void require('child_process').spawn(restartTo, [], { detached: true, stdio: 'ignore', cwd: path.dirname(restartTo) }).unref();
-    if (getState().state === 'ready' && (onQuit || auto())) { try { pu.swap(exe, app.getVersion()); } catch {} }
+    if (!restart && !(getState().state === 'ready' && (onQuit || auto()))) return;
+    try { pu.swapAfterExit(exe, app.getVersion(), { start: !!restart, info: restart }); } catch {}
   });
   const ipc = (name, fn) => ipcMain.handle(`update:${name}`, fn);
   ipc('download', async () => { await download(); return getState(); });
@@ -142,12 +150,12 @@ function selfUpdate({ send, getState, setState, quitForUpdate, getSettings }) {
     if (s.state === 'available' && s.self && set.autoUpdate === false) send({ state: 'none' });
     else if (s.state === 'available' && s.self && auto() && !s.readonly && !declined.has(s.version)) download();
   });
-  return {
+  const self = {
     busy: () => !!job || getState().state === 'ready',
     async offer(i) {
       if (getState().state === 'ready' || job) return;
       let m = null;
-      try { m = await pu.manifest(i.version); } catch {}
+      try { m = await pu.manifest(i.version, ...(TEST_FEED ? [`${TEST_FEED}/v${i.version}`] : [])); } catch {}
       if (!m) return send({ state: 'available', version: i.version, kind: KIND, file: '' });
       offered = { ...m, version: i.version };
       const a = available();
@@ -158,15 +166,14 @@ function selfUpdate({ send, getState, setState, quitForUpdate, getSettings }) {
       if (s.state === 'available' && (!s.self || s.readonly)) return shell.openExternal(DOWNLOADS);
       if (s.state === 'available') return download();
       if (s.state !== 'ready') return;
-      try {
-        restartTo = pu.swap(exe, app.getVersion());
-        quitForUpdate();
-      } catch (e) {
-        pu.discard(exe);
-        fail(offered ? available() : { state: 'none', version: s.version }, e.message);
-      }
+      // Checked once more now, so a damaged update is told here rather than found after the app has closed.
+      const info = pu.ready(exe);
+      if (!info) return fail(offered ? available() : { state: 'none', version: s.version }, 'The downloaded update is missing or damaged. Check for updates to download it again.');
+      restart = info;
+      quitForUpdate();
     },
   };
+  return self;
 }
 
 module.exports = { setup, SELF };

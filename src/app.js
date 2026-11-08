@@ -1630,7 +1630,7 @@
   // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
   const updateBar = $('#updatebar');
   // The Windows portable updates itself on its drive, as the user chose on its first run (updater.js): Download (unless
-  // it downloads by itself), then Restart Now or Install on Close. ✕ hides a version's notice until the next one.
+  // it downloads by itself), then Restart Now or Update on Close. ✕ hides a version's notice until the next one.
   // Everything else (the installed app, Mac, Linux) is handled after this, as before.
   const releasePage = (version) => window.e2k.openExternal(`https://github.com/sburton0/encyclopedia-2000/releases/tag/v${version}`);
   function showSelfUpdate(s) {
@@ -1646,8 +1646,8 @@
       updateBar.title = '';
     } else if (s.state === 'ready' && !s.onQuit) {
       updateBar.replaceChildren(`Version ${v} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'),
-        h('button', { onclick: () => window.e2k.update.installOnQuit() }, 'Install on Close'));
-      updateBar.title = 'Restart Now starts the new version; Install on Close switches to it when you close Encyclopedia 2000.';
+        h('button', { onclick: () => window.e2k.update.installOnQuit() }, 'Update on Close'));
+      updateBar.title = 'Restart Now starts the new version; Update on Close switches to it when you close Encyclopedia 2000.';
     } else shown = false;
     updateBar.hidden = !shown;
     if (s.failed) dialog('Update Encyclopedia 2000', 'The update couldn’t be finished', [s.failed,
@@ -1674,8 +1674,8 @@
     if (s.state === 'ready') {
       return dialog(title, 'An update is ready', [
         `Version ${v} is downloaded and saved on this drive, next to the version you’re using.`,
-        'Restart now to start using it, or it installs when you close Encyclopedia 2000. If you’d rather not have it, delete it.'],
-      [['Restart Now', () => window.e2k.update.install(), true], ['Install on Close', () => window.e2k.update.installOnQuit()], ['Delete Update', () => window.e2k.update.discard()]]);
+        'Restart now to start using it, or it takes this version’s place when you close Encyclopedia 2000. If you’d rather not have it, delete it.'],
+      [['Restart Now', () => window.e2k.update.install(), true], ['Update on Close', () => window.e2k.update.installOnQuit()], ['Delete Update', () => window.e2k.update.discard()]]);
     }
     return dialog(title, 'An update is on its way', [`Version ${v} is downloading. Restart Now appears in the status bar when it’s ready.`]);
   }
