@@ -266,8 +266,9 @@ d_stick() {
   say "          Everything on $d will be erased."
   local ans; read -rp "          Type ERASE to format it, or press Enter to skip: " ans
   [ "$ans" = "ERASE" ] || { RESULT="later: skipped (nothing was changed)"; return 0; }
-  sudo diskutil partitionDisk "$d" MBR "MS-DOS FAT32" "$FAT" "${FATGB}G" ExFAT "$MAIN" R &&
-  for v in "/Volumes/$MAIN" "/Volumes/$FAT"; do sudo mdutil -i off -d "$v" >/dev/null 2>&1; done; true
+  sudo diskutil partitionDisk "$d" MBR "MS-DOS FAT32" "$FAT" "${FATGB}G" ExFAT "$MAIN" R || return 1
+  for v in "/Volumes/$MAIN" "/Volumes/$FAT"; do sudo mdutil -i off -d "$v" >/dev/null 2>&1; done
+  return 0
 }
 step "Test stick: $MAIN (exFAT) and $FAT (FAT32, $FATGB GB)" t_stick d_stick
 
