@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
-const { spawn, execFileSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 
 const args = process.argv.slice(2);
 const opt = (k) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : null; };
@@ -39,7 +39,11 @@ const run = (exe, a, opts = {}) => new Promise((resolve) => {   // output goes t
   child.on('close', (code) => resolve({ code, out }));
   child.on('error', (e) => resolve({ code: 1, out: e.message }));
 });
-const sh = (exe, a) => { try { return { ok: true, out: execFileSync(exe, a, { env: ENV, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e) { return { ok: false, out: `${e.stdout || ''}${e.stderr || ''}` || e.message }; } };
+// Both output streams: spctl, codesign, and stapler print their verdicts on the error stream.
+const sh = (exe, a) => {
+  const r = spawnSync(exe, a, { env: ENV, encoding: 'utf8' });
+  return { ok: r.status === 0, out: `${r.stdout || ''}${r.stderr || ''}` || (r.error && r.error.message) || '' };
+};
 const sha512 = (f) => crypto.createHash('sha512').update(fs.readFileSync(f)).digest('base64');
 
 (async () => {
