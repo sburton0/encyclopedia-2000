@@ -15,8 +15,11 @@ if (-not (Test-Path $key)) {
   Write-Host "Made the PC's lab key: $key"
 }
 
-$sticks = @(Get-Volume | Where-Object { $_.DriveType -eq 'Removable' -and $_.DriveLetter } | Sort-Object DriveLetter)
-if (-not $sticks.Count) { throw 'Plug in a USB stick first.' }
+# Any drive on USB: sticks show as removable, but external SSDs and hard drives often show as fixed disks.
+$usb = @(Get-Disk | Where-Object { $_.BusType -eq 'USB' } | ForEach-Object { $_.Number })
+$sticks = @(Get-Volume | Where-Object { $_.DriveLetter -and ($_.DriveType -eq 'Removable' -or
+  $usb -contains (Get-Partition -DriveLetter $_.DriveLetter -ErrorAction SilentlyContinue).DiskNumber) } | Sort-Object DriveLetter)
+if (-not $sticks.Count) { throw 'Plug in a USB stick or drive first.' }
 foreach ($v in $sticks) { Write-Host ("  {0}:  {1}  ({2:N1} GB free)" -f $v.DriveLetter, $(if ($v.FileSystemLabel) { $v.FileSystemLabel } else { '(no name)' }), ($v.SizeRemaining / 1GB)) }
 $letter = if ($sticks.Count -eq 1) { [string]$sticks[0].DriveLetter } else { (Read-Host 'Which drive letter is the setup stick?').Trim(':', ' ') }
 if (-not ($sticks | Where-Object { [string]$_.DriveLetter -eq $letter })) { throw "No USB stick at $letter`:" }
