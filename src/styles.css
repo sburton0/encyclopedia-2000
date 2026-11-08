@@ -904,11 +904,3 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
   .sc-choice.wrong { border-style: dashed !important; }
   :focus-visible { outline: 2px solid Highlight !important; outline-offset: 1px; }
 }
-
-/* macOS draws light text on dark backgrounds heavier than Windows does, so on a low-resolution screen the small labels on
-   Home, the article rail, and the bands swell and run together, and dark glows behind them bleed into the letters.
-   On a Mac: thinner text drawing, and lighter shadows behind those labels. (Windows and Linux keep theirs.) */
-[data-platform="darwin"] { -webkit-font-smoothing: antialiased; }
-[data-platform="darwin"] .home .orb { text-shadow: 0 1px 2px rgba(0, 0, 0, .6); }
-[data-platform="darwin"] .home .dialcap { text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
-[data-platform="darwin"] .band h1 { text-shadow: 0 1px 2px rgba(0, 0, 0, .3); }
