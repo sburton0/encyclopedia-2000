@@ -7,6 +7,7 @@
 //   npm run lab -- test --only home,move        anything else goes to the test runner (--only, --group)
 //   npm run lab -- agent                        install or update the lab agent on each machine, and start it
 //   npm run lab -- update [--draft dir | --dry] the portable updating itself on the Windows machine's test stick
+//   npm run lab -- build-mac [--branch b] [--upload tag]  the Mac release, built and checked on the M2 build machine
 // Results: tools/test/results/lab-<date and time>/summary.md, with each machine's own report beside it.
 // Uses the PC's lab key (~/.ssh/e2k-lab, made by make-setup-stick.ps1); the machines accept nothing else.
 const { spawn } = require('child_process');
@@ -18,9 +19,11 @@ const LAB = __dirname;
 const REPO = path.resolve(LAB, '..', '..');
 const SETTINGS = JSON.parse(fs.readFileSync(path.join(LAB, 'lab-settings.json'), 'utf8'));
 const KEY = path.join(os.homedir(), '.ssh', 'e2k-lab');
-const ALIAS = { win: 'win32', windows: 'win32', mac: 'darwin', macos: 'darwin', linux: 'linux' };
+const ALIAS = { win: 'win32', windows: 'win32', mac: 'darwin', macos: 'darwin', linux: 'linux', build: 'build' };
 const SHORT = { win32: 'win', darwin: 'mac', linux: 'linux' };
-const MACHINES = Object.keys(SETTINGS.machines).map((p) => ({ platform: p, short: SHORT[p], name: SETTINGS.machines[p], addr: SETTINGS.addresses[p] }));
+const MACHINES = Object.keys(SETTINGS.machines).map((p) => ({ platform: p, short: SHORT[p], name: SETTINGS.machines[p], addr: SETTINGS.addresses[p], user: SETTINGS.account }));
+// The Mac build machine (the M2): only for builds (--on build), with its own account and its own copy of the code.
+const BUILD = SETTINGS.build && { platform: 'darwin', short: 'build', name: SETTINGS.build.name, addr: SETTINGS.build.address, user: SETTINGS.build.account, repo: SETTINGS.build.repo, build: true };
 
 const args = process.argv.slice(2);
 const command = args.shift() || 'status';
@@ -47,9 +50,9 @@ function exec(exe, argv, input, timeout = 120000) {
     if (input != null) child.stdin.end(input); else child.stdin.end();
   });
 }
-const ssh = (m, cmd, input, timeout) => exec('ssh', [...SSH_OPTS, `e2k@${m.addr}`, cmd], input, timeout);
-const scpTo = (m, local, remote) => exec('scp', [...SSH_OPTS, local, `e2k@${m.addr}:${remote}`]);
-const scpFrom = (m, remote, local) => exec('scp', [...SSH_OPTS, '-r', `e2k@${m.addr}:${remote}`, local], null, 600000);
+const ssh = (m, cmd, input, timeout) => exec('ssh', [...SSH_OPTS, `${m.user}@${m.addr}`, cmd], input, timeout);
+const scpTo = (m, local, remote) => exec('scp', [...SSH_OPTS, local, `${m.user}@${m.addr}:${remote}`]);
+const scpFrom = (m, remote, local) => exec('scp', [...SSH_OPTS, '-r', `${m.user}@${m.addr}:${remote}`, local], null, 600000);
 // The agent's commands (the SSH session starts in the home folder on all three).
 // Node's full path on the Mac and Linux, where an SSH session's PATH may not include /usr/local/bin.
 const NODE = { win32: 'node', darwin: '/usr/local/bin/node', linux: '/usr/local/bin/node' };
@@ -57,18 +60,20 @@ const agentCmd = (m, ...a) => ssh(m, `${NODE[m.platform]} e2k-lab/agent.js ${a.j
 const notInstalled = (text) => /MODULE_NOT_FOUND|Cannot find module/.test(text);
 const parse = (s) => { try { return JSON.parse(s.trim().split('\n').pop()); } catch { return null; } };
 
-function chosen() {
+// The machines to use: --on win,mac,linux,build; without it, the three test machines (and the build machine too, for
+// status and agent).
+function chosen({ withBuild = false } = {}) {
   const on = takeOpt('--on');
-  if (!on) return MACHINES;
+  if (!on) return withBuild && BUILD ? [...MACHINES, BUILD] : MACHINES;
   const want = on.split(',').map((s) => ALIAS[s.trim().toLowerCase()] || s.trim());
-  const bad = want.filter((p) => !SETTINGS.machines[p]);
-  if (bad.length) { console.error(`Unknown machine: ${bad.join(', ')} (use win, mac, linux)`); process.exit(2); }
-  return MACHINES.filter((m) => want.includes(m.platform));
+  const bad = want.filter((p) => !SETTINGS.machines[p] && !(p === 'build' && BUILD));
+  if (bad.length) { console.error(`Unknown machine: ${bad.join(', ')} (use win, mac, linux, build)`); process.exit(2); }
+  return [...MACHINES.filter((m) => want.includes(m.platform)), ...(want.includes('build') && BUILD ? [BUILD] : [])];
 }
 
 // --- status ----------------------------------------------------------------------------------------------------------
 async function status() {
-  const ms = chosen();
+  const ms = chosen({ withBuild: true });
   const rows = await Promise.all(ms.map(async (m) => {
     const r = await agentCmd(m, 'status');
     const s = r.code === 0 ? parse(r.out) : null;
@@ -131,12 +136,16 @@ DISPLAY=:0 XAUTHORITY="$HOME/.Xauthority" DBUS_SESSION_BUS_ADDRESS="unix:path=/r
 echo started`,
 };
 async function agent() {
-  const ms = chosen();
+  const ms = chosen({ withBuild: true });
   await Promise.all(ms.map(async (m) => {
     const mk = m.platform === 'win32' ? await ssh(m, 'New-Item -ItemType Directory -Force e2k-lab | Out-Null') : await ssh(m, 'mkdir -p e2k-lab');
     if (mk.code) return console.log(`${m.name}: ${red('not reachable')} ${dim(mk.err)}`);
     const cp = await scpTo(m, path.join(LAB, 'agent.js'), 'e2k-lab/agent.js');
     if (cp.code) return console.log(`${m.name}: ${red('copying the agent failed')} ${dim(cp.err)}`);
+    // Where that machine keeps the app's code (the build machine has its own copy).
+    const cfg = path.join(os.tmpdir(), `e2k-lab-config-${m.short}.json`);
+    fs.writeFileSync(cfg, JSON.stringify({ repo: m.repo || 'e2k' }));
+    await scpTo(m, cfg, 'e2k-lab/config.json');
     const r = m.platform === 'win32'
       ? await ssh(m, `powershell -NoProfile -EncodedCommand ${Buffer.from(START.win32, 'utf16le').toString('base64')}`)
       : await ssh(m, 'bash -s', START[m.platform]);
@@ -301,7 +310,19 @@ size: ${b.length}
   });
 }
 
-const COMMANDS = { status, test, agent, update };
+// --- build-mac: the Mac release, built on the Mac build machine (the M2) -------------------------------------------------
+// Tests, builds, signs, notarizes, and checks the branch there (tools/lab/build-mac.js, run by its agent in the signed-in
+// desktop session). Nothing goes to GitHub unless --upload names the draft.
+//   npm run lab -- build-mac [--branch release-0.5.5] [--skip-tests] [--upload v0.5.5-beta]
+async function buildMac() {
+  if (!BUILD) { console.error(red('No build machine in lab-settings.json ("build").')); process.exit(2); }
+  const branch = takeOpt('--branch') || 'main';
+  const upload = takeOpt('--upload');
+  const testArgs = ['--script', SETTINGS.build.releaseScript, ...(args.includes('--skip-tests') ? ['--skip-tests'] : []), ...(upload ? ['--upload', upload] : [])];
+  return runJobs([BUILD], { branch, runner: 'tools/lab/build-mac.js', testArgs, title: `Mac build of ${branch}${upload ? `, uploaded to ${upload}` : ''}` });
+}
+
+const COMMANDS = { status, test, agent, update, 'build-mac': buildMac };
 if (!COMMANDS[command]) {
   console.error(`Unknown command "${command}". Commands: ${Object.keys(COMMANDS).join(', ')} (install, usb and downloads come later).`);
   process.exit(2);

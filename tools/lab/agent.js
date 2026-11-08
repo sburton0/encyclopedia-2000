@@ -17,11 +17,12 @@ const os = require('os');
 const path = require('path');
 const { spawn, execFileSync } = require('child_process');
 
-const VERSION = 2;
+const VERSION = 3;
 const HOME = os.homedir();
 const LAB = path.join(HOME, 'e2k-lab');
 const JOBS = path.join(LAB, 'jobs');
-const REPO = path.join(HOME, 'e2k');
+// The app's code: ~/e2k, or the folder in ~/e2k-lab/config.json (the build machine's own copy, ~/e2k-build).
+const REPO = path.join(HOME, (() => { try { return JSON.parse(fs.readFileSync(path.join(LAB, 'config.json'), 'utf8')).repo; } catch { return ''; } })() || 'e2k');
 const BEAT = path.join(LAB, 'agent.json');
 const WIN = process.platform === 'win32';
 fs.mkdirSync(JOBS, { recursive: true });

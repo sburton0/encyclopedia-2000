@@ -2,13 +2,15 @@
 # Sets up a Mac (macOS Sonoma, here through OpenCore Legacy Patcher) as the lab's Mac test computer ("e2k-mac"); see
 # mockups/lab/test-lab-plan.md. Run it signed in as "e2k", in Terminal on the Mac itself (not over SSH), from the setup
 # stick made by make-setup-stick.ps1 on the PC:   bash setup-mac.sh        (or "bash setup-mac.sh --check")
+# On the Mac build machine (the M2): bash setup-mac.sh --build (its own account, named e2k-build, code in ~/e2k-build).
 # It asks for e2k's password (for sudo, and for automatic sign-in), then goes through each step, skipping what's
 # already done, so it can be run again at any time. macOS keeps some choices for a person to click (letting RustDesk
 # see and control the screen, Remote Login if a script may not turn it on); for those it opens the right settings page,
 # says what to click, and waits.
 #
 # Written for the bash 3.2 that comes with macOS, and needs nothing installed first.
-CHECK=0; [ "${1:-}" = "--check" ] && CHECK=1
+CHECK=0; BUILD=0
+for a in "$@"; do case "$a" in --check) CHECK=1 ;; --build) BUILD=1 ;; esac; done
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STATE="$HOME/.local/state/e2k-lab"; mkdir -p "$STATE"
 
@@ -18,9 +20,12 @@ for f in "$HERE/lab-settings.json" "$HOME/e2k/tools/lab/lab-settings.json"; do [
 [ -n "$SETTINGS" ] || { echo "lab-settings.json is missing: make the setup stick again with make-setup-stick.ps1."; exit 1; }
 setting() { plutil -extract "$1" raw -o - "$SETTINGS"; }
 ACCOUNT="$(setting account)"; NAME="$(setting machines.darwin)"; REPO_URL="$(setting repo)"
+# --build: the Mac build machine (the M2): its own account, its own name, and its own copy of the code.
+[ $BUILD = 1 ] && { ACCOUNT="$(id -un)"; NAME="$(setting build.name)"; }
 W="$(setting screen.width)"; H="$(setting screen.height)"
 MAIN="$(setting stick.main)"; FAT="$(setting stick.fat32)"; FATGB="$(setting stick.fat32SizeGB)"
 REPO="$HOME/e2k"
+[ $BUILD = 1 ] && REPO="$HOME/$(setting build.repo)"
 [ "$(id -un)" = "$ACCOUNT" ] || { echo "Sign in as \"$ACCOUNT\" and run this again (signed in as \"$(id -un)\")."; exit 1; }
 
 say()  { printf '%s\n' "$*"; }
@@ -96,7 +101,7 @@ d_updates() {
   sudo defaults write $SU AutomaticDownload -bool false &&
   sudo defaults write $SU CriticalUpdateInstall -bool true   # security data files still update
 }
-step "macOS updates only by hand (an update can undo OpenCore Legacy Patcher's patches)" t_updates d_updates
+step "macOS updates only by hand (an update can undo OpenCore Legacy Patcher's patches, or stop a build halfway)" t_updates d_updates
 
 t_spotlight() { mdutil -s / 2>/dev/null | grep -q 'disabled'; }
 d_spotlight() { sudo mdutil -a -i off >/dev/null; }
@@ -162,7 +167,7 @@ t_rd() { [ -d "$RD" ]; }
 d_rd() {
   local info url name sum tmp mnt
   info=$(curl -fsSL -H 'User-Agent: e2k-lab-setup' https://api.github.com/repos/rustdesk/rustdesk/releases/latest |
-    perl -0777 -ne 'while (/"name":\s*"(rustdesk-[\d.]+-x86_64\.dmg)".*?"digest":\s*"sha256:([0-9a-f]+)".*?"browser_download_url":\s*"([^"]+)"/sg) { print "$3 $1 $2"; exit }') || return 1
+    RDARCH="$( [ "$(uname -m)" = arm64 ] && echo aarch64 || echo x86_64 )" perl -0777 -ne 'while (/"name":\s*"(rustdesk-[\d.]+-$ENV{RDARCH}\.dmg)".*?"digest":\s*"sha256:([0-9a-f]+)".*?"browser_download_url":\s*"([^"]+)"/sg) { print "$3 $1 $2"; exit }') || return 1
   read -r url name sum <<<"$info"
   [ -n "$url" ] && [ -n "$sum" ] || { RESULT="later: couldn't find the Mac download (with its checksum) in the latest RustDesk release"; return 0; }
   tmp=$(mktemp -d); note "Downloading $name from github.com/rustdesk/rustdesk"
@@ -197,7 +202,7 @@ d_screen() {
   open "x-apple.systempreferences:com.apple.Displays-Settings.extension"
   RESULT="later: choose ${W} x ${H} in Displays (Show all resolutions), if the display offers it (is the HDMI dummy plug in?)"
 }
-step "Screen is ${W}x${H} (the desk monitor's size)" t_screen d_screen
+[ $BUILD = 0 ] && step "Screen is ${W}x${H} (the desk monitor's size)" t_screen d_screen
 
 t_repo() { [ -d "$REPO/.git" ]; }
 d_repo() { t_clt || { RESULT="later: needs Git"; return 0; }; git clone "$REPO_URL" "$REPO"; }
@@ -256,7 +261,7 @@ d_stick() {
   for v in "/Volumes/$MAIN" "/Volumes/$FAT"; do sudo mdutil -i off -d "$v" >/dev/null 2>&1; done
   return 0
 }
-step "Test stick: $MAIN (exFAT) and $FAT (FAT32, $FATGB GB)" t_stick d_stick
+[ $BUILD = 0 ] && step "Test stick: $MAIN (exFAT) and $FAT (FAT32, $FATGB GB)" t_stick d_stick
 
 # --- Run them --------------------------------------------------------------------------------------------------------
 G=$'\e[32m'; Y=$'\e[33m'; R=$'\e[31m'; C=$'\e[36m'; N=$'\e[0m'
