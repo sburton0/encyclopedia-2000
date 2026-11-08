@@ -342,7 +342,8 @@ Step "Test stick: $main (exFAT) and $fat (FAT32, $fatGB GB)" {
   Write-Host ("  Everything on disk {0} ({1}, {2:N1} GB) will be erased." -f $disk.Number, $disk.FriendlyName, ($disk.Size / 1GB)) -ForegroundColor Yellow
   if ((Read-Host '  Type ERASE to format it, or press Enter to skip') -cne 'ERASE') { return 'later: skipped (nothing was changed)' }
   if ($disk.PartitionStyle -ne 'RAW') { Clear-Disk -Number $disk.Number -RemoveData -RemoveOEM -Confirm:$false }
-  Initialize-Disk -Number $disk.Number -PartitionStyle MBR
+  # A removable stick can stay initialized after clearing, and initializing it again would fail.
+  if ((Get-Disk -Number $disk.Number).PartitionStyle -eq 'RAW') { Initialize-Disk -Number $disk.Number -PartitionStyle MBR }
   New-Partition -DiskNumber $disk.Number -Size ([int64]$fatGB * 1GB) -AssignDriveLetter |
     Format-Volume -FileSystem FAT32 -NewFileSystemLabel $fat -Confirm:$false | Out-Null
   New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter |
