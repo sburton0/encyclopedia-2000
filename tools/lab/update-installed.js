@@ -56,7 +56,12 @@ const P = WIN ? {
   yml: '/Applications/Encyclopedia 2000.app/Contents/Resources/app-update.yml',
   data: path.join(HOME, 'Library', 'Application Support', 'encyclopedia-2000'),
   pending: path.join(HOME, 'Library', 'Caches', 'encyclopedia-2000-updater', 'pending'),
+  shipit: path.join(HOME, 'Library', 'Caches', 'com.svid.encyclopedia2000.ShipIt'),
 };
+// The Mac: once electron-updater has the zip, Squirrel.Mac takes it (through a local server), unpacks it, checks its
+// signature, and only then arms ShipIt to install it when the app quits, writing ShipIt's state file. Quitting before
+// that installs nothing (the next quit will). (The unpacked app's Info.plist appears early, while it's still unpacking.)
+const macReady = () => fs.existsSync(path.join(P.shipit, 'ShipItState.plist'));
 const version = () => {
   try {
     return WIN ? sh(`(Get-Item -LiteralPath ${lit(P.exe)}).VersionInfo.ProductVersion`)
@@ -100,13 +105,23 @@ async function installOld() {
     sh(`ditto -x -k ${lit(OLD)} /Applications`, 300000);
   }
   kill();
-  // Only the downloaded update goes; the installer's own copy beside it (Windows) is what a partial download builds on.
-  fs.rmSync(P.pending, { recursive: true, force: true });
+  // Windows: only the downloaded update goes; the installer's own copy beside it is what a partial download builds on.
+  // Mac: the whole cache goes (a partial download builds on the last update's zip, which a fresh install doesn't have),
+  // and Squirrel.Mac's own folder too.
+  // (Also the blockmap electron-updater 6.8.10 on keeps from the last update: after installing an older version over it,
+  // it no longer matches the installer's copy, and the next download would be whole. It doesn't happen when updating.)
+  if (WIN) for (const f of [P.pending, path.join(path.dirname(P.pending), 'current.blockmap')]) fs.rmSync(f, { recursive: true, force: true });
+  else for (const d of [path.dirname(P.pending), P.shipit]) fs.rmSync(d, { recursive: true, force: true });
 }
 
-// The app, started directly (so the test's settings reach it; on the Mac, `open` would drop them).
+// The app, started as a person starts it: on Windows its .exe; on the Mac through Launch Services (`open`, like Finder or
+// the Dock), which Squirrel.Mac's install on quit relies on, with the test's settings passed by `open --env`.
 function start(env = {}) {
   const clean = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('E2K_')));
+  if (MAC) {
+    spawn('/usr/bin/open', ['-n', ...Object.entries(env).flatMap(([k, v]) => ['--env', `${k}=${v}`]), P.app], { env: clean, detached: true, stdio: 'ignore' }).unref();
+    return;
+  }
   spawn(P.exe, [], { env: { ...clean, ...env }, detached: true, stdio: 'ignore', cwd: path.dirname(P.exe) }).unref();
 }
 // The app's test hook: runs a script in the page after a delay, writes its result, and quits.
@@ -176,6 +191,13 @@ const server = http.createServer((req, res) => {
     const ranges = got.filter((e) => e.status === 206).length, bytes = got.reduce((n, e) => n + e.bytes, 0);
     return { ranges, bytes, whole: got.some((e) => e.status === 200), text: `${(bytes / 1048576).toFixed(1)} of ${(newSize / 1048576).toFixed(1)} MB${ranges ? ` in ${ranges} ranges` : ''}` };
   };
+  // Windows builds on the installer's own copy, so a partial download is expected. A fresh Mac install has no earlier
+  // update zip to build on, so there it's only reported.
+  const partial = () => {
+    const d = download();
+    if (WIN) check(`…a partial download (only the changed parts): ${d.text}`, d.ranges > 0 && !d.whole);
+    else check(`…downloaded ${d.text}${d.ranges ? '' : ' (whole: a fresh install has no earlier update to build on)'}`, true);
+  };
 
   for (const how of ['Restart Now', 'Update on Close']) {
     group = how;
@@ -195,17 +217,12 @@ const server = http.createServer((req, res) => {
         start({ E2K_CAPTURE: path.join(RESULTS, 'restart-now.png'), E2K_EVAL: RESTART_NOW, E2K_EVAL_OUT: out, E2K_DELAY: '3000', E2K_EVAL_WAIT: '30000', E2K_MUTE: '1' });
         const ready = await until(() => (readJson(out) || {}).state === 'ready', 16 * 60 * 1000, 2000);
         check(`It finds ${NEW_VERSION} and downloads it by itself`, ready, `${Math.round((Date.now() - t0) / 1000)} s, ${JSON.stringify(readJson(out))}`);
-        check('…a partial download (only the changed parts)', download().ranges > 0 && !download().whole, download().text);
-        console.log(`    downloaded ${download().text}`);
+        partial();
         check(`Restart Now: ${NEW_VERSION} is installed`, await until(() => isVersion(version(), NEW_VERSION), 300000, 2000), version());
-        if (WIN) {
-          // The new version starts by itself with the same test settings, finds nothing new, and reports from the new version.
-          check('…and starts by itself', await until(() => isVersion(agentVersion((readJson(out) || {}).agent), NEW_VERSION), 180000, 2000), JSON.stringify(readJson(out)));
-        } else {
-          check('…and starts by itself', await until(running, 120000, 2000));
-          await sleep(5000);
-        }
-        await until(() => !running(), 90000);
+        // The new version starts by itself (on Windows the installer starts it through its shortcut, so without the test's
+        // settings; it's the installed .exe, which is now the new version).
+        check('…and starts by itself', await until(windowUp, 180000, 2000));
+        await sleep(5000);
         close();
         await until(() => !running(), 30000);
         kill();
@@ -215,10 +232,10 @@ const server = http.createServer((req, res) => {
         const info = path.join(P.pending, 'update-info.json');
         const got = await until(() => ((readJson(info) || {}).fileName || '').includes(NEW_VERSION), 16 * 60 * 1000, 2000);
         check(`It finds ${NEW_VERSION} and downloads it by itself`, got, `${Math.round((Date.now() - t0) / 1000)} s, ${JSON.stringify(readJson(info))}`);
-        check('…a partial download (only the changed parts)', download().ranges > 0 && !download().whole, download().text);
-        console.log(`    downloaded ${download().text}`);
+        partial();
         // (On the Mac, electron-updater then hands the download to Squirrel.Mac, which fetches it once more, locally.)
-        await sleep(MAC ? 20000 : 5000);
+        if (MAC) check('…and Squirrel.Mac has it ready', await until(macReady, 300000, 2000));
+        await sleep(5000);
         close();
         check(`Closing it installs ${NEW_VERSION}`, await until(() => isVersion(version(), NEW_VERSION) && !running(), 300000, 2000), version());
         await sleep(3000);
@@ -248,6 +265,6 @@ const server = http.createServer((req, res) => {
     md.push('');
   }
   fs.writeFileSync(path.join(RESULTS, 'report.md'), md.join('\n'));
-  console.log(`  ${passed} of ${groups.length} passed. Report: ${RESULTS}`);
+  console.log(`  ${passed} of ${groups.length} passed. Report: ${path.join(RESULTS, 'report.md')}`);
   process.exit(bad.size ? 1 : 0);
 })().catch((e) => { console.log(`  FAILED: ${e.stack}`); process.exit(1); });

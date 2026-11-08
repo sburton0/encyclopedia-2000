@@ -307,13 +307,14 @@ size: ${b.length}
   if (!fs.existsSync(yml)) { console.error(red(`No portable.yml in ${NEW}: build the release first, or use --dry`)); process.exit(1); }
   const newFile = (fs.readFileSync(yml, 'utf8').match(/^file:\s*(.+)$/m) || [])[1]?.trim();
   if (!newFile || !fs.existsSync(path.join(NEW, newFile))) { console.error(red(`${NEW} doesn't have ${newFile || 'the .exe portable.yml names'}`)); process.exit(1); }
-  // Over to the Windows machine (files it already has, at the same size, aren't sent again).
+  // Over to the Windows machine (files it already has in the same folder, at the same size, aren't sent again; by folder
+  // too, since a release's .exe can be the new version in one test and the old one in the next).
   for (const m of ms) {
-    const mk = await ssh(m, 'New-Item -ItemType Directory -Force e2k-lab/update/old, e2k-lab/update/new | Out-Null; Get-ChildItem -Recurse -File e2k-lab/update | ForEach-Object { "$($_.Name)|$($_.Length)" }');
+    const mk = await ssh(m, 'New-Item -ItemType Directory -Force e2k-lab/update/old, e2k-lab/update/new | Out-Null; Get-ChildItem -Recurse -File e2k-lab/update | ForEach-Object { "$($_.Directory.Name)/$($_.Name)|$($_.Length)" }');
     if (mk.code) { console.error(red(`${m.name}: not reachable`)); process.exit(1); }
     const have = new Set(mk.out.split(/\r?\n/).filter(Boolean));
     const send = async (local, remote) => {
-      if (have.has(`${path.basename(remote)}|${fs.statSync(local).size}`) && !/\.(js|yml)$/.test(remote)) return;
+      if (have.has(`${path.basename(path.dirname(remote))}/${path.basename(remote)}|${fs.statSync(local).size}`) && !/\.(js|yml)$/.test(remote)) return;
       console.log(dim(`  copying ${path.basename(local)} to ${m.name}...`));
       const r = await scpTo(m, local, remote);
       if (r.code) { console.error(red(`copying failed: ${r.err}`)); process.exit(1); }
