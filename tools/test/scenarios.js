@@ -510,6 +510,8 @@ module.exports = [
       if (!(await whenPartway(t))) return t.skip('Paused partway', 'the download finished before it could be paused (fast connection)');
       await t.js('await window.e2k.library.pause();');
       const s = await t.lib();
+      // On a fast connection the last bytes can arrive between "partway" and the pause.
+      if (s.current && !s.download) return t.skip('Paused partway', 'the download finished before the pause reached it (fast connection)');
       t.check('It pauses', s.download && s.download.status === 'paused', s.download && s.download.status);
       await t.shot('paused');
     },
@@ -564,7 +566,9 @@ module.exports = [
       await t.waitFor('document.querySelectorAll(".offline .pack .size").length >= 5', 20000);
       await t.js('window.e2k.library.download("test");');
       if (!(await whenPartway(t))) return t.skip('Cancelled partway', 'the download finished first (fast connection)');
-      t.check('Change… is greyed out during the download', await t.js('return [...document.querySelectorAll(".offline .where button")][0].disabled && !document.querySelector(".wherenote").hidden;'));
+      // The window redraws on the download's next progress report, a moment later on a slow computer.
+      t.check('Change… is greyed out during the download', await t.waitFor('[...document.querySelectorAll(".offline .where button")][0]?.disabled && !document.querySelector(".wherenote").hidden', 3000));
+      await t.waitFor('document.querySelectorAll(".offline .pack.dl .acts button").length === 2', 3000);
       const tops = await t.js('return [...document.querySelectorAll(".offline .pack.dl .acts button")].map((b) => Math.round(b.getBoundingClientRect().top));');
       t.check('Pause and Cancel are side by side', tops.length === 2 && Math.abs(tops[0] - tops[1]) <= 2, tops.join(', '));
       await t.shot('downloading');
