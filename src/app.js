@@ -1382,7 +1382,7 @@
   }
 
   // ---------- overlays ----------
-  function closeOverlays() { $$('.overlay').forEach((o) => o.remove()); }
+  function closeOverlays() { $$('.overlay:not(.stay)').forEach((o) => o.remove()); }
   // Every window (dialogs, the Offline Library, Options, the media viewer, Star Chart's awards) keeps focus inside
   // itself while it's open, is named for screen readers by its title, and gives focus back to what opened it.
   const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -1464,8 +1464,10 @@
     addEventListener('mouseup', up);
   });
 
-  function dialog(title, heading, paragraphs, buttons = [['OK']]) {
-    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
+  // A click outside closes a dialog, except a question that needs an answer ("stay": only its buttons close it, and the
+  // click doesn't take the keyboard focus out of it).
+  function dialog(title, heading, paragraphs, buttons = [['OK']], { stay = false } = {}) {
+    const ov = h('div', { class: 'overlay' + (stay ? ' stay' : ''), onmousedown: (e) => { if (e.target !== ov) return; if (stay) e.preventDefault(); else ov.remove(); } });
     ov.append(h('div', { class: 'dialog', role: 'dialog' },
       h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), title),
       h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
@@ -1678,13 +1680,19 @@
     return dialog(title, 'An update is on its way', [`Version ${v} is downloading. Restart Now appears in the status bar when it’s ready.`]);
   }
   // The portable's first run (and its first run of 0.5.4): whether to check for updates, and whether to download and
-  // install them by itself. Closing the question without an answer counts as Don't Check, which also turns news off.
+  // install them by itself. Only its buttons answer it (Escape is Don't Check, which also turns news off); a click outside
+  // does nothing. If it goes away unanswered some other way, nothing is saved, nothing is contacted, and it asks again
+  // at the next start (Scott, 2026-11-08: a click outside used to count as Don't Check, and it never asked again).
   async function askAboutUpdates() {
     const main = await window.e2k.settings.get().catch(() => ({}));
     if (!main.portableSelf || main.updateAsked) return;
-    let answered = false;
+    const esc = (e) => {
+      if (e.key !== 'Escape' || !ov.isConnected) return;
+      e.preventDefault(); e.stopImmediatePropagation();
+      ov.querySelector('.df .go:not(.default)').click();   // Don't Check
+    };
     const answer = async (on) => {
-      answered = true;
+      document.removeEventListener('keydown', esc, true);
       // Don't Check means the app contacts nothing by itself: news goes off too (it can be turned on in Options).
       await window.e2k.settings.set({ autoUpdate: on, autoInstall: on && auto.checked, updateAsked: true, ...(on ? {} : { showNews: false }) });
       window.e2k.update.settingsChanged();
@@ -1696,10 +1704,10 @@
       'Once a day, along with news and important notices. You can also check anytime in Help › Check for Updates.',
       h('label', { class: 'askauto' }, auto, h('span', {}, 'Also download and install updates automatically')),
       h('p', { class: 'fine' }, 'You can change this anytime in Options.'),
-    ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]]);
+    ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]], { stay: true });
     const ov = $$('.overlay').at(-1);
     ov.querySelector('.dialog').classList.add('askupdate');
-    new MutationObserver((_r, mo) => { if (!ov.isConnected) { mo.disconnect(); if (!answered) answer(false); } }).observe(document.body, { childList: true });
+    document.addEventListener('keydown', esc, true);
   }
 
   function showUpdate(s) {
