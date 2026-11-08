@@ -98,6 +98,10 @@ d_updates() {
 }
 step "macOS updates only by hand (an update can undo OpenCore Legacy Patcher's patches)" t_updates d_updates
 
+t_spotlight() { mdutil -s / 2>/dev/null | grep -q 'disabled'; }
+d_spotlight() { sudo mdutil -a -i off >/dev/null; }
+step "Spotlight indexing off (on an old Mac it slows test runs and makes their timings uneven)" t_spotlight d_spotlight
+
 t_clt() { xcode-select -p >/dev/null 2>&1 && [ -x /usr/bin/git ] && /usr/bin/git --version >/dev/null 2>&1; }
 d_clt() {
   note "Installing Apple's Command Line Tools (Git and more) through Software Update: often 5-15 minutes"
@@ -262,7 +266,8 @@ d_stick() {
   say "          Everything on $d will be erased."
   local ans; read -rp "          Type ERASE to format it, or press Enter to skip: " ans
   [ "$ans" = "ERASE" ] || { RESULT="later: skipped (nothing was changed)"; return 0; }
-  sudo diskutil partitionDisk "$d" MBR "MS-DOS FAT32" "$FAT" "${FATGB}G" ExFAT "$MAIN" R
+  sudo diskutil partitionDisk "$d" MBR "MS-DOS FAT32" "$FAT" "${FATGB}G" ExFAT "$MAIN" R &&
+  for v in "/Volumes/$MAIN" "/Volumes/$FAT"; do sudo mdutil -i off -d "$v" >/dev/null 2>&1; done; true
 }
 step "Test stick: $MAIN (exFAT) and $FAT (FAT32, $FATGB GB)" t_stick d_stick
 
