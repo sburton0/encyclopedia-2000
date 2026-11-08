@@ -38,7 +38,7 @@ These services are covered by their own privacy policies: the [Wikimedia Foundat
 
 When you read an article from your offline library while you're connected, the app may load sharper copies of its pictures from Wikipedia (unless you choose **Use the library's images only** in **Tools → Offline Library**).
 
-You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version asks on its first start whether to check for updates (and news), and whether to also download and install them automatically; it contacts nothing until you answer, and **Don't Check** turns news off too. Otherwise it downloads an update only when you choose **Download**, and installs it only when you choose **Restart Now** or **Install on Close**.
+You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version asks on its first start whether to check for updates (and news), and whether to also update automatically; it contacts nothing until you answer, and **Don't Check** turns news off too. Otherwise it downloads an update only when you choose **Download**, and switches to it only when you choose **Restart Now** or **Update on Close**.
 
 You can turn off news on the Home page in **Tools → Options → Privacy**. Notices about problems that need your attention come with the update check. With both turned off, the app doesn't check for news or notices at all.
 
