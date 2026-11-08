@@ -7,6 +7,8 @@
 //   npm run lab -- test --only home,move        anything else goes to the test runner (--only, --group)
 //   npm run lab -- agent                        install or update the lab agent on each machine, and start it
 //   npm run lab -- update [--draft dir | --dry] the portable updating itself on the Windows machine's test stick
+//   npm run lab -- update-installed [--from tag | --old-dir dir] [--draft dir] [--draft-mac dir]
+//                                               an installed copy updating itself, on the Windows machine and the Mac
 //   npm run lab -- build-mac [--branch b] [--upload tag]  the Mac release, built and checked on the M2 build machine
 // Results: tools/test/results/lab-<date and time>/summary.md, with each machine's own report beside it.
 // Uses the PC's lab key (~/.ssh/e2k-lab, made by make-setup-stick.ps1); the machines accept nothing else.
@@ -348,7 +350,71 @@ async function buildMac() {
   return runJobs([BUILD], { branch, runner: 'lab:build-mac.js', testArgs, title: `Mac build of ${branch}${upload ? `, uploaded to ${upload}` : ''}` });
 }
 
-const COMMANDS = { status, test, agent, update, 'build-mac': buildMac };
+// --- update-installed: an installed copy updating itself (Windows installer, Mac) -----------------------------------
+// The old version (a release from GitHub, or a folder of builds) is installed on the lab's Windows and Mac machines and
+// updates itself from a stand-in for GitHub serving the new release's files (see update-installed.js).
+//   npm run lab -- update-installed [--on win,mac] [--from v0.5.6-beta | --old-dir <folder>]
+//                                   [--draft <folder with latest.yml…>] [--draft-mac <folder with latest-mac.yml…>]
+// --old-dir: the old version's files (an installer .exe and/or a Mac .zip, each with its .blockmap); by default the release
+// named by --from. --draft: the new Windows files (default dist/); --draft-mac: the new Mac files (from the build machine).
+async function updateInstalled() {
+  const ms = chosen().filter((m) => m.platform !== 'linux');
+  const tag = takeOpt('--from') || 'v0.5.6-beta';
+  const oldDir = takeOpt('--old-dir');
+  const draft = { win32: takeOpt('--draft') || path.join(REPO, 'dist'), darwin: takeOpt('--draft-mac') };
+  const OLD = { win32: /^Encyclopedia-2000-Installer-.+\.exe$/, darwin: /^Encyclopedia-2000-.+-mac\.zip$/ };
+  const FEED = { win32: 'latest.yml', darwin: 'latest-mac.yml' };
+  let source = oldDir && path.resolve(oldDir);
+  if (!source) {
+    source = path.join(REPO, 'tools', 'test', 'results', 'lab-update-cache', tag);
+    fs.mkdirSync(source, { recursive: true });
+    for (const m of ms) {
+      if (fs.readdirSync(source).some((f) => OLD[m.platform].test(f))) continue;
+      console.log(`Downloading ${tag}'s ${m.platform === 'win32' ? 'installer' : 'Mac zip'} and its blockmap from GitHub...`);
+      const pat = m.platform === 'win32' ? 'Encyclopedia-2000-Installer-*.exe*' : 'Encyclopedia-2000-*-mac.zip*';
+      const r = await exec('gh', ['release', 'download', tag, '-R', 'sburton0/encyclopedia-2000', '-p', pat, '-D', source, '--skip-existing'], null, 900000);
+      if (r.code) { console.error(red(`Couldn't download ${tag}'s files: ${r.err}`)); process.exit(1); }
+    }
+  }
+  for (const m of ms) {
+    const old = fs.readdirSync(source).find((f) => OLD[m.platform].test(f));
+    const dir = draft[m.platform];
+    if (!old) { console.error(red(`No old ${m.platform === 'win32' ? 'installer' : 'Mac zip'} in ${source}`)); process.exit(1); }
+    if (!dir || !fs.existsSync(path.join(dir, FEED[m.platform]))) { console.error(red(`No ${FEED[m.platform]} in ${dir || '(give --draft-mac)'}`)); process.exit(1); }
+    const feed = fs.readFileSync(path.join(dir, FEED[m.platform]), 'utf8');
+    const file = (feed.match(/^path:\s*(.+)$/m) || [])[1]?.trim();
+    const need = [[path.join(source, old), `old/${old}`], [path.join(dir, FEED[m.platform]), `new/${FEED[m.platform]}`], [path.join(dir, file), `new/${file}`],
+      [path.join(dir, `${file}.blockmap`), `new/${file}.blockmap`], [path.join(source, `${old}.blockmap`), `new/${old}.blockmap`]];
+    const missing = need.filter(([l]) => !fs.existsSync(l)).map(([l]) => l);
+    if (missing.length) { console.error(red(`Missing: ${missing.join(', ')}`)); process.exit(1); }
+    // Over to the machine, into a fresh folder (files it already has, at the same size, aren't sent again).
+    const win = m.platform === 'win32';
+    const list = await ssh(m, win
+      ? 'New-Item -ItemType Directory -Force e2k-lab/update-installed/old, e2k-lab/update-installed/new | Out-Null; Get-ChildItem -Recurse -File e2k-lab/update-installed | ForEach-Object { "$($_.Directory.Name)/$($_.Name)|$($_.Length)" }'
+      : 'mkdir -p e2k-lab/update-installed/old e2k-lab/update-installed/new && cd e2k-lab/update-installed && find old new -type f -exec stat -f "%N|%z" {} \\;');
+    if (list.code) { console.error(red(`${m.name}: not reachable`)); process.exit(1); }
+    const have = new Set(list.out.split(/\r?\n/).filter(Boolean).map((l) => l.trim()));
+    const keep = new Set(need.map(([, r]) => r));
+    for (const h of have) {
+      const rel = h.split('|')[0];
+      if (!keep.has(rel)) await ssh(m, win ? `Remove-Item -Force 'e2k-lab/update-installed/${rel}'` : `rm -f 'e2k-lab/update-installed/${rel}'`);
+    }
+    for (const [local, rel] of need) {
+      if (have.has(`${rel}|${fs.statSync(local).size}`) && !/\.yml$/.test(rel)) continue;
+      console.log(dim(`  copying ${path.basename(local)} to ${m.name}...`));
+      const r = await scpTo(m, local, `e2k-lab/update-installed/${rel}`);
+      if (r.code) { console.error(red(`copying failed: ${r.err}`)); process.exit(1); }
+    }
+    const cp = await scpTo(m, path.join(LAB, 'update-installed.js'), 'e2k-lab/update-installed.js');
+    if (cp.code) { console.error(red(`${m.name}: copying the test script failed: ${cp.err}`)); process.exit(1); }
+  }
+  return runJobs(ms, {
+    branch: 'main', runner: 'lab:update-installed.js', title: `Installed self-update from ${oldDir ? path.basename(source) : tag}`,
+    testArgs: ['--old-dir', 'e2k-lab/update-installed/old', '--files', 'e2k-lab/update-installed/new'],
+  });
+}
+
+const COMMANDS = { status, test, agent, update, 'update-installed': updateInstalled, 'build-mac': buildMac };
 if (!COMMANDS[command]) {
   console.error(`Unknown command "${command}". Commands: ${Object.keys(COMMANDS).join(', ')} (install, usb and downloads come later).`);
   process.exit(2);

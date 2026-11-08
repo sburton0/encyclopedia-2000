@@ -8,14 +8,19 @@ const fs = require('fs');
 const path = require('path');
 
 const file = path.join(__dirname, '..', 'node_modules', 'app-builder-lib', 'out', 'targets', 'nsis', 'NsisTarget.js');
-const run = 'await (0, wine_1.execWine)(installerPath, null, [], { env: { __COMPAT_LAYER: "RunAsInvoker" } });';
+// The line that runs it: electron-builder 26.0 (execWine), and 26.15 on (WineVmManager).
+const runs = [
+  'await (0, wine_1.execWine)(installerPath, null, [], { env: { __COMPAT_LAYER: "RunAsInvoker" } });',
+  'await wineVm.exec(installerPath, [], { env: { __COMPAT_LAYER: "RunAsInvoker" } });',
+];
 const read = 'await nsisUtil_1.UninstallerReader.exec(installerPath, uninstallerPath); // patched by tools/patch-uninstaller.js';
 let src = fs.readFileSync(file, 'utf8');
 if (src.includes(read)) process.exit(0);
 // An earlier hand edit, from the 0.5 build.
 src = src.replace(/\/\/ e2k: read the uninstaller[^\n]*\n\s*await nsisUtil_1\.UninstallerReader\.exec\(installerPath, uninstallerPath\);/, read);
 if (!src.includes(read)) {
-  if (!src.includes(run)) {
+  const run = runs.find((r) => src.split(r).length === 2);   // exactly once, or it's not the code this was written for
+  if (!run) {
     console.error('patch-uninstaller: electron-builder has changed; check NsisTarget.js by hand (see this file).');
     process.exit(1);
   }

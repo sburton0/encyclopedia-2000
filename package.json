@@ -28,17 +28,18 @@
     "axe-core": "4.10.2",
     "d3-geo": "^3.1.1",
     "electron": "^44.7.0",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.18.0",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
   },
   "dependencies": {
-    "electron-updater": "^6.6.2",
+    "electron-updater": "^6.8.11",
     "fzstd": "^0.1.1"
   },
   "build": {
     "appId": "com.svid.encyclopedia2000",
     "productName": "Encyclopedia 2000",
+    "afterPack": "tools/after-pack.js",
     "afterAllArtifactBuild": "tools/portable-manifest.js",
     "copyright": "© 2026 Scott Burton",
     "directories": {
