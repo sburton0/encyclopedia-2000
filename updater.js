@@ -97,7 +97,7 @@ function selfUpdate({ send, getState, setState, quitForUpdate, getSettings }) {
   let job = null, offered = null, onQuit = false, restartTo = null;
   const declined = new Set(), toldFailure = new Set();
   pu.cleanupPending(exe);
-  ipcMain.once('update:started', () => setTimeout(() => pu.removePrevious(exe), 3000));
+  ipcMain.once('update:started', () => setTimeout(() => pu.removePrevious(exe, { current: app.getVersion() }), 3000));
   const newer = (v) => require('semver').gt(v, app.getVersion());   // semver comes with electron-updater
   const auto = () => getSettings().autoInstall === true;
   const waiting = pu.ready(exe);
