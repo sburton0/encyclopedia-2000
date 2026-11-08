@@ -38,7 +38,9 @@ const shot = (file) => {
 };
 // The app's processes started from a folder (the portable's launcher, and Electron unpacked to a temporary folder).
 const appRunning = () => { try { return Number(ps(`@(Get-Process | Where-Object { $_.MainWindowTitle -like '*Encyclopedia 2000*' }).Count`)) > 0; } catch { return false; } };
-const closeApp = () => { try { ps(`Get-Process | Where-Object { $_.Path -and (($_.Path -like '*Encyclopedia-2000-Portable*') -or (($_.Path -like '*\\Temp\\*') -and ($_.ProductName -like '*Encyclopedia 2000*'))) } | Stop-Process -Force; 'ok'`); } catch {} };
+// (The launcher is named after the .exe; Electron, unpacked to a temporary folder, is "Encyclopedia 2000". Neither sets
+// a product name. This is a test machine, so any copy of the app running is one of ours.)
+const closeApp = () => { try { ps(`Get-Process | Where-Object { $_.ProcessName -like 'Encyclopedia*' } | Stop-Process -Force; 'ok'`); } catch {} };
 
 (async () => {
   const pu = require(CODE);
