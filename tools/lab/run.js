@@ -247,26 +247,45 @@ async function runJobs(ms, { branch, testArgs, runner, title = 'Lab test run' })
 // stand-in for GitHub, on both test-stick partitions. The new release's files come from --draft (default dist/, where a
 // build leaves portable.yml and the .exe); --dry uses the released .exe under the next version's name instead, to try
 // the test itself (its version isn't checked, and the cleanup is the released version's own).
-//   npm run lab -- update [--from v0.5.4-beta] [--draft <folder> | --dry]
+//   npm run lab -- update [--from v0.5.4-beta | --old <a built portable .exe> [--code <its portable-update.js>]]
+//                         [--draft <folder> | --dry]
+// --old tests a build that isn't released yet as the old version (its update code from --code, by default this copy's),
+// for example a release candidate with --dry: it then updates itself to itself under the next version's name. From
+// 0.5.6 on, the old version is the real app (see update-portable.js).
 async function update() {
+  const localOld = takeOpt('--old');
+  const localCode = takeOpt('--code');
   const tag = takeOpt('--from') || 'v0.5.4-beta';
-  const oldVersion = tag.replace(/^v/, '');
   const draft = takeOpt('--draft') || path.join(REPO, 'dist');
   const dry = args.includes('--dry');
   const ms = MACHINES.filter((m) => m.platform === 'win32');
-  const CACHE = path.join(REPO, 'tools', 'test', 'results', 'lab-update-cache', tag);
-  fs.mkdirSync(CACHE, { recursive: true });
-  // The released portable and its update code.
-  let old = fs.readdirSync(CACHE).find((f) => /-Portable-.+\.exe$/.test(f));
-  if (!old) {
-    console.log(`Downloading ${tag}'s portable from GitHub...`);
-    const r = await exec('gh', ['release', 'download', tag, '-R', 'sburton0/encyclopedia-2000', '-p', 'Encyclopedia-2000-Portable-*.exe', '-D', CACHE], null, 600000);
+  let CACHE, old, oldVersion;
+  if (localOld) {
+    const file = path.resolve(localOld);
+    if (!fs.existsSync(file)) { console.error(red(`No ${file}`)); process.exit(1); }
+    oldVersion = (path.basename(file).match(/-Portable-(.+)\.exe$/) || [])[1];
+    if (!oldVersion) { console.error(red('--old must be a portable named like Encyclopedia-2000-Portable-<version>.exe')); process.exit(1); }
+    CACHE = path.join(REPO, 'tools', 'test', 'results', 'lab-update-cache', `local-${oldVersion}`);
+    fs.mkdirSync(CACHE, { recursive: true });
+    old = path.basename(file);
+    fs.copyFileSync(file, path.join(CACHE, old));
+    fs.copyFileSync(path.resolve(localCode || path.join(REPO, 'portable-update.js')), path.join(CACHE, 'portable-update.js'));
+  } else {
+    oldVersion = tag.replace(/^v/, '');
+    CACHE = path.join(REPO, 'tools', 'test', 'results', 'lab-update-cache', tag);
+    fs.mkdirSync(CACHE, { recursive: true });
+    // The released portable and its update code.
     old = fs.readdirSync(CACHE).find((f) => /-Portable-.+\.exe$/.test(f));
-    if (!old) { console.error(red(`Couldn't download ${tag}'s portable: ${r.err}`)); process.exit(1); }
+    if (!old) {
+      console.log(`Downloading ${tag}'s portable from GitHub...`);
+      const r = await exec('gh', ['release', 'download', tag, '-R', 'sburton0/encyclopedia-2000', '-p', 'Encyclopedia-2000-Portable-*.exe', '-D', CACHE], null, 600000);
+      old = fs.readdirSync(CACHE).find((f) => /-Portable-.+\.exe$/.test(f));
+      if (!old) { console.error(red(`Couldn't download ${tag}'s portable: ${r.err}`)); process.exit(1); }
+    }
+    const code = await exec('git', ['-C', REPO, 'show', `${tag}:portable-update.js`]);
+    if (code.code) { console.error(red(`${tag} has no portable-update.js`)); process.exit(1); }
+    fs.writeFileSync(path.join(CACHE, 'portable-update.js'), code.out);
   }
-  const code = await exec('git', ['-C', REPO, 'show', `${tag}:portable-update.js`]);
-  if (code.code) { console.error(red(`${tag} has no portable-update.js`)); process.exit(1); }
-  fs.writeFileSync(path.join(CACHE, 'portable-update.js'), code.out);
   // The new release's files.
   let NEW;
   if (dry) {
