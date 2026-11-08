@@ -40,7 +40,7 @@ xget() { xfconf-query -c "$1" -p "$2" 2>/dev/null; }
 STEPS=()
 step() { STEPS+=("$1|$2|$3"); }
 
-t_sudo() { sudo -n true 2>/dev/null; }
+t_sudo() { sudo -n -k true 2>/dev/null; }   # -k: not fooled by a password typed in the last few minutes
 d_sudo() {
   echo "$ACCOUNT ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/e2k-lab >/dev/null &&
   sudo chmod 440 /etc/sudoers.d/e2k-lab && sudo visudo -cf /etc/sudoers.d/e2k-lab >/dev/null ||
