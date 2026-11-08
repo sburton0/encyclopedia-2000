@@ -318,7 +318,11 @@ async function buildMac() {
   if (!BUILD) { console.error(red('No build machine in lab-settings.json ("build").')); process.exit(2); }
   const branch = takeOpt('--branch') || 'main';
   const upload = takeOpt('--upload');
-  const testArgs = ['--script', SETTINGS.build.releaseScript, ...(args.includes('--skip-tests') ? ['--skip-tests'] : []), ...(upload ? ['--upload', upload] : [])];
+  // The release script lives in Documents, which macOS doesn't let the agent open (it's started at sign-in, not from
+  // Terminal; opening it waits on a permission prompt). SSH can read it, so a fresh copy goes to ~/e2k-lab each time.
+  const rs = await ssh(BUILD, `cp "$HOME/${SETTINGS.build.releaseScript}" e2k-lab/mac-release.sh && chmod +x e2k-lab/mac-release.sh`);
+  if (rs.code) { console.error(red(`${BUILD.name}: copying the release script failed: ${rs.err}`)); process.exit(1); }
+  const testArgs = ['--script', 'e2k-lab/mac-release.sh', ...(args.includes('--skip-tests') ? ['--skip-tests'] : []), ...(upload ? ['--upload', upload] : [])];
   // The build script goes to ~/e2k-lab, since release branches don't have it.
   const cp = await scpTo(BUILD, path.join(LAB, 'build-mac.js'), 'e2k-lab/build-mac.js');
   if (cp.code) { console.error(red(`${BUILD.name}: copying the build script failed: ${cp.err}`)); process.exit(1); }
