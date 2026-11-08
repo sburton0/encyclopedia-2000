@@ -95,7 +95,8 @@ $t = 'E2K lab agent'; $node = (Get-Command node).Source; $agent = "$HOME\\e2k-la
 # A hidden console, so no window sits on the desktop during tests.
 $act = New-ScheduledTaskAction -Execute "$env:SystemRoot\\System32\\conhost.exe" -Argument "--headless \`"$node\`" \`"$agent\`"" -WorkingDirectory $HOME
 $trig = New-ScheduledTaskTrigger -AtLogOn -User $u
-$prin = New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Highest
+# A normal (not administrator) user, as people run the app; anything needing admin goes over SSH, which is.
+$prin = New-ScheduledTaskPrincipal -UserId $u -LogonType Interactive -RunLevel Limited
 $set = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $t -Action $act -Trigger $trig -Principal $prin -Settings $set -Force | Out-Null
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -match 'e2k-lab.agent\\.js' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
