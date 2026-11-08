@@ -1702,7 +1702,7 @@
     const auto = h('input', { type: 'checkbox' });
     dialog('Encyclopedia 2000', 'Check for updates automatically?', [
       'Once a day, along with news and important notices. You can also check anytime in Help › Check for Updates.',
-      h('label', { class: 'askauto' }, auto, h('span', {}, 'Also download and install updates automatically')),
+      h('label', { class: 'askauto' }, auto, h('span', {}, 'Also update automatically')),
       h('p', { class: 'fine' }, 'You can change this anytime in Options.'),
     ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]], { stay: true });
     const ov = $$('.overlay').at(-1);

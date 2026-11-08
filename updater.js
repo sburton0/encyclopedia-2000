@@ -89,7 +89,7 @@ function setup({ getWindow, isEnabled, quitForUpdate, getSettings }) {
 }
 
 // The portable version's own updates (portable-update.js). It checks only once the user has answered the first-run
-// question (see app.js), and what happens next depends on "Also download and install updates automatically":
+// question (see app.js), and what happens next depends on "Also update automatically":
 // - off: the status bar says a new version exists, with Download; Restart Now then switches to it, and a downloaded
 //   update waits on the drive (offered again at each start) until then.
 // - on: like the installed app: it downloads by itself, offers Restart Now, and installs when the app closes.
