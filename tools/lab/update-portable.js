@@ -101,10 +101,14 @@ const closeApp = () => { try { ps(`Get-Process | Where-Object { $_.ProcessName -
     } catch (e) {
       check('No errors', false, e.message);
     } finally {
-      closeApp();
-      await sleep(2500);
-      try { fs.rmSync(dir, { recursive: true, force: true }); } catch {}
-      check('Cleaned up afterwards', !fs.existsSync(dir));
+      // The app's helper processes take a moment to let go of its data folder.
+      let err = '';
+      for (let i = 0; i < 15 && fs.existsSync(dir); i++) {
+        closeApp();
+        await sleep(1000);
+        try { fs.rmSync(dir, { recursive: true, force: true }); } catch (e) { err = e.message; }
+      }
+      check('Cleaned up afterwards', !fs.existsSync(dir), err);
     }
   }
   server.close();
