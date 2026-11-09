@@ -424,6 +424,11 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .bbtn .ic { width: 13px; height: 13px; fill: currentColor; }
 .bbtn:hover { background: rgba(var(--deep), .7); border-color: var(--orange); color: var(--gold); }
 .bbtn.on { color: var(--orange); border-color: var(--orange); }
+/* Download for Offline: the main part and its arrow, joined. */
+.bsplit { display: inline-flex; }
+.bsplit .dmain { border-right-width: 0; }
+.bsplit .darrow { padding: 0 6px; border-left-color: rgba(255, 255, 255, .25); font-size: 10px; }
+.bsplit .dmain.on + .darrow { border-color: var(--orange); border-left-color: rgba(255, 255, 255, .25); color: var(--orange); }
 .content { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; gap: 22px; padding: 18px 24px 30px; background: #fbfcfe; }
 .content.wide { display: block; }
 /* Center the reading column and picture column in wide windows. */
@@ -464,7 +469,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .text h3 { margin: 18px 0 4px; font: 600 calc(17px * var(--fs)) "Segoe UI"; color: #33507f; }
 .text h4 { margin: 14px 0 4px; font: 600 calc(15px * var(--fs)) "Segoe UI"; color: #33507f; }
 .text a { color: #1d47a8; text-decoration: none; border-bottom: 1px dotted rgba(29, 71, 168, .5); cursor: pointer; }
-.text a:hover { color: #c26a00; border-bottom-color: #c26a00; }
+.text a:hover { color: #a35800; border-bottom-color: #a35800; }   /* about 5:1 on the page, for WCAG AA (#c26a00 was 3.7:1) */
 .text figure { float: right; clear: right; max-width: 250px; margin: 4px 0 12px 18px; padding: 4px; background: #fff; border: 1px solid #c9d3ea; }
 .text figure a { border: 0; }
 .text figure img { display: block; max-width: 100%; height: auto; cursor: zoom-in; }
@@ -631,7 +636,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .results { max-width: 860px; }
 .dym { max-width: 860px; margin: 0 0 14px; font: 15px "Segoe UI"; color: #333; }
 .dym button { padding: 0; border: 0; border-bottom: 1px dotted rgba(29, 71, 168, .5); background: none; font: italic 600 15px "Segoe UI"; color: #1d47a8; cursor: pointer; }
-.dym button:hover { color: #c26a00; border-bottom-color: #c26a00; }
+.dym button:hover { color: #a35800; border-bottom-color: #a35800; }
 .res { display: flex; gap: 14px; width: 100%; padding: 12px 6px; background: none; border: 0; border-bottom: 1px solid #e3e8f3; text-align: left; }
 .res:hover { background: #f1f5fc; }
 .res .th { flex: none; width: 64px; height: 64px; background: #dfe6f3 center/cover; border: 1px solid #c9d3ea; }

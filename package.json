@@ -53,6 +53,7 @@
       "portable-update.js",
       "notices.js",
       "library.js",
+      "downloads.js",
       "zim-reader.js",
       "src/**/*",
       "build/icon.ico",

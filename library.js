@@ -16,8 +16,7 @@ const { Transform } = require('stream');
 const { pipeline } = require('stream/promises');
 const Zim = require('./zim-reader');
 
-// Must run before the app is ready.
-protocol.registerSchemesAsPrivileged([{ scheme: 'e2k-zim', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } }]);
+// (Its e2k-zim: address is registered in main.js, with downloads.js's e2k-saved: — Electron allows only one call.)
 
 const CATALOG = 'https://opds.library.kiwix.org/catalog/v2/entries';
 const UA = `Encyclopedia 2000/${app.getVersion()} (+https://encyclopedia2000.com)`;

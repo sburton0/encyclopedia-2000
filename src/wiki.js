@@ -148,13 +148,28 @@ window.Wiki = (() => {
       return { type: 'image', title: 'File:' + decodeURIComponent(src.split('/').pop()), showInGallery: true, srcset: sizes, caption: { text: fig.querySelector('figcaption')?.textContent || '' } };
     }).filter(Boolean) };
   }
-  // Runs online() or the library version for an article, following the rules above.
-  async function article(title, online, offline) {
+  // ---------- downloaded articles ----------
+  // An article the user downloaded (downloads.js) is kept as Wikipedia sent it, with its pictures downloaded too, so
+  // its summary, page, and picture list are read back as they are.
+  const downloads = window.e2k && window.e2k.saved;
+  const savedFile = (copy, file, as) => fetch(`e2k-saved://a/${copy.key}/${file}`).then((r) => {
+    if (!r.ok) throw Object.assign(new Error(`HTTP ${r.status}`), { status: r.status });
+    return as === 'text' ? r.text() : r.json();
+  });
+  const savedSummary = (copy) => savedFile(copy, 'summary.json');
+  const savedHtml = (copy) => savedFile(copy, 'article.html', 'text');
+  const savedMedia = (copy) => savedFile(copy, 'media.json');
+
+  // Runs online() or a copy on this computer for an article: the offline library's (offline()), or a downloaded one
+  // (downloaded()), following the rules above. The library comes first; a downloaded copy fills in what it lacks.
+  async function article(title, online, offline, downloaded) {
     const found = (await library()) ? await lib.find(title).catch(() => null) : null;
-    if (!found && offlineMode()) throw Object.assign(new Error('Not in the offline library'), { notInLibrary: true });
-    if (!found) return online();
-    if (libraryFirst()) return offline(found);
-    try { return await online(); } catch (e) { return offline(found); }
+    const copy = !found && downloads ? await downloads.find(title).catch(() => null) : null;
+    if (!found && !copy && offlineMode()) throw Object.assign(new Error('Not in the offline library'), { notInLibrary: true });
+    const here = found ? () => offline(found) : copy ? () => downloaded(copy) : null;
+    if (!here) return online();
+    if (libraryFirst()) return here();
+    try { return await online(); } catch (e) { return here(); }
   }
   async function search(online, offline) {
     if (!(await library())) return online();
@@ -216,19 +231,19 @@ window.Wiki = (() => {
       () => offlineFeatured(date)),
     onThisDay: (date, type = 'all') => feed(() => get(`${BASE}/api/rest_v1/feed/onthisday/${type}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`),
       async () => ({ offline: true, selected: await savedDay(date) })),
-    summary: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/summary/${enc(title)}?redirect=true`), libSummary),
+    summary: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/summary/${enc(title)}?redirect=true`), libSummary, savedSummary),
     // If the article service keeps failing, the same article (the same kind of page) from Wikipedia's other one.
     html: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/html/${enc(title)}?redirect=true`, 'text').catch((e) => {
       if (!(e.status >= 500)) throw e;
       return get(`${BASE}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&parsoid=1&redirects=1&format=json&formatversion=2&origin=*`)
         .then((r) => { if (!r.parse?.text) throw e; return r.parse.text; });
-    }), libHtml),
+    }), libHtml, savedHtml),
     // Online, a title that redirects to a section of another article ("Michael Jackson's finances" → Earnings): that
     // section's anchor, or ''. (The page service follows the redirect but drops the section.)
     redirectSection: (title) => get(`${BASE}/w/api.php?action=query&redirects=1&titles=${encodeURIComponent(title)}&format=json&formatversion=2&origin=*`)
       .then((r) => (r.query?.redirects || []).map((x) => x.tofragment || '').filter(Boolean).pop() || '', () => ''),
     // Every picture, video, and sound in an article, in the order they appear.
-    mediaList: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/media-list/${enc(title)}?redirect=true`), libMedia),
+    mediaList: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/media-list/${enc(title)}?redirect=true`), libMedia, savedMedia),
     // Size, length, file address, a still picture, and the credit for up to 50 files ("File:…" titles).
     fileInfo: (files) => info(files, 'imageinfo', 'ii', ''),
     // The same, plus the versions Commons has converted each video or sound into (smaller sizes, WebM, MP3).

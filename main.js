@@ -211,7 +211,7 @@ ipcMain.on('picture:copy', (e, x, y) => { if (Number.isFinite(x) && Number.isFin
 ipcMain.handle('picture:save', async (e, urls) => {
   let res = null, url = '';
   for (const u of (Array.isArray(urls) ? urls : []).slice(0, 3)) {
-    if (!/^(https:\/\/[a-z0-9.-]+\.(wikimedia|wikipedia)\.org\/|e2k-zim:)/.test(String(u))) continue;
+    if (!/^(https:\/\/[a-z0-9.-]+\.(wikimedia|wikipedia)\.org\/|e2k-zim:|e2k-saved:)/.test(String(u))) continue;
     try {
       const r = await e.sender.session.fetch(u);
       if (r.ok && /^image\//.test(r.headers.get('content-type') || '')) { res = r; url = u; break; }
@@ -350,11 +350,17 @@ ipcMain.handle('open-external', (_e, url) => {
   if (typeof url === 'string' && /^https:\/\//.test(url)) return shell.openExternal(url);
 });
 
-// The offline library (see library.js). Required before the app is ready, since it registers the e2k-zim: address.
+// The app's own addresses, registered before the app is ready (Electron allows only one call): e2k-zim: serves the
+// offline library (library.js), e2k-saved: downloaded articles (downloads.js).
+const { protocol } = require('electron');
+protocol.registerSchemesAsPrivileged(['e2k-zim', 'e2k-saved'].map((scheme) => ({ scheme, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true, stream: true } })));
+// The offline library (see library.js), and downloaded articles (downloads.js).
 const library = require('./library');
+const downloads = require('./downloads');
 
 app.whenReady().then(() => {
   library.setup({ offline: () => !!settings.offlineMode });
+  downloads.setup({ offline: () => !!settings.offlineMode });
   // Offline mode: the window's requests to the internet are refused. (Requests from the main process have no window.)
   session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => cb({ cancel: !!settings.offlineMode && d.webContentsId != null }));
   // Wikipedia keeps each article ready to send, but only for requests without an Accept-Language header; with one

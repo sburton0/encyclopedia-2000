@@ -1366,6 +1366,72 @@ module.exports = [
       await t.js('document.getElementById("e2k-test-link")?.remove();');
     },
   },
+  // ---------- downloaded articles ----------
+  {
+    name: 'download-article', group: 'Downloaded articles', title: 'Download for Offline: an article downloads with its pictures, and opens in Offline mode without the internet',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Io (moon)");');
+      t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Io (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000));
+      const button = 'return document.querySelector(".bsplit .dmain")?.textContent || "";';
+      t.check('Its button says Download for Offline', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Download for Offline"', 5000), await t.js(button));
+      await t.js('document.querySelector(".bsplit .dmain").click();');
+      t.check('Downloading, the button shows how far along it is', await t.waitFor('/Downloading…|Downloaded/.test(document.querySelector(".bsplit .dmain")?.textContent || "")', 10000), await t.js(button));
+      t.check('…then says Downloaded', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Downloaded"', 120000), await t.js(button));
+      t.check('…and the status bar says it opens without the internet', /Downloaded “Io \(moon\)” \([\d.]+ MB\)\. It opens without the internet\./.test(await t.js('return document.getElementById("status").textContent;')),
+        await t.js('return document.getElementById("status").textContent;'));
+      const entry = await t.js('return await window.e2k.saved.get("Io (moon)");');
+      t.check('The copy has its pictures', entry && entry.pictures >= 5 && entry.size > 100000, JSON.stringify(entry));
+      // Offline mode, with no offline library: the downloaded article still opens, with its pictures, from this computer.
+      await t.js('window.e2k.net.setOffline(true); E2K.updateNet();');
+      const count = await t.countNetwork();
+      await t.js('E2K.go("home"); setTimeout(() => E2K.openArticle("Io (moon)"), 300);');
+      t.check('In Offline mode it opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Io (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 20000),
+        await t.js('return document.querySelector(".errbox")?.innerText || document.querySelector(".band h1")?.textContent || "";'));
+      await t.sleep(2500);
+      // (Pictures further down load as the article scrolls, so each one's copy is read directly.)
+      const pics = await t.js(`const imgs = [...document.querySelectorAll('.content.article img')].filter((i) => i.src.startsWith('e2k-saved:'));
+        const ok = await Promise.all(imgs.map((i) => fetch(i.src).then((r) => r.ok && (r.headers.get('content-type') || '').startsWith('image/'), () => false)));
+        return { all: document.querySelectorAll('.content.article img').length, local: imgs.length, readable: ok.filter(Boolean).length,
+          lead: document.querySelector('.media .frame img')?.src || '', leadShown: document.querySelector('.media .frame img')?.naturalWidth > 0 };`);
+      t.check('…with its pictures, from this computer', pics.local >= 5 && pics.readable === pics.local && pics.lead.startsWith('e2k-saved:') && pics.leadShown, JSON.stringify(pics));
+      const net = count();
+      t.check('Nothing came from the internet', net.n === 0, net.n ? `${net.n}: ${net.urls.join(' ')}` : '');
+      await t.shot('downloaded-offline');
+      await t.js('E2K.openArticle("Mars");');
+      t.check('An article that isn’t downloaded says so', await t.waitFor('/“Mars” isn’t downloaded/.test(document.querySelector(".errbox")?.innerText || "")', 10000),
+        await t.js('return document.querySelector(".errbox")?.innerText || "";'));
+    },
+  },
+  {
+    name: 'download-offline-restart', group: 'Downloaded articles', title: '…and with downloaded articles but no offline library, Offline mode stays on after a restart',
+    route: 'article/Io (moon)', reuse: 'download-article',
+    async run(t) {
+      t.check('Still in Offline mode', /^Offline$/.test((await t.net()).trim()), await t.net());
+      t.check('The downloaded article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Io (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 20000),
+        await t.js('return document.querySelector(".errbox")?.innerText || "";'));
+    },
+  },
+  {
+    name: 'download-text-delete', group: 'Downloaded articles', title: 'An article downloads as text only, and Delete download removes the copy',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Ganymede (moon)");');
+      t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Ganymede (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000));
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      t.check('The arrow opens the download choices', await t.waitFor('/Download it as text only/.test(document.querySelector(".rmenu")?.innerText || "")', 3000));
+      await t.shot('download-menu');
+      await t.js('[...document.querySelectorAll(".rmenu .ri")].find((b) => /text only/.test(b.textContent)).click();');
+      t.check('…as text only', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Downloaded"', 60000));
+      const entry = await t.js('return await window.e2k.saved.get("Ganymede (moon)");');
+      t.check('The copy has no pictures', entry && entry.textOnly && entry.pictures === 0, JSON.stringify(entry));
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      await t.waitFor('/Delete download/.test(document.querySelector(".rmenu")?.innerText || "")', 3000);
+      await t.js('[...document.querySelectorAll(".rmenu .ri")].find((b) => /Delete download/.test(b.textContent)).click();');
+      t.check('Delete download removes the copy', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Download for Offline"', 5000)
+        && !(await t.js('return await window.e2k.saved.get("Ganymede (moon)");')));
+    },
+  },
   {
     name: 'section-redirect-online', group: 'Reading', title: 'A title that redirects to a section of another article opens it at that section (online)',
     route: 'home',

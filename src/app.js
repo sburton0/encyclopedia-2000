@@ -134,6 +134,8 @@
   // (amber, reading from the library; red without one). It opens the connection menu (below).
   const isOffline = () => window.e2k.net.offline();
   let hasLib = false;
+  // Downloaded articles (Download for Offline): with some, Offline mode has something to read even without a library.
+  let hasDownloads = false;
   let libMissing = null;   // the installed library can't be found: { label, where }
   function updateNet() {
     const [color, label] = isOffline() ? (libMissing ? ['amber', 'Offline · Library not found'] : ['grey', 'Offline'])
@@ -729,6 +731,78 @@
     return { nodes: [...body.childNodes], facts, toc, related, infoImg, pron, decor };
   }
 
+  // ---------- downloading articles (Download for Offline) ----------
+  // The article's Download for Offline button: the main part downloads it (with its pictures); the arrow opens a menu
+  // (as text only, download again, delete the download). While downloading it shows how far along it is; once
+  // downloaded it says so. The copy is made by the main process (downloads.js) and opens without the internet.
+  const saved = window.e2k.saved;
+  const mb = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e7 ? `${Math.round(b / 1e6)} MB` : `${Math.max(0.1, b / 1e6).toFixed(1)} MB`);
+  let downloadJobs = [];
+  function downloadButton() {
+    const main = h('button', { class: 'bbtn dmain', onclick: () => (dl.entry ? downloadMenu(dl) : startDownload(dl)) }, icon('download'), h('span', {}, 'Download for Offline'));
+    const arrow = h('button', { class: 'bbtn darrow', title: 'More download choices', 'aria-label': 'More download choices', 'aria-haspopup': 'menu', onclick: () => downloadMenu(dl) }, '▾');
+    const dl = { el: h('span', { class: 'bsplit' }, main, arrow), main, arrow, entry: null,
+      async refresh() {
+        if (!current || current.dl !== dl) return;
+        dl.entry = await saved.get(current.title).catch(() => null);
+        dl.draw();
+      },
+      draw() {
+        const job = current && current.dl === dl && downloadJobs.find((j) => j.title.toLowerCase() === current.title.toLowerCase());
+        const label = main.querySelector('span');
+        main.classList.toggle('on', !!dl.entry && !job);
+        if (job) label.textContent = `Downloading… ${Math.round((job.done / Math.max(job.total, 1)) * 100)}%`;
+        else label.textContent = dl.entry ? 'Downloaded' : 'Download for Offline';
+        main.title = dl.entry ? `Downloaded ${new Date(dl.entry.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${mb(dl.entry.size)}. It opens without the internet.`
+          : 'Download this article with its pictures, so it opens without the internet';
+      } };
+    return dl;
+  }
+  async function startDownload(dl, opts = {}) {
+    if (!current) return;
+    const title = current.title;
+    if (isOffline()) { setIdle('Offline mode is on. Downloading an article needs the internet.'); return; }
+    setStatus(`Downloading “${title}”…`, true);
+    const r = await saved.download(title, opts);
+    if (r.ok) setIdle(`Downloaded “${r.entry.title}” (${mb(r.entry.size)}). It opens without the internet.`);
+    else if (r.space) setIdle(`“${title}” wasn’t downloaded: there isn’t enough free space on this drive.`);
+    else if (r.offline) setIdle('Offline mode is on. Downloading an article needs the internet.');
+    else setIdle(`“${title}” couldn’t be downloaded. Check your connection and try again.`);
+    if (current && current.dl === dl) dl.refresh();
+  }
+  function downloadMenu(dl) {
+    if ($('.rmenu')) { $('.rmenu').remove(); return; }
+    const item = (ic, title, sub, fn) => h('button', { class: 'ri', role: 'menuitem', onclick: () => { menu.remove(); fn(); } },
+      h('span', { class: 'rio' }, icon(ic)), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
+    const e = dl.entry;
+    const menu = h('div', { class: 'rmenu', role: 'menu', 'aria-label': 'Download' }, ...(e ? [
+      item('download', 'Download again', `Updates your copy (${mb(e.size)}, downloaded ${new Date(e.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}) to Wikipedia’s current version.`, () => startDownload(dl, { textOnly: e.textOnly })),
+      item('delete', 'Delete download', 'Removes the copy from this computer. A favorite stays a favorite.', async () => {
+        await saved.remove(current.title);
+        setIdle(`Deleted the download of “${current.title}”.`);
+        dl.refresh();
+      }),
+    ] : [
+      item('download', 'Download this article', 'With its pictures, so it opens without the internet.', () => startDownload(dl)),
+      item('book', 'Download it as text only', 'Smaller: the text without its pictures.', () => startDownload(dl, { textOnly: true })),
+    ]));
+    const r = dl.el.getBoundingClientRect();
+    menu.style.top = (r.bottom + 4) + 'px';
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 310)) + 'px';
+    document.body.append(menu);
+    const away = (ev) => { if (!menu.contains(ev.target) && !dl.el.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', away, true); } };
+    document.addEventListener('mousedown', away, true);
+    menu.querySelector('.ri').focus();
+  }
+  // Progress from the main process: the button of the article on screen follows it.
+  // Known before the library's state is looked at (libChanged), so Offline mode isn't ended at startup for want of a library.
+  const downloadsKnown = saved.state().then((s) => { hasDownloads = !!(s && s.count); }, () => {});
+  saved.onUpdate((s) => {
+    hasDownloads = !!s.count;
+    downloadJobs = s.active || [];
+    if (current && current.dl) { if (!downloadJobs.length) current.dl.refresh(); else current.dl.draw(); }
+  });
+
   // ---------- sections ----------
   // An article can be opened at a section: "Moon#Orbit" (see splitSection). The section is an anchor, usually a
   // heading's id ("The_real-life_Eleanor_Rigby"); failing that, a heading with that text.
@@ -771,7 +845,8 @@
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
     const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
-    const pg = shell({ title, tools: [speakBtn, favBtn, wikiBtn], article: true });
+    const dl = downloadButton();
+    const pg = shell({ title, tools: [speakBtn, dl.el, favBtn, wikiBtn], article: true });
     pg.text.append(loading('Retrieving article…'));
     if (!mount(pg.root, token)) return;
     setStatus(`Retrieving “${title}”…`, true);
@@ -798,7 +873,8 @@
     mark('cleaned');
     if (pron) pg.titleRow.append(pronButton(name, pron));
 
-    current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn };
+    current = { title: name, desc: sum.description || '', thumb: sum.thumbnail?.source || '', favBtn, speakBtn, dl };
+    dl.refresh();
     addRecent(name);
     store.set('lastArticle', name);
 
@@ -1398,16 +1474,19 @@
     }
     // Offline mode: the page needs the internet, or the article isn't in the library. For a missing article, related
     // ones that are in the library follow (see relatedInLibrary).
-    const pg = shell({ title: err.notInLibrary ? 'Not in the offline library' : 'Offline mode', railTitle: '', wide: true });
+    const onlyDownloads = !hasLib && hasDownloads;
+    const pg = shell({ title: !err.notInLibrary ? 'Offline mode' : onlyDownloads ? 'Not downloaded' : 'Not in the offline library', railTitle: '', wide: true });
     const related = h('p', { class: 'inlib', hidden: true });
     pg.text.append(h('div', { class: 'errbox' },
-      h('b', {}, err.notInLibrary ? `“${arg}” isn’t in the offline library` : 'This page needs the internet'),
-      'You’re in Offline mode, so only the offline library is available.',
+      h('b', {}, !err.notInLibrary ? 'This page needs the internet' : onlyDownloads ? `“${arg}” isn’t downloaded` : `“${arg}” isn’t in the offline library`),
+      onlyDownloads ? 'You’re in Offline mode, so only the articles you’ve downloaded are available.'
+        : hasDownloads ? 'You’re in Offline mode, so only the offline library and the articles you’ve downloaded are available.'
+          : 'You’re in Offline mode, so only the offline library is available.',
       related,
       h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
     mount(pg.root, token);
     setIdle('Offline mode');
-    if (err.notInLibrary) relatedInLibrary(arg).then((titles) => {
+    if (err.notInLibrary && hasLib) relatedInLibrary(arg).then((titles) => {
       if (!titles.length || !live(token)) return;
       related.append(h('b', {}, 'In your library:'), ' ', ...titles.flatMap((t, i) => [i ? ' · ' : null,
         h('a', { href: '#', 'data-title': t }, t)]).filter(Boolean));
@@ -2787,7 +2866,7 @@
   // Offline mode on or off from the keyboard (Ctrl+Shift+O) or Tools › Offline Mode.
   function toggleOffline() {
     if (isOffline()) setOffline(false);
-    else if (hasLib || libMissing) setOffline(true);
+    else if (hasLib || libMissing || hasDownloads) setOffline(true);
     else askDownload();
   }
   async function openNet() {
@@ -2804,7 +2883,8 @@
       h('div', { class: 'hd' }, 'Connection'),
       !Wiki.connected() && !off ? h('div', { class: 'note' }, has ? 'No internet connection. Reading from the offline library until it’s back.' : 'No internet connection.') : null,
       opt(!off, 'Online', 'Uses the offline library when there’s no connection.', () => setOffline(false)),
-      opt(off, 'Offline', 'Only the offline library. Nothing loads from the internet.', () => (has || libMissing ? setOffline(true) : (closeNet(), askDownload()))),
+      opt(off, 'Offline', has || !hasDownloads ? 'Only the offline library. Nothing loads from the internet.' : 'Only your downloaded articles. Nothing loads from the internet.',
+        () => (has || libMissing || hasDownloads ? setOffline(true) : (closeNet(), askDownload()))),
       h('hr'),
       h('div', { class: 'cb mi' + (off || !has ? ' dis' : ''), role: 'menuitemcheckbox', tabindex: -1, 'aria-checked': String(first.checked),
         ...(off || !has ? { 'aria-disabled': 'true' } : {}), onclick: (e) => { if (e.target !== first) { e.preventDefault(); if (!first.disabled) first.click(); } } }, first,
@@ -2841,7 +2921,7 @@
     const wasMissing = !!libMissing;
     hasLib = !!(s && s.open);
     libMissing = s && s.missing ? { label: s.current ? s.current.label : 'Your offline library', where: s.missing.where } : null;
-    if (!hasLib && !libMissing && isOffline()) setOffline(false);
+    downloadsKnown.then(() => { if (!hasLib && !libMissing && !hasDownloads && isOffline()) setOffline(false); });
     updateNet();
     if (wasMissing && hasLib && (isOffline() || nav.stack[nav.idx] === 'home')) reload();
     if (hasLib && !s.download && store.get('offlineWhenReady', false)) {

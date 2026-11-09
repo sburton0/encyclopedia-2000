@@ -37,6 +37,16 @@ contextBridge.exposeInMainWorld('e2k', {
   },
   // The offline library (library.js): reading (info, find, titles, random) and managing it (the Offline Library
   // dialog). onUpdate hears about downloads, new editions, and library changes.
+  // Downloaded articles (downloads.js): find one by title, download one (or as text only), delete one.
+  saved: {
+    find: (title) => ipcRenderer.invoke('downloads:find', title),
+    get: (title) => ipcRenderer.invoke('downloads:get', title),
+    list: () => ipcRenderer.invoke('downloads:list'),
+    state: () => ipcRenderer.invoke('downloads:state'),
+    download: (title, opts) => ipcRenderer.invoke('downloads:download', title, opts),
+    remove: (title) => ipcRenderer.invoke('downloads:remove', title),
+    onUpdate: (cb) => ipcRenderer.on('downloads:update', (_e, s) => cb(s)),
+  },
   library: {
     info: () => ipcRenderer.invoke('library:info'),
     find: (title) => ipcRenderer.invoke('library:find', title),
