@@ -1494,6 +1494,66 @@ module.exports = [
     },
   },
   {
+    name: 'download-videos', group: 'Downloaded articles', title: 'An article downloads with its videos when asked (with their size first); they play offline; downloading again without them frees the space',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Humpback whale");');
+      t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Humpback whale" && document.querySelectorAll(".content.article .text p").length > 3', 40000));
+      const menuText = 'return document.querySelector(".rmenu")?.innerText || "";';
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      t.check('The download choices offer its videos, with their size', await t.waitFor('/Download it with its videos too\\s+Its 2 videos, about [\\d.]+ MB more/.test(document.querySelector(".rmenu")?.innerText || "")', 15000), await t.js(menuText));
+      await t.shot('videos-choice');
+      await t.js('[...document.querySelectorAll(".rmenu .ri")].find((b) => /with its videos too/.test(b.textContent)).click();');
+      t.check('…and it downloads with them', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Downloaded"', 180000),
+        await t.js('return document.querySelector(".bsplit .dmain")?.textContent || "";'));
+      t.check('The status bar says so', /Downloaded “Humpback whale” with its videos \([\d.]+ MB\)/.test(await t.js('return document.getElementById("status").textContent;')),
+        await t.js('return document.getElementById("status").textContent;'));
+      const withV = await t.js('return await window.e2k.saved.get("Humpback whale");');
+      t.check('The copy has both videos', withV && withV.videos === 2 && withV.withVideos && withV.videoSize > 500000, JSON.stringify(withV));
+
+      await t.js('window.e2k.net.setOffline(true); E2K.updateNet();');
+      const count = await t.countNetwork();
+      await t.js('E2K.go("home"); setTimeout(() => E2K.openArticle("Humpback whale"), 300);');
+      t.check('In Offline mode it opens with its videos’ still pictures', await t.waitFor('document.querySelector(".band h1")?.textContent === "Humpback whale" && [...document.querySelectorAll(".content.article .vthumb img")].length === 2', 20000)
+        && await t.js('return [...document.querySelectorAll(".content.article .vthumb img")].every((i) => i.src.startsWith("e2k-saved:"));'),
+        await t.js('return [...document.querySelectorAll(".content.article .vthumb img")].map((i) => i.src.slice(0, 50)).join(" ") || document.querySelector(".errbox")?.innerText || "";'));
+      t.check('The article’s Media list has the videos', await t.waitFor('[...document.querySelectorAll("button, a")].some((b) => /^\\s*2 videos\\s*$/.test(b.textContent))', 8000),
+        await t.js('return [...document.querySelectorAll("button, a")].map((b) => b.textContent.trim()).filter((x) => /^\\d+ (picture|video|sound)/.test(x)).join(", ");'));
+      await t.js('document.querySelector(".content.article .vthumb").click();');
+      t.check('A video opens in the viewer', await t.waitFor('document.querySelector(".mview video")', 8000));
+      // It plays from this computer, and jumping ahead works (the copy is read a part at a time).
+      const v = await t.js(`const v = document.querySelector('.mview video'); v.muted = true;
+        const meta = v.readyState >= 1 || await new Promise((r) => { v.addEventListener('loadedmetadata', () => r(true), { once: true }); v.addEventListener('error', () => r(false), { once: true }); setTimeout(() => r(false), 10000); });
+        if (!meta) return { src: v.currentSrc.slice(0, 50), ok: false, err: v.error?.code || 0 };
+        const to = v.duration / 2;
+        const seeked = await new Promise((r) => { v.addEventListener('seeked', () => r(true), { once: true }); setTimeout(() => r(false), 8000); v.currentTime = to; });
+        const frame = seeked && await new Promise((r) => { if (v.readyState >= 2) return r(true); v.addEventListener('loadeddata', () => r(true), { once: true }); setTimeout(() => r(v.readyState >= 2), 5000); });
+        return { src: v.currentSrc.slice(0, 50), ok: true, duration: Math.round(v.duration), at: Math.round(v.currentTime), seeked, frame, height: v.videoHeight };`);
+      t.check('…and plays from this computer, at 480p or less', v.ok && v.src.startsWith('e2k-saved:') && v.duration > 20 && v.height > 0 && v.height <= 480, JSON.stringify(v));
+      t.check('…and jumping ahead works', v.seeked && v.frame && v.at >= v.duration / 2 - 1, JSON.stringify(v));
+      await t.sleep(800);   // the viewer has faded in
+      await t.shot('video-offline');
+      const net = count();
+      t.check('Nothing came from the internet', net.n === 0, net.n ? `${net.n}: ${net.urls.join(' ')}` : '');
+      await t.key('Escape');
+      await t.js('document.querySelector(".mview")?.remove();');
+
+      // Online again: downloading again without the videos frees their space.
+      await t.js('window.e2k.net.setOffline(false); E2K.updateNet();');
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      t.check('Once downloaded with them, the choices offer to download it again without them', await t.waitFor('/Download again without its videos\\s+Frees [\\d.]+ MB/.test(document.querySelector(".rmenu")?.innerText || "")', 5000)
+        && !/Download again with its videos/.test(await t.js(menuText)), await t.js(menuText));
+      await t.js('[...document.querySelectorAll(".rmenu .ri")].find((b) => /without its videos/.test(b.textContent)).click();');
+      await t.waitFor('/Downloading/.test(document.querySelector(".bsplit .dmain")?.textContent || "")', 5000);
+      t.check('…which does', await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Downloaded"', 120000));
+      const without = await t.js('return await window.e2k.saved.get("Humpback whale");');
+      t.check('…and the copy is smaller, with its pictures and sound but no videos', without && without.videos === 0 && !without.withVideos && without.sounds >= 1 && without.size < withV.size - withV.videoSize / 2,
+        JSON.stringify({ before: withV?.size, after: without?.size, videos: without?.videos }));
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      t.check('…and offers its videos again', await t.waitFor('/Download again with its videos\\s+Its 2 videos/.test(document.querySelector(".rmenu")?.innerText || "")', 15000), await t.js(menuText));
+    },
+  },
+  {
     name: 'section-redirect-online', group: 'Reading', title: 'A title that redirects to a section of another article opens it at that section (online)',
     route: 'home',
     async run(t) {

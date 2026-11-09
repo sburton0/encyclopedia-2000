@@ -754,7 +754,7 @@
         if (job) label.textContent = `Downloading… ${Math.round((job.done / Math.max(job.total, 1)) * 100)}%`;
         else label.textContent = dl.entry ? 'Downloaded' : 'Download for Offline';
         main.title = dl.entry ? `Downloaded ${new Date(dl.entry.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${mb(dl.entry.size)}. It opens without the internet.`
-          : 'Download this article with its pictures, so it opens without the internet';
+          : 'Download this article with its pictures and sounds, so it opens without the internet';
       } };
     return dl;
   }
@@ -764,7 +764,7 @@
     if (isOffline()) { setIdle('Offline mode is on. Downloading an article needs the internet.'); return; }
     setStatus(`Downloading “${title}”…`, true);
     const r = await saved.download(title, opts);
-    if (r.ok) setIdle(`Downloaded “${r.entry.title}” (${mb(r.entry.size)}). It opens without the internet.`);
+    if (r.ok) setIdle(`Downloaded “${r.entry.title}”${r.entry.videos ? ` with its ${r.entry.videos === 1 ? 'video' : 'videos'}` : ''} (${mb(r.entry.size)}). It opens without the internet.`);
     else if (r.space) setIdle(`“${title}” wasn’t downloaded: there isn’t enough free space on this drive.`);
     else if (r.offline) setIdle('Offline mode is on. Downloading an article needs the internet.');
     else setIdle(`“${title}” couldn’t be downloaded. Check your connection and try again.`);
@@ -775,17 +775,32 @@
     const item = (ic, title, sub, fn) => h('button', { class: 'ri', role: 'menuitem', onclick: () => { menu.remove(); fn(); } },
       h('span', { class: 'rio' }, icon(ic)), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
     const e = dl.entry;
+    // Videos are downloaded only on request. The choice shows once the article is known to have some, with their size.
+    const videoItem = (!e || !e.textOnly) && !(e && e.withVideos) ? item('film', e ? 'Download again with its videos' : 'Download it with its videos too',
+      'Checking how big they are…', () => startDownload(dl, { videos: true })) : null;
+    if (videoItem) {
+      videoItem.hidden = true;
+      saved.videos(current.title).then((v) => {
+        if (!v || !v.count) return;
+        videoItem.querySelector('.s').textContent = `${v.count === 1 ? 'Its video' : `Its ${v.count} videos`}${v.size ? `, about ${mb(v.size)} more` : ''}. Videos play without the internet too.`;
+        videoItem.hidden = false;
+      }, () => {});
+    }
     const menu = h('div', { class: 'rmenu', role: 'menu', 'aria-label': 'Download' }, ...(e ? [
-      item('download', 'Download again', `Updates your copy (${mb(e.size)}, downloaded ${new Date(e.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}) to Wikipedia’s current version.`, () => startDownload(dl, { textOnly: e.textOnly })),
+      item('download', 'Download again', `Updates your copy (${mb(e.size)}, downloaded ${new Date(e.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}) to Wikipedia’s current version.`,
+        () => startDownload(dl, { textOnly: e.textOnly, videos: e.withVideos })),
+      videoItem,
+      e.withVideos ? item('film', 'Download again without its videos', `Frees ${mb(e.videoSize)}. The videos still play when you’re online.`, () => startDownload(dl)) : null,
       item('delete', 'Delete download', 'Removes the copy from this computer. A favorite stays a favorite.', async () => {
         await saved.remove(current.title);
         setIdle(`Deleted the download of “${current.title}”.`);
         dl.refresh();
       }),
     ] : [
-      item('download', 'Download this article', 'With its pictures, so it opens without the internet.', () => startDownload(dl)),
+      item('download', 'Download this article', 'With its pictures and sounds, so it opens without the internet.', () => startDownload(dl)),
+      videoItem,
       item('book', 'Download it as text only', 'Smaller: the text without its pictures.', () => startDownload(dl, { textOnly: true })),
-    ]));
+    ]).filter(Boolean));
     const r = dl.el.getBoundingClientRect();
     menu.style.top = (r.bottom + 4) + 'px';
     menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 310)) + 'px';

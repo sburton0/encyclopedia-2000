@@ -45,6 +45,8 @@ contextBridge.exposeInMainWorld('e2k', {
     state: () => ipcRenderer.invoke('downloads:state'),
     download: (title, opts) => ipcRenderer.invoke('downloads:download', title, opts),
     remove: (title) => ipcRenderer.invoke('downloads:remove', title),
+    // An article's videos and about how much downloading them adds: { count, size }, or null if it can't be told.
+    videos: (title) => ipcRenderer.invoke('downloads:videos', title),
     onUpdate: (cb) => ipcRenderer.on('downloads:update', (_e, s) => cb(s)),
   },
   library: {
