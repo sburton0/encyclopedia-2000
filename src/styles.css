@@ -275,6 +275,75 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .dialog.dlall .space > :nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, .15); }
 .dialog.dlall .space b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 
+/* The toolbar's My Articles button: the main part opens the pane; the arrow, past a line, opens Manage */
+.tsplit { display: inline-flex; }
+.tsplit .tmain { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 8px; }
+.tsplit .tarrow { min-width: 18px; width: 18px; margin-left: -1px; font-size: 9px; color: #aab3c5; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: inset 1px 0 0 #3a404c; }
+.tsplit .tarrow:hover { color: #fff; }
+.menu.manage { position: fixed; z-index: 60; min-width: 250px; }
+.menu.manage .mh { padding: 5px 10px 3px; font: 600 12px "Segoe UI"; color: #9aa3b6; }
+.fpane .ff { display: flex; align-items: center; gap: 8px; }
+.fpane .ff span { flex: 1; }
+.fpane .ff .more.open { margin: 0; font-size: 11px; white-space: nowrap; }
+.fpane .fh button.exp .ic { width: 12px; height: 12px; fill: none; }
+/* Clear History: what to clear */
+.dialog.clearh .cradios { display: grid; gap: 6px; margin: 8px 0 12px; }
+.dialog.clearh .cradio { display: flex; align-items: center; gap: 8px; color: #fff; }
+.dialog.clearh .cradio input { accent-color: var(--orange); margin: 0; }
+
+/* ---------- My Articles page: Favorites (with folders), Downloaded, History ---------- */
+.myart .band .tools { align-items: center; }
+.myart .msearch { width: 300px; height: 30px; padding: 0 10px; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .3); color: #fff; font: 13px "Segoe UI"; outline: 0; }
+.myart .msearch::placeholder { color: #c3cde2; }
+.myart .msearch:focus { border-color: var(--orange); background: rgba(0, 0, 0, .25); }
+.myart .rail .lnk { display: flex; align-items: center; gap: 6px; }
+.myart .rail .lnk .n { margin-left: auto; font-size: 12px; opacity: .75; }
+.myart .rail .lnk.off { opacity: .45; }
+.myart .rail .mfold { padding-left: calc(6px + var(--lv, 0) * 18px); }
+.myart .rail .mfold .tw { width: 10px; flex: none; font-size: 9px; color: #9fb4d8; }
+.myart .rail .mfold .ic { width: 14px; height: 14px; flex: none; fill: #f3c25a; }
+.myart .rail .mfold .ren { flex: 1; min-width: 0; height: 22px; padding: 0 4px; background: #0a0c10; border: 1px solid var(--orange); color: #fff; font: 13px "Segoe UI"; outline: 0; }
+.myart .rail .mfold .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.myart .rail .mfold.drop { background: rgba(243, 194, 90, .22); outline: 1px dashed #f3c25a; }
+.myart .rail .mnote { margin: 14px 0 0; font: 12.5px/1.5 "Segoe UI"; color: #d7e1f5; }
+.myart .rail .mnote.warn { color: var(--gold); }
+.myart .rail .mstat { margin: 4px 0; font: 13px/1.6 "Segoe UI"; color: #fff; }
+.myart .content .text { max-width: 1000px; }
+.myart .mhead { display: flex; align-items: baseline; gap: 14px; margin: 18px 0 8px; padding-bottom: 6px; border-bottom: 1px solid #d7deec; font: 13px "Segoe UI"; color: #5f6779; }
+.myart .mhead:first-child { margin-top: 0; }
+.myart .mhead b { font: 600 12px "Segoe UI"; letter-spacing: 3px; color: var(--ink-2); text-transform: uppercase; }
+.myart .msel { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 8px; padding: 8px 14px; background: #e8f0fd; border: 1px solid #b9cdf0; }
+.myart .msel b { margin-right: 6px; font: 600 13px "Segoe UI"; color: #14213d; }
+.myart .msel .go { min-width: 0; padding: 3px 12px; }
+.myart .msel .clr { margin-left: auto; }
+.myart .mrow { display: flex; align-items: center; gap: 14px; padding: 8px 8px; border-bottom: 1px solid #e3e8f2; }
+.myart .mrow.sel { background: #eef4fe; }
+.myart .mrow:hover { background: #f2f5fb; }
+.myart .mrow .chk { flex: none; display: grid; place-items: center; width: 20px; }
+.myart .mrow .chk input { width: 15px; height: 15px; margin: 0; accent-color: #1d4fb8; }
+.myart .mrow .th { flex: none; width: 56px; height: 56px; background: #dfe5f0 center/cover no-repeat; border: 1px solid #d0d7e4; display: grid; place-items: center; }
+.myart .mrow .th.ph .ic { width: 22px; height: 22px; fill: #9aa6bf; }
+.myart .mrow .th.fold { background: #fbe9bf; border-color: #f0d79a; }
+.myart .mrow .th.fold .ic { width: 26px; height: 26px; fill: #e8b33d; }
+.myart .mrow .mtx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.myart .mrow .mlink { align-self: flex-start; max-width: 100%; padding: 0; background: none; border: 0; text-align: left; font: 600 16px "Segoe UI"; color: #1d4fb8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.myart .mrow .mlink:hover { text-decoration: underline; }
+.myart .mrow .md { font: 13.5px "Segoe UI"; color: #5a6275; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.myart .mrow .mwhere { display: inline-flex; align-items: center; gap: 4px; font: 12px "Segoe UI"; color: #5f6779; }
+.myart .mrow .mwhere .ic { width: 11px; height: 11px; fill: #e8b33d; }
+.myart .mrow .ren { width: 300px; max-width: 100%; height: 26px; padding: 0 6px; border: 1px solid var(--orange); font: 600 15px "Segoe UI"; }
+.myart .mrow .mtime { flex: none; width: 70px; text-align: right; font: 13px "Segoe UI"; color: #5f6779; font-variant-numeric: tabular-nums; }
+.myart .mrow .msize { flex: none; font: 12.5px "Segoe UI"; color: #6b7386; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.myart .mrow .mstar .ic { width: 14px; height: 14px; fill: var(--orange); }
+.myart .mrow .mark { flex: none; width: 26px; height: 26px; padding: 0; display: grid; place-items: center; background: none; border: 1px solid transparent; color: #7f95bf; }
+.myart .mrow .mark svg { width: 20px; height: 20px; }
+.myart .mrow button.mark:hover { border-color: #c9d3ea; background: #fff; color: #1d4fb8; }
+.myart .mrow .rx { flex: none; width: 26px; height: 26px; padding: 0; background: none; border: 1px solid transparent; color: #8a93a6; font: 13px/1 "Segoe UI"; }
+.myart .mrow .rx:hover { border-color: #c9d3ea; background: #fff; color: #b3261e; }
+.myart .mrow.folder.drop { background: #fff6dc; outline: 1px dashed #e8b33d; }
+.myart .mempty { padding: 24px 8px; font: 14px "Segoe UI"; color: #5a6275; }
+.myart .mmore { margin: 14px 0 0 6px; }
+
 #view { flex: 1; position: relative; overflow: hidden; background: var(--home-bg); }
 .fade-in { animation: viewin .25s ease-out both; }
 @keyframes viewin { from { opacity: 0; } to { opacity: 1; } }

@@ -1619,17 +1619,121 @@ module.exports = [
         await t.js('return document.getElementById("status").textContent;'));
       // Recently viewed: ✕ removes one; Clear all asks, then clears.
       await t.js('document.querySelector("#fpane [data-key=\'r:Saturn\'] .rx").click();');
-      t.check('✕ removes an article from Recently viewed', await t.waitFor('!document.querySelector("#fpane [data-key=\'r:Saturn\']") && localStorage.getItem("e2k.recent") === JSON.stringify(["Jupiter"])', 2000));
+      t.check('✕ removes an article from Recently viewed (and History)', await t.waitFor('!document.querySelector("#fpane [data-key=\'r:Saturn\']") && JSON.parse(localStorage.getItem("e2k.history")).map((e) => e.t).join() === "Jupiter"', 2000),
+        await t.js('return localStorage.getItem("e2k.history");'));
       await t.js('[...document.querySelectorAll("#fpane .newf")].find((b) => b.textContent === "Clear all").click();');
-      t.check('Clear all asks first', await t.waitFor('/recently viewed/i.test(document.querySelector(".overlay .dialog")?.innerText || "")', 2000));
-      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Clear").click();');
-      t.check('…then clears the list', await t.waitFor('localStorage.getItem("e2k.recent") === "[]" && !document.querySelector("#fpane [data-key^=\'r:\']")', 2000));
+      t.check('Clear all asks first: the last hour, today, or everything', await t.waitFor('/Clear your history/.test(document.querySelector(".overlay .dialog")?.innerText || "") && document.querySelectorAll(".overlay input[name=clearh]").length === 3', 2000));
+      await t.js('document.querySelector(".overlay input[value=all]").click(); [...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Clear History").click();');
+      t.check('…then clears the list', await t.waitFor('localStorage.getItem("e2k.history") === "[]" && !document.querySelector("#fpane [data-key^=\'r:\']")', 2000));
       // Delete Download from the right-click menu.
       await t.js(`const r = document.querySelector("#fpane [data-key='d:Deimos (moon)']"); const b = r.getBoundingClientRect();
         r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.left + 20, clientY: b.top + 5, button: 2 }));
         [...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.startsWith("Delete Download")).click();`);
       t.check('Delete Download removes the copy; the favorite gets its download button back', await t.waitFor('!document.querySelector("#fpane [data-key=\'d:Deimos (moon)\']") && document.querySelector("#fpane [data-key=\'a:Deimos (moon)\'] button.mark.get")', 5000));
       for (const x of ['Deimos (moon)', 'Phobos (moon)']) await t.js(`await window.e2k.saved.remove(${JSON.stringify(x)}); return true;`);
+    },
+  },
+  {
+    name: 'my-articles-page', group: 'My Articles', title: 'My Articles page: Favorites with its folders, the selection bar (Move to…, Remove), and the toolbar’s Manage menu',
+    route: 'home',
+    async run(t) {
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([{ folder: 'Space', id: 'sp', open: true, items: [{ title: 'Saturn' }, { title: 'Mars' }] }, { title: 'Moon' }]));`);
+      // The toolbar's arrow: Manage.
+      await t.js('document.querySelector(".tbtn[data-cmd=manage]").click();');
+      t.check('The arrow beside My Articles opens Manage: Favorites, Downloaded Articles, History',
+        await t.waitFor('[...document.querySelectorAll(".menu.manage .mi")].map((m) => m.firstChild.textContent).join("|") === "Favorites…|Downloaded Articles…|History…"', 2000));
+      await t.shot('manage-menu');
+      await t.js('[...document.querySelectorAll(".menu.manage .mi")][0].click();');
+      t.check('Favorites… opens the page', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "Favorites"', 5000));
+      t.check('…with the location bar at My Articles › Favorites', await t.js('return /My Articles\\s*›\\s*Favorites$/.test(document.getElementById("crumbs").innerText.trim());'),
+        await t.js('return document.getElementById("crumbs").innerText;'));
+      t.check('The rail lists the views with counts, and the folders', await t.js(`const r = document.querySelector(".myart .rail").innerText;
+        return /Favorites\\s*3/.test(r) && /All favorites\\s*3/.test(r) && /Space\\s*2/.test(r) && /Not in a folder\\s*1/.test(r);`), await t.js('return document.querySelector(".myart .rail").innerText;'));
+      t.check('All favorites lists every favorite, with its folder', await t.js(`return [...document.querySelectorAll(".myart .mrow .mlink")].map((b) => b.textContent).join() === "Saturn,Mars,Moon"
+        && /Space/.test(document.querySelector('.myart .mrow[data-title="Saturn"] .mwhere')?.textContent || "");`));
+      t.check('Pictures and descriptions are filled in', await t.waitFor('document.querySelectorAll(".myart .mrow .th:not(.ph)").length === 3 && [...document.querySelectorAll(".myart .mrow .md")].every((d) => d.textContent)', 20000));
+      // A folder from the rail.
+      await t.js('[...document.querySelectorAll(".myart .rail .mfold")].find((b) => b.textContent.includes("Space")).click();');
+      t.check('A folder in the rail shows what’s in it', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "Space" && document.querySelectorAll(".myart .mrow").length === 2', 5000));
+      t.check('…and the location bar adds it', await t.js('return /Favorites\\s*›\\s*Space/.test(document.getElementById("crumbs").innerText);'), await t.js('return document.getElementById("crumbs").innerText;'));
+      // Select both, then Move to… the top level.
+      await t.js('document.querySelectorAll(".myart .mrow .chk input").forEach((c) => c.click());');
+      t.check('Ticking keeps the keyboard where it was (the list isn’t redrawn)', await t.js('return document.querySelectorAll(".myart .mrow.sel").length === 2;'));
+      t.check('Ticking rows shows the selection bar', await t.waitFor('/2 selected/.test(document.querySelector(".myart .msel")?.innerText || "")', 2000));
+      await t.sleep(1000);
+      await t.shot('selected');
+      await t.js('[...document.querySelectorAll(".myart .msel .go")].find((b) => b.textContent === "Move to…").click();');
+      await t.waitFor('document.querySelector(".menu.ctx .mi")', 2000);
+      await t.js('[...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.trim() === "Favorites (no folder)").click();');
+      t.check('Move to… moves them', await t.waitFor(`(() => { const f = JSON.parse(localStorage.getItem("e2k.favorites")); return f[0].items.length === 0 && f.filter((n) => n.title).length === 3; })()`, 2000),
+        await t.js('return localStorage.getItem("e2k.favorites");'));
+      t.check('…and the folder’s page updates', await t.waitFor('!document.querySelector(".myart .mrow") && /empty/.test(document.querySelector(".myart .mempty")?.textContent || "")', 2000));
+      // ✕ removes one; New Folder in the band.
+      await t.js('[...document.querySelectorAll(".myart .rail .mfold")].find((b) => b.textContent.includes("Not in a folder")).click();');
+      await t.waitFor('document.querySelectorAll(".myart .mrow").length === 3', 3000);
+      await t.js('document.querySelector(\'.myart .mrow[data-title="Moon"] .rx\').click();');
+      t.check('✕ removes a favorite', await t.waitFor('!document.querySelector(\'.myart .mrow[data-title="Moon"]\') && !localStorage.getItem("e2k.favorites").includes("Moon")', 2000));
+      await t.js('[...document.querySelectorAll(".myart .band .bbtn")].find((b) => b.textContent === "New Folder").click();');
+      t.check('New Folder makes one, named in place', await t.waitFor('document.activeElement?.matches(".myart input.ren")', 2000));
+      await t.js('document.activeElement.value = "Planets";');
+      await t.key('Enter');
+      t.check('…which appears in the rail', await t.waitFor('[...document.querySelectorAll(".myart .rail .mfold .t")].some((x) => x.textContent === "Planets")', 2000));
+      // Search
+      await t.js('const i = document.querySelector(".myart .msearch"); i.value = "sat"; i.dispatchEvent(new Event("input"));');
+      t.check('Search finds favorites', await t.waitFor('[...document.querySelectorAll(".myart .mrow .mlink")].map((b) => b.textContent).join() === "Saturn"', 2000));
+      await t.sleep(800);
+      const axePage = await t.axe();
+      t.check('No serious accessibility problems on the page', !axePage.length, JSON.stringify(axePage));
+      await t.command('Manage Favorites…', 'b');
+      t.check('Ctrl+B opens it too', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "Favorites"', 3000));
+    },
+  },
+  {
+    name: 'my-articles-history', group: 'My Articles', title: 'History: every article read, by day with times; ✕, Clear History (last hour, today, everything), and Pause history',
+    route: 'home',
+    async run(t) {
+      // 0.5's recently viewed (no times), then History as this version keeps it.
+      await t.js(`localStorage.setItem('e2k.recent', JSON.stringify(['Moon', 'Mars']));`);
+      await t.js('E2K.openArticle("Europa (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Europa (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      const hist = await t.js('return JSON.parse(localStorage.getItem("e2k.history"));');
+      t.check('0.5’s recently viewed carries into History, the article just read on top', hist.map((e) => e.t).join() === 'Europa (moon),Moon,Mars' && hist[0].at > 0 && hist[1].at === 0, JSON.stringify(hist));
+      // Days: today, yesterday, three days ago, and earlier.
+      await t.js(`const now = Date.now(), d = new Date(); d.setHours(0, 0, 0, 0); const today = d.getTime();
+        const h = JSON.parse(localStorage.getItem('e2k.history'));
+        h.splice(1, 0, { t: 'Jupiter', at: now - 120000 }, { t: 'Saturn', at: today - 3600e3 }, { t: 'Venus', at: today - 3 * 864e5 + 3600e3 });
+        localStorage.setItem('e2k.history', JSON.stringify(h));`);
+      await t.command('History…', 'y');
+      t.check('Ctrl+Y opens History', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "History"', 5000));
+      const days = await t.js('return [...document.querySelectorAll(".myart .mday b")].map((b) => b.textContent);');
+      t.check('Grouped by day: Today, Yesterday, the weekday, Earlier', days.length === 4 && days[0] === 'Today' && days[1] === 'Yesterday' && /day, /.test(days[2]) && days[3] === 'Earlier', JSON.stringify(days));
+      t.check('Each with the time it was read', await t.js('return /\\d:\\d\\d [AP]M/.test(document.querySelector(".myart .mrow .mtime").textContent);'));
+      t.check('The rail says how many', await t.js('return /5\\s*articles this week/.test(document.querySelector(".myart .rail").innerText) || /4\\s*articles this week/.test(document.querySelector(".myart .rail").innerText);'),
+        await t.js('return document.querySelector(".myart .rail").innerText;'));
+      await t.sleep(1000);
+      await t.shot('history');
+      // ✕
+      await t.js('document.querySelector(\'.myart .mrow[data-title="Venus"] .rx\').click();');
+      t.check('✕ removes an article from History', await t.waitFor('!document.querySelector(\'.myart .mrow[data-title="Venus"]\') && !localStorage.getItem("e2k.history").includes("Venus")', 2000));
+      // Clear History: the last hour only.
+      await t.js('[...document.querySelectorAll(".myart .band .bbtn")].find((b) => b.textContent === "Clear History…").click();');
+      await t.waitFor('document.querySelector(".overlay .dialog.clearh")', 2000);
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Clear History").click();');
+      t.check('Clear History › The last hour clears only that', await t.waitFor('JSON.parse(localStorage.getItem("e2k.history")).map((e) => e.t).join() === "Saturn,Moon,Mars"', 2000),
+        await t.js('return localStorage.getItem("e2k.history");'));
+      // Pause history: reading doesn't add to it.
+      await t.js('[...document.querySelectorAll(".myart .rail .lnk")].find((b) => b.textContent === "Pause history").click();');
+      t.check('Pause history says it’s paused', await t.waitFor('/History is paused/.test(document.querySelector(".myart .rail").innerText)', 2000));
+      await t.js('E2K.openArticle("Callisto (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Callisto (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      await t.sleep(1500);
+      t.check('…and an article read meanwhile isn’t added', !(await t.js('return localStorage.getItem("e2k.history").includes("Callisto");')));
+      await t.js('E2K.go("myarticles/history");');
+      await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "History"', 5000);
+      await t.js('[...document.querySelectorAll(".myart .rail .lnk")].find((b) => b.textContent === "Resume history").click();');
+      await t.js('E2K.openArticle("Io (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Io (moon)"', 40000);
+      t.check('Resumed, reading adds again', await t.waitFor('JSON.parse(localStorage.getItem("e2k.history"))[0]?.t === "Io (moon)"', 5000), await t.js('return localStorage.getItem("e2k.history");'));
     },
   },
   {
