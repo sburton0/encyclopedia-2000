@@ -1835,6 +1835,68 @@ module.exports = [
     },
   },
   {
+    name: 'home-offline-downloads', group: 'Downloaded articles', title: 'Offline, Home shows one of your downloaded articles in place of today’s discovery, with a link to them all',
+    route: 'home',
+    async run(t) {
+      for (const x of ['Deimos (moon)', 'Phobos (moon)']) await t.js(`return (await window.e2k.saved.download(${JSON.stringify(x)})).ok;`);
+      await t.command('Offline Mode', 'O', { ctrlKey: true, shiftKey: true });
+      await t.js('E2K.go("home");');
+      t.check('Offline, Home’s panel is “From your downloaded articles”', await t.waitFor('document.querySelector(".home .disc h3")?.textContent === "From your downloaded articles"', 15000),
+        await t.js('return document.querySelector(".home .disc")?.innerText || "";'));
+      t.check('…with one of them, its picture and its opening', await t.waitFor('/^(Deimos|Phobos) \\(moon\\)$/.test(document.querySelector(".home .disc .row b").textContent) && document.querySelector(".home .disc .row p").textContent.length > 40', 5000));
+      t.check('…and a link to them all', await t.js('return document.querySelector(".home .disc .savedlink")?.textContent === "All 2 downloaded articles ›";'));
+      await t.sleep(800);
+      await t.shot('home-offline');
+      const title = await t.js('return document.querySelector(".home .disc .row b").textContent;');
+      await t.js('[...document.querySelectorAll(".home .disc .more")].find((b) => b.textContent === "Read it ›").click();');
+      t.check('Read it › opens it (from its copy)', await t.waitFor(`document.querySelector(".band h1")?.textContent === ${JSON.stringify(title)}`, 15000));
+      await t.js('E2K.go("home");');
+      await t.waitFor('document.querySelector(".home .disc .savedlink:not([hidden])")', 15000);
+      await t.js('document.querySelector(".home .disc .savedlink").click();');
+      t.check('The link opens the Downloaded page', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "Downloaded"', 5000));
+      await t.command('Offline Mode', 'O', { ctrlKey: true, shiftKey: true });
+      for (const x of ['Deimos (moon)', 'Phobos (moon)']) await t.js(`await window.e2k.saved.remove(${JSON.stringify(x)}); return true;`);
+    },
+  },
+  {
+    name: 'menu-submenus', group: 'My Articles', title: 'The Favorites menu: Manage ▸ and each folder ▸ open as submenus, by mouse and by keyboard',
+    route: 'home', only: 'win32',
+    async run(t) {
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([{ folder: 'Space', id: 'sp', open: true, items: [{ title: 'Moon' }, { folder: 'Moons', id: 'mo', items: [{ title: 'Io (moon)' }] }] }, { title: 'Saturn' }]));`);
+      const openFav = () => t.js(`const m = [...document.querySelectorAll("#menubar .m")].find((x) => x.firstChild.textContent === "Favorites");
+        m.dispatchEvent(new MouseEvent("mousedown", { bubbles: true })); return true;`);
+      const items = (sel = '#menubar .menu') => t.js(`const b = document.querySelector(${JSON.stringify(sel)}); return b ? [...b.children].filter((c) => c.classList.contains("mi")).map((c) => c.firstChild.textContent + (c.classList.contains("sub") ? " ▸" : "")) : null;`);
+      await openFav();
+      const top = await items();
+      t.check('The Favorites menu: My Articles, Add to Favorites, Manage ▸, then the folders ▸ and favorites', JSON.stringify(top) === JSON.stringify(['My Articles', 'Add to Favorites', 'Manage ▸', 'Space ▸', 'Saturn']), JSON.stringify(top));
+      // The mouse: hovering Manage opens it.
+      const r = await t.js('const m = [...document.querySelectorAll("#menubar .menu > .mi")].find((x) => x.firstChild.textContent === "Manage"); const b = m.getBoundingClientRect(); return { x: b.left + 30, y: b.top + b.height / 2 };');
+      await t.hover(r.x, r.y);
+      await t.hover(r.x + 4, r.y);
+      t.check('Hovering Manage opens its submenu', await t.waitFor('[...(document.querySelector("#menubar .menu .subm")?.children || [])].map((c) => c.firstChild.textContent).join("|") === "Favorites…|Downloaded Articles…|History…"', 2000));
+      await t.shot('manage-submenu');
+      await t.js('[...document.querySelectorAll("#menubar .subm .mi")].find((m) => m.firstChild.textContent === "History…").click();');
+      t.check('…and its History… opens History', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "History"', 5000));
+      // The keyboard: F10, to Favorites, down to Space, right into it, down to Moons, right into that, Enter.
+      await t.key('F10');
+      for (let i = 0; i < 4; i++) await t.key('Right');
+      await t.key('Down');
+      for (let i = 0; i < 3; i++) await t.key('Down');
+      t.check('The arrows reach a folder', (await t.focused()).text.startsWith('Space'), JSON.stringify(await t.focused()));
+      await t.key('Right');
+      t.check('→ opens it, on its first item', (await t.focused()).text === 'Moon', JSON.stringify(await t.focused()));
+      await t.key('Left');
+      t.check('← closes it, back on the folder', (await t.focused()).text.startsWith('Space') && !(await t.js('return !!document.querySelector("#menubar .subm");')), JSON.stringify(await t.focused()));
+      await t.key('Right');
+      await t.key('Down');
+      await t.key('Right');
+      t.check('A folder inside a folder opens the same way', (await t.focused()).text === 'Io (moon)', JSON.stringify(await t.focused()));
+      await t.key('Enter');
+      t.check('Enter opens the favorite', await t.waitFor('document.querySelector(".band h1")?.textContent === "Io (moon)"', 30000));
+      t.check('…and the menus close', !(await t.js('return !!document.querySelector("#menubar .menu");')));
+    },
+  },
+  {
     name: 'download-sounds', group: 'Downloaded articles', title: 'A downloaded article’s sounds and pronunciation play offline; a recording of the whole article read aloud isn’t downloaded',
     route: 'home',
     async run(t) {

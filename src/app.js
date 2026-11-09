@@ -59,6 +59,7 @@
   function macMenus() {
     const ids = [];
     const item = ([label, cmd, key, checked, disabled]) => {
+      if (cmd && typeof cmd === 'object' && cmd.sub) return { label, items: conv(cmd.sub) };
       ids.push(cmd);
       return { label, id: ids.length - 1, key: key ? macKey(key) : '', checked: checked == null ? undefined : !!checked, disabled: !!disabled || !cmd };
     };
@@ -411,6 +412,8 @@
     const discTitle = h('b', {}, 'Loading today’s discovery…');
     const discText = h('p');
     const discMore = h('button', { class: 'more' }, 'Read the full article ›');
+    const discHead = h('h3', {}, 'Today’s discovery');
+    const discAll = h('button', { class: 'more savedlink', hidden: true, onclick: () => go('myarticles/downloaded') });
     const almList = h('div', { class: 'list' }, h('div', { class: 'muted' }, 'Loading…'));
 
     const canvas = h('div', { class: 'home-canvas' },
@@ -420,8 +423,8 @@
       h('nav', { class: 'shelf', 'aria-label': 'Explore' }, h('small', {}, 'EXPLORE'),
         h('div', { class: 'row' }, ORBS.map((o, i) => h('button', { class: 'orb', onclick: o.run },
           h('i', { style: `--orb-bg:radial-gradient(circle at 40% 30%,${o.bg});${E2KThemes.orbStyle(i)}` }, svg('svg', {}, svg('use', { href: '#i-' + o.icon }))), o.label)))),
-      h('div', { class: 'panel disc' }, h('h3', {}, 'Today’s discovery'),
-        h('div', { class: 'row' }, discThumb, h('div', {}, discTitle, discText)), discMore),
+      h('div', { class: 'panel disc' }, discHead,
+        h('div', { class: 'row' }, discThumb, h('div', {}, discTitle, discText)), discMore, discAll),
       h('div', { class: 'panel alm' }, h('h3', {}, 'Almanac'), h('div', { class: 'd' }, longDate().toUpperCase()), almList,
         h('button', { class: 'more', onclick: () => go('onthisday') }, 'See all of today’s events ›')),
     );
@@ -430,7 +433,27 @@
     fitHome();
     setStatus('Gathering today’s discoveries…', true);
 
-    todayFeed().then((d) => {
+    // Offline with downloaded articles: one of them in place of today's discovery (a different one each day), and a
+    // link to them all.
+    async function fromDownloads() {
+      const list = await saved.list().catch(() => []);
+      if (!list.length || !live(token)) return false;
+      const e = list[Math.floor(Date.now() / 864e5) % list.length];
+      const sum = await Wiki.summary(e.title).catch(() => null);
+      if (!live(token)) return true;
+      discHead.textContent = 'From your downloaded articles';
+      discThumb.style.cssText = 'padding:0;' + bg(sum?.thumbnail?.source || e.thumb);
+      discTitle.textContent = e.title;
+      discText.textContent = sum?.extract || e.desc || '';
+      discMore.textContent = 'Read it ›';
+      discMore.onclick = discThumb.onclick = () => openArticle(e.title);
+      discThumb.setAttribute('aria-label', `Read about ${e.title}`);
+      discAll.replaceChildren(icon('download'), list.length === 1 ? 'Your downloaded article ›' : `All ${list.length} downloaded articles ›`);
+      discAll.hidden = false;
+      return true;
+    }
+
+    todayFeed().then(async (d) => {
       if (!live(token)) return;
       const img = d.image || {};
       dial.style.cssText = bg(img.fromLibrary ? img.thumbnail.source : sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 500));
@@ -443,7 +466,9 @@
       } else if (d.offline) dialCap.textContent = 'Back when you’re online';
 
       const tfa = d.tfa;
-      if (tfa) {
+      if (d.offline && await fromDownloads()) {
+        if (!live(token)) return;
+      } else if (tfa) {
         const t = tfa.titles?.normalized || tfa.title;
         discThumb.style.cssText = 'padding:0;' + bg(tfa.thumbnail?.source);
         discTitle.textContent = t;
@@ -476,8 +501,14 @@
           h('b', {}, String(o.year)), h('div', {}, o.text));
       }));
       setIdle(d.offline ? (isOffline() ? 'Offline mode' : 'Offline') : 'Ready');
-    }).catch((err) => {
+    }).catch(async (err) => {
       if (!live(token)) return;
+      if (!Wiki.connected() || isOffline()) {
+        almList.replaceChildren(h('div', { class: 'muted' }, 'Unavailable'));
+        dialCap.textContent = '';
+        if (await fromDownloads()) { setIdle(isOffline() ? 'Offline mode: your downloaded articles still open' : 'No connection: your downloaded articles still open'); return; }
+        if (!live(token)) return;
+      }
       discTitle.textContent = isOffline() ? 'You’re in Offline mode.' : Wiki.connected() ? 'Today’s content couldn’t be loaded.' : 'You’re offline.';
       discText.textContent = isOffline() ? 'Today’s discovery, the picture of the day, and the almanac come from Wikipedia. Go online from the status bar to see them.'
         : 'Encyclopedia 2000 retrieves its articles from Wikipedia. Check your internet connection, then press F5 to try again.';
@@ -3518,13 +3549,12 @@
 
   // ---------- menus ----------
   // The favorites in the Favorites menu, each folder's name above its own (indented), up to 40 lines.
-  function favMenu(root) {
-    const out = [];
-    walkFavs(root, (n, path) => {
-      if (out.length >= 40) return false;
-      const pad = ' '.repeat(path.length);
-      out.push(n.items ? [`${pad}${n.folder}`, null, '', null, true] : [pad + n.title, () => openArticle(n.title)]);
-    });
+  // The favorites in the Favorites menu: each folder a submenu, up to 40 in a menu.
+  function favMenu(list) {
+    const out = list.slice(0, 40).map((n) => (n.items
+      ? [n.folder, { sub: n.items.length ? favMenu(n.items) : [['(Empty)', null, '', null, true]] }]
+      : [n.title, () => openArticle(n.title)]));
+    if (list.length > 40) out.push('-', [`All ${list.length}…`, 'myfavs']);
     return out;
   }
   function menus() {
@@ -3537,7 +3567,7 @@
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
       ['Favorites', [['My Articles', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', 'Ctrl+D', null, !current], '-',
-        ['Manage Favorites…', 'myfavs', 'Ctrl+B'], ['Downloaded Articles…', 'mydl'], ['History…', 'myhist', 'Ctrl+Y'], '-',
+        ['Manage', { sub: [['Favorites…', 'myfavs', 'Ctrl+B'], ['Downloaded Articles…', 'mydl'], ['History…', 'myhist', 'Ctrl+Y']] }], '-',
         ...(f.length ? favMenu(f) : [['(No favorites yet)', null, '', null, true]])]],
       // Numbered in the order of Home's Explore shelf.
       ['Features', [['Articles', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
@@ -3556,27 +3586,83 @@
     openMenu = null;
   }
   // A menu's items, for the menu bar and the right-click menu: [label, command, key, checked, disabled] or '-'.
+  // An item is [label, command, shortcut, checked, disabled]; a command of { sub: [items] } opens a submenu to the
+  // side (on hover, a click, Enter, or the right arrow; the left arrow or Escape closes it again).
   function menuItems(box, items, run) {
     items.forEach((it) => {
       if (it === '-') return box.append(h('div', { class: 'msep', role: 'separator' }));
       const [label, cmd, key, checked, disabled] = it;
-      const off = disabled || !cmd;
+      const sub = cmd && typeof cmd === 'object' ? cmd.sub : null;   // (a string's .sub is an old HTML method)
+      const off = disabled || !cmd || (sub && !sub.length);
+      let hover = 0;
       const mi = h('div', {
-        class: 'mi' + (checked ? ' checked' : '') + (disabled ? ' disabled' : ''),
+        class: 'mi' + (checked ? ' checked' : '') + (disabled ? ' disabled' : '') + (sub ? ' sub' : ''),
         role: checked == null ? 'menuitem' : 'menuitemcheckbox', tabindex: -1,
         ...(checked == null ? {} : { 'aria-checked': String(!!checked) }), ...(off ? { 'aria-disabled': 'true' } : {}),
+        ...(sub ? { 'aria-haspopup': 'menu', 'aria-expanded': 'false' } : {}),
         // preventDefault keeps the selection, for Copy.
         onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); },
-        onmousemove: () => { if (box.contains(document.activeElement) && document.activeElement !== mi) mi.focus(); },
-        onclick: (e) => { e.stopPropagation(); if (!off) run(cmd); },
-      }, h('span', {}, label), h('span', { class: 'k' }, keyText(key) || ''));
+        onmousemove: (e) => {
+          if (e.target.closest('.mi') !== mi) return;
+          if (box.contains(document.activeElement) && document.activeElement !== mi) mi.focus();
+          // Another item closes the submenu that's open; a submenu's own item opens it after a moment.
+          for (const o of box.children) if (o !== mi && o.classList.contains('sub')) closeSub(o);
+          if (sub && !off && !mi.querySelector('.subm')) { clearTimeout(hover); hover = setTimeout(() => { if (mi.matches(':hover')) openSub(mi, sub, run, false); }, 180); }
+        },
+        onclick: (e) => {
+          e.stopPropagation();
+          if (e.target.closest('.mi') !== mi || off) return;
+          if (sub) { if (!mi.querySelector('.subm')) openSub(mi, sub, run, e.detail === 0); return; }
+          run(cmd);
+        },
+      }, h('span', {}, label), sub ? h('span', { class: 'arr', 'aria-hidden': 'true' }, '▶') : h('span', { class: 'k' }, keyText(key) || ''));
       if (key) mi.setAttribute('aria-keyshortcuts', key.split(' or ')[0].replace('Ctrl', MAC ? 'Meta' : 'Control'));
       box.append(mi);
     });
   }
+  function openSub(mi, sub, run, focusFirst) {
+    for (const o of mi.parentElement.children) if (o !== mi && o.classList.contains('sub')) closeSub(o);
+    if (mi.querySelector('.subm')) return;
+    const child = h('div', { class: 'menu subm', role: 'menu', 'aria-label': mi.firstChild.textContent });
+    menuItems(child, sub, run);
+    mi.append(child);
+    mi.setAttribute('aria-expanded', 'true');
+    // To the right, or to the left when there's no room; kept inside the window from below.
+    const r = mi.getBoundingClientRect();
+    if (r.right + child.offsetWidth > innerWidth - 2) child.classList.add('left');
+    const over = r.top - 4 + child.offsetHeight - (innerHeight - 2);
+    if (over > 0) child.style.top = `${-4 - over}px`;
+    if (focusFirst) $('.mi', child)?.focus();
+  }
+  function closeSub(mi) {
+    const c = [...mi.children].find((x) => x.classList.contains('subm'));
+    if (!c) return;
+    const had = c.contains(document.activeElement);
+    c.remove();
+    mi.setAttribute('aria-expanded', 'false');
+    if (had) mi.focus();
+  }
+  // The right arrow opens a submenu; the left arrow or Escape inside one closes it. True when the key was used.
+  function subKeys(e) {
+    const mi = document.activeElement?.closest?.('.mi');
+    if (!mi) return false;
+    if ((e.key === 'ArrowRight' || ((e.key === 'Enter' || e.key === ' ') && mi.classList.contains('sub'))) && mi.classList.contains('sub') && mi.getAttribute('aria-disabled') !== 'true') {
+      if (mi.querySelector('.subm')) $('.subm .mi', mi)?.focus(); else mi.click();
+      if (!mi.querySelector('.subm')) return false;
+      $('.subm .mi', mi)?.focus();
+    } else if ((e.key === 'ArrowLeft' || e.key === 'Escape') && mi.parentElement.classList.contains('subm')) {
+      closeSub(mi.parentElement.parentElement);
+    } else return false;
+    e.preventDefault();
+    e.stopPropagation();
+    return true;
+  }
   // Up, Down, Home, End, Enter, and Space inside a menu. True when the key was used.
   function menuKeys(box, e) {
-    const list = $$('.mi', box);
+    if (subKeys(e)) return true;
+    const inner = document.activeElement?.closest?.('.menu');
+    if (inner && box.contains(inner)) box = inner;
+    const list = [...box.children].filter((c) => c.classList.contains('mi'));
     const i = list.indexOf(document.activeElement);
     const to = (j) => list[(j + list.length) % list.length]?.focus();
     if (e.key === 'ArrowDown') to(i + 1);
@@ -3629,6 +3715,7 @@
     const list = tops();
     const top = e.target.closest('.m'), i = list.indexOf(top), inMenu = !!e.target.closest('.menu');
     const side = (d) => { const j = (i + d + list.length) % list.length; if (inMenu || openMenu !== null) showMenu(list[j], j, 'first'); else list[j].focus(); };
+    if (inMenu && subKeys(e)) return;
     if (e.key === 'ArrowRight') side(1);
     else if (e.key === 'ArrowLeft') side(-1);
     else if (e.key === 'Escape') { if (inMenu) { closeMenus(); top.focus(); } else leaveMenubar(); }
@@ -3770,6 +3857,7 @@
   });
   document.addEventListener('keydown', (e) => {
     if (!ctxMenu) return;
+    if (subKeys(e)) return;
     if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); closeCtx(); } else menuKeys(ctxMenu, e);
   }, true);
   document.addEventListener('mousedown', closeCtx);

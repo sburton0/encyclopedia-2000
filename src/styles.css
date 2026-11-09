@@ -55,6 +55,10 @@ button { font-family: inherit; cursor: default; }
 .menu .mi.disabled { color: #5d6474; }
 .menu .mi.disabled:hover { background: transparent; }
 .menu .msep { height: 1px; margin: 3px 2px; background: #30343e; }
+.menu .mi .arr { font-size: 8px; line-height: 16px; color: #9aa3b6; }
+.menu .mi.sub[aria-expanded="true"] { background: var(--ink-2); }
+.menu.subm { top: -4px; left: calc(100% - 2px); z-index: 1; font-size: inherit; }
+.menu.subm.left { left: auto; right: calc(100% - 2px); }
 /* The right-click menu: the menu bar's menus, placed at the pointer. */
 .menu.ctx { position: fixed; top: 0; z-index: 1000; min-width: 190px; font-size: 12px; }
 
@@ -291,6 +295,8 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .dialog.clearh .cradio { display: flex; align-items: center; gap: 8px; color: #fff; }
 .dialog.clearh .cradio input { accent-color: var(--orange); margin: 0; }
 
+/* Home, offline: "All 123 downloaded articles ›" under a downloaded article */
+
 /* Download a Category: the article's categories, the choices */
 .dialog.savecat { width: 580px; }
 .dialog.savecat .db { display: block; padding: 16px 20px 6px; }
@@ -441,6 +447,9 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .home .disc p { margin: 2px 0 0; font: 12px/1.45 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
 .home .disc .more, .home .alm .more { display: inline-block; margin-top: 10px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff; }
 .home .disc .more:hover, .home .alm .more:hover { color: var(--gold); text-decoration: underline; }
+.home .disc .savedlink { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.home .disc .savedlink[hidden] { display: none; }
+.home .disc .savedlink .ic { width: 12px; height: 12px; fill: #7fd18b; flex: none; }
 .home .alm { right: 18px; top: 18px; bottom: 18px; width: 214px; display: flex; flex-direction: column; }
 .home .alm .d { margin: -4px 0 10px; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--sky); }
 .home .alm .list { flex: 1; overflow: hidden; }
