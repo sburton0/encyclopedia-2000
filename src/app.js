@@ -762,7 +762,11 @@
   }
   async function startDownload(dl, opts = {}) {
     if (!current) return;
-    const title = current.title;
+    await downloadTitle(current.title, opts);
+    if (current && current.dl === dl) dl.refresh();
+  }
+  // Downloads one article (from its button, or the My Articles pane), telling how it went in the status bar.
+  async function downloadTitle(title, opts = {}) {
     if (isOffline()) { setIdle('Offline mode is on. Downloading an article needs the internet.'); return; }
     setStatus(`Downloading “${title}”…`, true);
     const r = await saved.download(title, opts);
@@ -770,7 +774,7 @@
     else if (r.space) setIdle(`“${title}” wasn’t downloaded: there isn’t enough free space on this drive.`);
     else if (r.offline) setIdle('Offline mode is on. Downloading an article needs the internet.');
     else setIdle(`“${title}” couldn’t be downloaded. Check your connection and try again.`);
-    if (current && current.dl === dl) dl.refresh();
+    if (current?.dl && sameTitle(current.title, title)) current.dl.refresh();
   }
   function downloadMenu(dl) {
     if ($('.rmenu')) { $('.rmenu').remove(); return; }
@@ -814,10 +818,15 @@
   // Progress from the main process: the button of the article on screen follows it.
   // Known before the library's state is looked at (libChanged), so Offline mode isn't ended at startup for want of a library.
   const downloadsKnown = saved.state().then((s) => { hasDownloads = !!(s && s.count); }, () => {});
+  let dlSum = '';
   saved.onUpdate((s) => {
     hasDownloads = !!s.count;
     downloadJobs = s.active || [];
     if (current && current.dl) { if (!downloadJobs.length) current.dl.refresh(); else current.dl.draw(); }
+    // The My Articles pane: its marks follow the progress; its lists reload when a download is added or removed.
+    const sum = `${s.count}/${s.size}`;
+    if (sum !== dlSum) { dlSum = sum; if (dlLoaded) loadDownloaded(); }
+    refreshMarks();
   });
 
   // ---------- sections ----------
@@ -1623,9 +1632,9 @@
 
   // A click outside closes a dialog, except a question that needs an answer ("stay": only its buttons close it, and the
   // click doesn't take the keyboard focus out of it).
-  function dialog(title, heading, paragraphs, buttons = [['OK']], { stay = false } = {}) {
+  function dialog(title, heading, paragraphs, buttons = [['OK']], { stay = false, cls = '' } = {}) {
     const ov = h('div', { class: 'overlay' + (stay ? ' stay' : ''), onmousedown: (e) => { if (e.target !== ov) return; if (stay) e.preventDefault(); else ov.remove(); } });
-    ov.append(h('div', { class: 'dialog', role: 'dialog' },
+    ov.append(h('div', { class: 'dialog' + (cls ? ' ' + cls : ''), role: 'dialog' },
       h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), title),
       h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
         h('div', {}, h('h2', {}, heading), paragraphs.map((p) => (p instanceof Node ? p : h('p', {}, p))))),
@@ -1651,7 +1660,7 @@
       ['Reading', [['Larger text', 'Ctrl+='], ['Smaller text', 'Ctrl+-'], ['Normal text size', 'Ctrl+0'], ['Copy', 'Ctrl+C']]]],
     [['Printing', [['Print Preview', 'Ctrl+P'], ['Print', 'Ctrl+Shift+P']]],
       ['Offline', [['Offline Library', 'Ctrl+Shift+L'], ['Offline mode on or off', 'Ctrl+Shift+O']]],
-      ['Favorites and sound', [['Favorites pane', 'Ctrl+I'], ['Mute', 'Ctrl+M']]],
+      ['Favorites and sound', [['My Articles pane', 'Ctrl+I'], ['Add to Favorites', 'Ctrl+D'], ['Mute', 'Ctrl+M']]],
       ['Pictures and videos', [['Previous / next', 'Left or Right'], ['Play / pause', 'Space']]],
       ['Encyclopedia 2000', [['Options', 'Ctrl+,'], ['Keyboard shortcuts', 'Ctrl+/'], ['Close a window or menu', 'Esc'], MAC ? ['Quit', 'Cmd+Q'] : ['Exit', 'Alt+F4']]]],
   ];
@@ -2283,16 +2292,119 @@
   }
 
   // ---------- favorites, recent, read aloud ----------
+  // Favorites are a tree: a favorite is { title, desc }; a folder is { folder: name, id, open, items }, up to three
+  // levels deep. A list saved before folders (0.5) is the same tree without any. Folders come first in each list; a new
+  // favorite goes below them.
   const favs = () => store.get('favorites', []);
-  const isFav = () => !!current && favs().some((f) => f.title === current.title);
+  const FOLDER_DEPTH = 3;
+  function walkFavs(list, fn, path = []) {
+    for (const n of list) {
+      if (fn(n, path) === false) return false;
+      if (n.items && walkFavs(n.items, fn, [...path, n]) === false) return false;
+    }
+  }
+  const favTitles = (list = favs()) => { const out = []; walkFavs(list, (n) => { if (n.title) out.push(n.title); }); return out; };
+  // Where a favorite or folder is: its list, its place in it, and the folders it's in.
+  function locate(root, test) {
+    let at = null;
+    walkFavs(root, (n, path) => { if (!test(n)) return; at = { node: n, path, list: path.length ? path[path.length - 1].items : root }; return false; });
+    if (at) at.i = at.list.indexOf(at.node);
+    return at;
+  }
+  const sameTitle = (a, b) => a.toLowerCase() === b.toLowerCase();
+  const favAt = (root, title) => locate(root, (n) => n.title && sameTitle(n.title, title));
+  const folderAt = (root, id) => (id ? locate(root, (n) => n.items && n.id === id) : null);
+  const isFavTitle = (t) => !!favAt(favs(), t);
+  const isFav = () => !!current && isFavTitle(current.title);
+  const afterFolders = (list) => { let i = 0; while (i < list.length && list[i].items) i++; return i; };
+  function saveFavs(root) { store.set('favorites', root); updateToolbar(); }
+  // Adds a favorite (or moves one already there) into a folder, or the top level. Returns the folder's name.
+  function addFav(title, desc = '', folderId = null) {
+    const root = favs();
+    const old = favAt(root, title);
+    const node = old ? old.node : { title, desc };
+    if (old) old.list.splice(old.i, 1);
+    const f = folderAt(root, folderId);
+    if (f) f.node.open = true;
+    const list = f ? f.node.items : root;
+    list.splice(afterFolders(list), 0, node);
+    saveFavs(root);
+    return f ? f.node.folder : null;
+  }
+  function removeFav(title) {
+    const root = favs();
+    const at = favAt(root, title);
+    if (at) { at.list.splice(at.i, 1); saveFavs(root); }
+  }
   function toggleFav() {
     if (!current) return;
-    const list = favs();
-    const i = list.findIndex((f) => f.title === current.title);
-    if (i >= 0) { list.splice(i, 1); setIdle(`Removed “${current.title}” from Favorites`); }
-    else { list.unshift({ title: current.title, desc: current.desc }); setIdle(`Added “${current.title}” to Favorites`); }
-    store.set('favorites', list.slice(0, 50));
+    if (isFav()) { removeFav(current.title); setIdle(`Removed “${current.title}” from Favorites`); }
+    else { addFav(current.title, current.desc); setIdle(`Added “${current.title}” to Favorites`); }
     updateToolbar();
+  }
+  // Folders: a new one is called "New folder" (renamed in place), after the folders already in its list.
+  const levelsIn = (n) => (n.items ? 1 + Math.max(0, ...n.items.map(levelsIn)) : 0);
+  const favCount = (n) => { let c = 0; walkFavs(n.items || [], (x) => { if (x.title) c++; }); return c; };
+  function newFolder(parentId = null) {
+    const root = favs();
+    const p = folderAt(root, parentId);
+    if (p && p.path.length + 2 > FOLDER_DEPTH) return null;
+    const list = p ? p.node.items : root;
+    const names = new Set(list.filter((n) => n.items).map((n) => n.folder.toLowerCase()));
+    let name = 'New folder';
+    for (let k = 2; names.has(name.toLowerCase()); k++) name = `New folder (${k})`;
+    const node = { folder: name, id: Math.random().toString(36).slice(2, 10), open: true, items: [] };
+    if (p) p.node.open = true;
+    list.splice(afterFolders(list), 0, node);
+    saveFavs(root);
+    return node.id;
+  }
+  function renameFolder(id, name) {
+    const root = favs();
+    const f = folderAt(root, id);
+    name = name.replace(/\s+/g, ' ').trim().slice(0, 80);
+    if (f && name && name !== f.node.folder) { f.node.folder = name; saveFavs(root); }
+  }
+  function setFolderOpen(id, open) {
+    const root = favs();
+    const f = folderAt(root, id);
+    if (f) { f.node.open = open; store.set('favorites', root); }
+  }
+  // Moves a favorite ('a:' and its title) or a folder ('f:' and its id) into a folder (null: the top level). A folder
+  // can't go inside itself, and the result can't be more than three levels deep.
+  function canMove(key, folderId) {
+    if (!key.startsWith('f:')) return true;
+    const root = favs();
+    const f = folderAt(root, key.slice(2));
+    if (!f) return false;
+    if (!folderId) return true;
+    if (folderId === f.node.id || locate(f.node.items, (n) => n.id === folderId)) return false;
+    const to = folderAt(root, folderId);
+    return !!to && to.path.length + 1 + levelsIn(f.node) <= FOLDER_DEPTH;
+  }
+  function moveFav(key, folderId) {
+    if (!canMove(key, folderId)) return false;
+    const root = favs();
+    const at = key.startsWith('f:') ? folderAt(root, key.slice(2)) : favAt(root, key.slice(2));
+    if (!at) return false;
+    at.list.splice(at.i, 1);
+    const to = folderAt(root, folderId);
+    if (to) to.node.open = true;
+    const list = to ? to.node.items : root;
+    list.splice(at.node.items ? afterFolders(list) : list.length, 0, at.node);
+    saveFavs(root);
+    return true;
+  }
+  function deleteFolder(id) {
+    const root = favs();
+    const f = folderAt(root, id);
+    if (!f) return;
+    const n = favCount(f.node), name = f.node.folder;
+    const go = () => { const r = favs(); const g = folderAt(r, id); if (g) { g.list.splice(g.i, 1); saveFavs(r); setIdle(`Deleted the folder “${name}”`); } };
+    if (!f.node.items.length) return go();
+    dialog('Delete Folder', `Delete the folder “${name}”?`, [
+      n ? `The ${n === 1 ? 'favorite' : `${n} favorites`} in it will be removed from Favorites too.` : 'The folders in it will be deleted too.',
+      'Downloaded articles stay downloaded.'], [['Delete Folder', go, true], ['Cancel']]);
   }
   function addRecent(title) {
     const list = store.get('recent', []).filter((t) => t !== title);
@@ -2428,34 +2540,342 @@
     updateToolbar();
   }
 
-  // ---------- Favorites pane ----------
-  // Opens over any screen from the toolbar's Favorites button, the Favorites menu, or Ctrl+I.
+  // ---------- My Articles pane ----------
+  // Opens over any screen from the toolbar's My Articles button, the Favorites menu, or Ctrl+I: Favorites (in folders),
+  // Downloaded, and Recently viewed, each searchable. A click outside closes it, unless it's pinned: then it sits beside
+  // the page and stays open. Its edge can be dragged to make it wider (remembered).
   const fpane = $('#fpane');
-  let favsExpanded = false;
+  const stage = $('.stage');
   const FAVS_SHOWN = 8;
+  let dlShowAll = false, paneQuery = '', renaming = null, paneReturn = null, dragKey = null;
+  let dlList = [], dlIndex = new Map(), dlLoaded = false;
+  const paneWidth = () => Math.min(480, Math.max(220, store.get('paneWidth', 250)));
+  const pinned = () => !!store.get('panePinned', false);
+  stage.style.setProperty('--fpw', paneWidth() + 'px');
+  // A downloaded copy, or the download in progress, of an article.
+  const dlEntry = (t) => dlIndex.get(t.toLowerCase());
+  const dlJob = (t) => downloadJobs.find((j) => sameTitle(j.title, t));
+  async function loadDownloaded() {
+    dlList = await saved.list().catch(() => []);
+    dlIndex = new Map(dlList.map((e) => [e.title.toLowerCase(), e]));
+    dlLoaded = true;
+    drawFavPane();
+  }
+  const MARK_GET = '<circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 4.6v5.4M5.5 7.7 8 10.2l2.5-2.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>';
+  const MARK_DONE = '<circle cx="8" cy="8" r="7" fill="#3fb36a"/><path d="M4.4 8.3l2.4 2.4 4.8-5" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>';
+  const markSvg = (inner) => { const s = svg('svg', { viewBox: '0 0 16 16', 'aria-hidden': 'true' }); s.innerHTML = inner; return s; };
+  // An article's download state at the right of its row: the green check (downloaded), a ring (downloading), or a
+  // button that downloads it.
+  function markFor(t) {
+    const job = dlJob(t);
+    if (job) {
+      const pct = Math.round((job.done / Math.max(job.total, 1)) * 100);
+      return h('span', { class: 'mark ring', role: 'img', 'aria-label': `Downloading, ${pct}%`, title: `Downloading… ${pct}%`, 'data-mark': t },
+        markSvg(`<circle cx="8" cy="8" r="6" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="2"/><circle cx="8" cy="8" r="6" fill="none" stroke="#7fd18b" stroke-width="2" stroke-dasharray="${(pct / 100 * 37.7).toFixed(1)} 40" transform="rotate(-90 8 8)"/>`));
+    }
+    const e = dlEntry(t);
+    if (e) return h('span', { class: 'mark done', role: 'img', 'aria-label': 'Downloaded', title: `Downloaded · ${mb(e.size)}. It opens without the internet.`, 'data-mark': t }, markSvg(MARK_DONE));
+    return h('button', { class: 'mark get', title: `Download “${t}”`, 'aria-label': `Download ${t}`, 'data-mark': t, onclick: () => downloadTitle(t) }, markSvg(MARK_GET));
+  }
+  // Progress redraws only the marks, so nothing else in the pane moves (or loses the keyboard focus).
+  function refreshMarks() {
+    if (fpane.hidden) return;
+    for (const m of $$('[data-mark]', fpane)) {
+      const t = m.dataset.mark, next = markFor(t);
+      if (next.className !== m.className || next.title !== m.title) {
+        const had = m === document.activeElement;
+        m.replaceWith(next);
+        if (had) (next.matches('button') ? next : next.closest('.frow')?.querySelector('.lnk'))?.focus();
+      }
+    }
+  }
+  // The words searched for, marked in a title.
+  function marked(t) {
+    const q = paneQuery.toLowerCase(), k = q ? t.toLowerCase().indexOf(q) : -1;
+    return k < 0 ? [t] : [t.slice(0, k), h('mark', {}, t.slice(k, k + q.length)), t.slice(k + q.length)];
+  }
+  // A row for an article: its title (opens it), then its download state, then (Recently viewed) ✕ to remove it.
+  function artRow(key, t, { star = false, level = 0, mark = true, remove = null } = {}) {
+    const row = h('div', { class: 'frow' + (current && sameTitle(t, current.title) ? ' here' : ''), 'data-key': key, style: `--lv:${level}`, draggable: 'true' },
+      h('button', { class: 'lnk' + (star ? '' : ' plain'), title: t, onclick: () => openArticle(t) }, star ? icon('star') : null, h('span', { class: 't' }, marked(t))),
+      mark ? markFor(t) : null,
+      remove ? h('button', { class: 'rx', title: `Remove “${t}” from Recently viewed`, 'aria-label': `Remove ${t} from Recently viewed`, onclick: remove }, '✕') : null);
+    dragFrom(row, key);
+    return row;
+  }
+  function dragFrom(row, key) {
+    row.addEventListener('dragstart', (e) => { dragKey = key; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key.slice(2)); });
+    row.addEventListener('dragend', () => { dragKey = null; $$('.drop', fpane).forEach((x) => x.classList.remove('drop')); });
+  }
+  // Dropping on a folder (or the Favorites heading, for the top level) moves a favorite or folder there; an article
+  // from Downloaded or Recently viewed becomes a favorite in it.
+  function dropOn(el, folderId) {
+    const ok = () => dragKey && (/^[dr]:/.test(dragKey) || (dragKey !== 'f:' + folderId && canMove(dragKey, folderId)));
+    el.addEventListener('dragover', (e) => { if (!ok()) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('drop'); });
+    el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop'); });
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      el.classList.remove('drop');
+      const key = dragKey;
+      if (!key || !ok()) return;
+      const to = folderAt(favs(), folderId)?.node.folder;
+      if (/^[dr]:/.test(key)) { addFav(key.slice(2), dlEntry(key.slice(2))?.desc || '', folderId); setIdle(`Added “${key.slice(2)}” to ${to ? `the folder “${to}”` : 'Favorites'}`); }
+      else if (moveFav(key, folderId)) setIdle(`Moved to ${to ? `the folder “${to}”` : 'Favorites (no folder)'}`);
+    });
+  }
+  function folderRow(n, level) {
+    const key = 'f:' + n.id;
+    const count = favCount(n);
+    const name = renaming === n.id
+      ? h('input', { class: 'ren', value: n.folder, 'aria-label': 'Folder name', maxlength: '80',
+        onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') e.target.blur(); else if (e.key === 'Escape') { e.target.value = n.folder; e.target.blur(); } },
+        onblur: (e) => { renaming = null; renameFolder(n.id, e.target.value); drawFavPane(); focusRow(key); },
+        onclick: (e) => e.stopPropagation(), onmousedown: (e) => e.stopPropagation() })
+      : h('span', { class: 't' }, marked(n.folder));
+    const row = h('button', { class: 'fold', 'data-key': key, style: `--lv:${level}`, draggable: renaming === n.id ? 'false' : 'true', 'aria-expanded': String(!!n.open),
+      title: `${n.folder}: ${count === 1 ? '1 favorite' : `${count} favorites`}`,
+      onclick: () => { if (renaming === n.id) return; setFolderOpen(n.id, !n.open); drawFavPane(); } },
+    h('span', { class: 'tw', 'aria-hidden': 'true' }, n.open ? '▼' : '▶'), icon('folder'), name, h('span', { class: 'c' }, String(count)));
+    dragFrom(row, key);
+    dropOn(row, n.id);
+    return row;
+  }
+  function favRows(list, level = 0) {
+    return list.flatMap((n) => (n.items ? [folderRow(n, level), ...(n.open ? favRows(n.items, level + 1) : [])] : [artRow('a:' + n.title, n.title, { star: true, level })]));
+  }
+  const paneHead = (title, extra) => h('h4', { class: 'wb' }, h('span', {}, title), extra ? h('span', { class: 'hbtns' }, extra) : null);
+  const found = (n) => h('span', { class: 'hc' }, n ? `${n} found` : 'None found');
   function drawFavPane() {
     if (fpane.hidden) return;
-    const list = favs();
+    if (!fpane.firstChild) buildPane();
+    if (renaming && $('input.ren', fpane)) return;
+    const focusedKey = fpane.contains(document.activeElement) && document.activeElement.closest('[data-key]')?.dataset.key;
+    const root = favs();
     const recent = store.get('recent', []);
-    const here = current?.title;
-    const fav = isFav();
-    const shown = favsExpanded ? list : list.slice(0, FAVS_SHOWN);
-    const lnk = (t, starred) => h('button', { class: 'lnk' + (starred ? '' : ' plain') + (t === here ? ' here' : ''), title: t, onclick: () => openArticle(t) },
-      starred ? icon('star') : null, t);
-    fpane.replaceChildren(
-      h('div', { class: 'fh' }, icon('favs'), h('span', {}, 'Favorites'), h('button', { title: 'Close (Esc)', onclick: () => toggleFavPane(false) }, winIcon('close'))),
-      h('div', { class: 'fb' },
-        here ? h('button', { class: 'add', title: fav ? 'Remove from Favorites' : 'Add to Favorites', onclick: () => toggleFav() }, icon('star'), h('span', {}, fav ? `Remove “${here}” from Favorites` : `Add “${here}” to Favorites`)) : null,
-        h('h4', {}, 'Favorites'),
-        list.length ? shown.map((f) => lnk(f.title, true)) : h('div', { class: 'note' }, 'Open an article and click “Add to Favorites” to save it here.'),
-        list.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { favsExpanded = !favsExpanded; drawFavPane(); } }, favsExpanded ? 'Show fewer' : `Show all (${list.length})`) : null,
-        ...(recent.length ? [h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => lnk(t, false))] : [])),
-      h('div', { class: 'ff' }, `${keyText('Ctrl+I')} opens and closes this pane`));
+    const q = paneQuery.toLowerCase();
+    const body = [];
+    if (q) {
+      // Searching: the favorites that match, each under the folder it's in; then the downloaded and recently viewed ones.
+      const hits = [];
+      walkFavs(root, (n, path) => { if (n.title && n.title.toLowerCase().includes(q)) hits.push({ n, where: path.map((p) => p.folder).join(' › ') }); });
+      body.push(paneHead('Favorites', found(hits.length)));
+      let last = null;
+      for (const { n, where } of hits) {
+        if (where && where !== last) body.push(h('span', { class: 'path' }, where));
+        last = where;
+        body.push(artRow('a:' + n.title, n.title, { star: true }));
+      }
+      const dl = dlList.filter((e) => e.title.toLowerCase().includes(q));
+      body.push(h('hr'), paneHead('Downloaded', found(dl.length)), ...dl.map((e) => artRow('d:' + e.title, e.title, { mark: false })));
+      const rv = recent.filter((t) => t.toLowerCase().includes(q));
+      body.push(h('hr'), paneHead('Recently viewed', found(rv.length)), ...rv.map((t) => artRow('r:' + t, t, { remove: () => removeRecent(t) })));
+    } else {
+      if (current) {
+        const fav = isFav();
+        body.push(h('div', { class: 'addrow' },
+          h('button', { class: 'add', title: fav ? 'Remove from Favorites (Ctrl+D)' : 'Add to Favorites (Ctrl+D)', onclick: () => toggleFav() },
+            icon('star'), h('span', {}, fav ? `Remove “${current.title}” from Favorites` : `Add “${current.title}” to Favorites`)),
+          h('button', { class: 'addto', title: fav ? 'Move it to a folder' : 'Add it to a folder', 'aria-label': fav ? 'Move it to a folder' : 'Add it to a folder', 'aria-haspopup': 'menu',
+            onclick: (e) => { const t = current.title, d = current.desc; folderPicker(e.currentTarget.parentElement, t, (id) => { const f = addFav(t, d, id); setIdle(`${fav ? 'Moved' : 'Added'} “${t}” to ${f ? `the folder “${f}”` : 'Favorites'}`); }); } }, '▾')));
+      }
+      const titles = favTitles(root);
+      const missing = titles.filter((t) => !dlEntry(t) && !dlJob(t));
+      const head = paneHead('Favorites', [h('button', { class: 'newf', title: 'Make a folder for favorites', onclick: () => { renaming = newFolder(); drawFavPane(); } }, 'New folder'),
+        dlLoaded && missing.length ? h('button', { class: 'newf', title: 'Download the favorites that aren’t downloaded yet', onclick: () => downloadAllDialog(titles, null) }, 'Download all') : null]);
+      dropOn(head, null);
+      body.push(head);
+      if (root.length) body.push(...favRows(root));
+      else body.push(h('div', { class: 'note' }, 'Open an article and click “Add to Favorites” to keep it here.'));
+      if (dlList.length) {
+        const total = dlList.reduce((n, e) => n + (e.size || 0), 0);
+        const shown = dlShowAll ? dlList : dlList.slice(0, FAVS_SHOWN);
+        body.push(h('hr'), paneHead('Downloaded', h('span', { class: 'hc' }, mb(total))), ...shown.map((e) => artRow('d:' + e.title, e.title, { mark: false })),
+          dlList.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { dlShowAll = !dlShowAll; drawFavPane(); } }, dlShowAll ? 'Show fewer' : `Show all (${dlList.length})`) : null,
+          h('div', { class: 'savednote' }, markSvg(MARK_DONE), 'Downloaded articles open without the internet.'));
+      }
+      if (recent.length) {
+        body.push(h('hr'), paneHead('Recently viewed', h('button', { class: 'newf', title: 'Clear the list of recently viewed articles', onclick: clearRecent }, 'Clear all')),
+          ...recent.map((t) => artRow('r:' + t, t, { remove: () => removeRecent(t) })));
+      }
+    }
+    $('.fb', fpane).replaceChildren(...body.filter(Boolean));
+    if (renaming) { const r = $('input.ren', fpane); if (r) { r.focus(); r.select(); r.scrollIntoView({ block: 'nearest' }); } }
+    else if (focusedKey) focusRow(focusedKey);
+  }
+  function focusRow(key) {
+    const row = $$('[data-key]', fpane).find((r) => r.dataset.key === key);
+    (row?.matches('button') ? row : row?.querySelector('.lnk'))?.focus({ preventScroll: true });
+  }
+  // The pane's fixed parts: the title bar (pin, close), the search box, the list, the footer, and the edge to drag.
+  function buildPane() {
+    const find = h('input', { type: 'search', placeholder: 'Search favorites and downloads', 'aria-label': 'Search favorites and downloads', spellcheck: 'false',
+      oninput: (e) => { paneQuery = e.target.value.trim(); drawFavPane(); },
+      onkeydown: (e) => { if (e.key === 'Escape' && e.target.value) { e.stopPropagation(); e.target.value = ''; paneQuery = ''; drawFavPane(); } } });
+    const pin = h('button', { class: 'pin', onclick: () => setPinned(!pinned()) }, icon('pin'));
+    const grip = h('div', { class: 'fgrip', title: 'Drag to make the pane wider or narrower', 'aria-hidden': 'true' });
+    grip.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      const x0 = e.clientX, w0 = paneWidth();
+      document.body.classList.add('resizing');
+      const move = (ev) => { const w = Math.min(480, Math.max(220, w0 + ev.clientX - x0)); stage.style.setProperty('--fpw', w + 'px'); store.set('paneWidth', w); };
+      const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); document.body.classList.remove('resizing'); if (pinned()) dispatchEvent(new Event('resize')); };
+      addEventListener('mousemove', move);
+      addEventListener('mouseup', up);
+    });
+    fpane.append(
+      h('div', { class: 'fh' }, icon('books'), h('span', {}, 'My Articles'), pin, h('button', { title: 'Close (Esc)', 'aria-label': 'Close', onclick: () => toggleFavPane(false) }, winIcon('close'))),
+      h('div', { class: 'pfind' }, icon('search'), find),
+      h('div', { class: 'fb' }),
+      h('div', { class: 'ff' }, `${keyText('Ctrl+I')} opens and closes this pane`),
+      grip);
+    drawPin();
+  }
+  function drawPin() {
+    const b = $('.fh .pin', fpane);
+    if (b) { b.title = pinned() ? 'Unpin: close the pane when clicking outside it' : 'Pin: keep the pane open beside the page'; b.setAttribute('aria-pressed', String(pinned())); b.classList.toggle('on', pinned()); }
+    stage.classList.toggle('pinned', pinned() && !fpane.hidden);
+  }
+  function setPinned(on) {
+    store.set('panePinned', on);
+    drawPin();
+    dispatchEvent(new Event('resize'));
   }
   function toggleFavPane(open = fpane.hidden) {
+    if (open && fpane.hidden) paneReturn = document.activeElement;
     fpane.hidden = !open;
-    if (!open) favsExpanded = false;
+    if (!open) { dlShowAll = false; renaming = null; }
+    else if (!dlLoaded) loadDownloaded();
+    const wasPinned = stage.classList.contains('pinned');
+    drawPin();
+    if (wasPinned !== stage.classList.contains('pinned')) dispatchEvent(new Event('resize'));
     updateToolbar();
+    // Opened, the keyboard is in its search box; closed, it goes back where it was.
+    if (open) $('.pfind input', fpane)?.focus({ preventScroll: true });
+    if (!open && fpane.contains(document.activeElement)) (paneReturn?.isConnected && paneReturn !== document.body ? paneReturn : $('.tbtn[data-cmd="favpane"]')).focus({ preventScroll: true });
+  }
+  // A click anywhere else closes the pane (unless pinned): not on its own button, a menu, a dialog, or a scroll bar.
+  document.addEventListener('mousedown', (e) => {
+    if (fpane.hidden || pinned() || e.button !== 0) return;
+    const t = e.target;
+    if (!(t instanceof Element) || fpane.contains(t) || t.closest('.tbtn[data-cmd="favpane"], .menu, .overlay, #menubar, .rmenu')) return;
+    if (t.clientWidth && e.offsetX > t.clientWidth) return;
+    toggleFavPane(false);
+  }, true);
+  function removeRecent(t) {
+    store.set('recent', store.get('recent', []).filter((x) => x !== t));
+    drawFavPane();
+  }
+  function clearRecent() {
+    dialog('Clear Recently Viewed', 'Clear the list of recently viewed articles?', ['Your favorites and downloaded articles stay as they are.'],
+      [['Clear', () => { store.set('recent', []); drawFavPane(); setIdle('Cleared the recently viewed articles'); }, true], ['Cancel']]);
+  }
+  // A menu of folders under a button or row: where to add (or move) a favorite. The folder it's in now is checked.
+  function folderPicker(anchor, title, onPick) {
+    closeCtx();
+    const root = favs();
+    const at = title && favAt(root, title);
+    const inId = at ? (at.path.length ? at.path[at.path.length - 1].id : '') : undefined;
+    const items = [['Favorites (no folder)', () => onPick(null), '', inId === undefined ? null : inId === '']];
+    const sub = [];
+    walkFavs(root, (n, path) => { if (n.items) sub.push([' '.repeat(path.length) + n.folder, () => onPick(n.id), '', inId === undefined ? null : inId === n.id]); });
+    if (sub.length) items.push('-', ...sub);
+    items.push('-', ['New folder…', () => { const id = newFolder(null); onPick(id); renaming = id; drawFavPane(); }]);
+    const box = h('div', { class: 'menu ctx', role: 'menu', 'aria-label': 'Folders', tabindex: -1, onmousedown: (ev) => ev.stopPropagation() });
+    menuItems(box, items, (cmd) => { closeCtx(); runCmd(cmd); });
+    document.body.append(box);
+    ctxMenu = box;
+    ctxReturn = document.activeElement;
+    const r = anchor.getBoundingClientRect();
+    box.style.minWidth = Math.round(r.width) + 'px';
+    box.style.left = Math.max(2, Math.min(r.left, innerWidth - box.offsetWidth - 2)) + 'px';
+    box.style.top = (r.bottom + box.offsetHeight + 2 > innerHeight ? Math.max(2, r.top - box.offsetHeight - 2) : r.bottom + 2) + 'px';
+    $('.mi', box)?.focus({ preventScroll: true });
+  }
+  // The right-click menu of a row in the pane.
+  function paneCtx(row, e) {
+    const key = row.dataset.key, kind = key[0], v = key.slice(2);
+    if (kind === 'f') {
+      const root = favs(), f = folderAt(root, v);
+      if (!f) return [];
+      const titles = favTitles(f.node.items);
+      return [[f.node.open ? 'Close' : 'Open', () => { setFolderOpen(v, !f.node.open); drawFavPane(); }], '-',
+        ['Rename', () => { renaming = v; drawFavPane(); }],
+        ['New Folder Inside', () => { renaming = newFolder(v); drawFavPane(); }, '', null, f.path.length + 2 > FOLDER_DEPTH],
+        ['Move To…', () => folderPickerFor(row, key)], '-',
+        ['Download Folder…', () => downloadAllDialog(titles, f.node.folder), '', null, !titles.length || titles.every((t) => dlEntry(t))], '-',
+        ['Delete Folder', () => deleteFolder(v)]];
+    }
+    const e2 = dlEntry(v), fav = isFavTitle(v);
+    return [['Open', () => openArticle(v)], '-',
+      e2 ? ['Delete Download', () => deleteDownload(v)] : ['Download', () => downloadTitle(v), '', null, !!dlJob(v)],
+      '-',
+      fav ? ['Move To…', () => folderPickerFor(row, 'a:' + v)] : ['Add to Favorites', () => { addFav(v, e2?.desc || ''); setIdle(`Added “${v}” to Favorites`); }],
+      ...(fav ? [['Remove from Favorites', () => { removeFav(v); setIdle(`Removed “${v}” from Favorites`); }]] : []),
+      ...(kind === 'r' ? [['Remove from Recently Viewed', () => removeRecent(v)]] : [])];
+  }
+  function folderPickerFor(row, key) {
+    if (key.startsWith('a:')) return folderPicker(row, key.slice(2), (id) => { if (moveFav(key, id)) setIdle(`Moved “${key.slice(2)}”`); });
+    // A folder: the folders it can go into.
+    closeCtx();
+    const root = favs();
+    const items = [['Favorites (no folder)', () => moveFav(key, null), '', null, !canMove(key, null)]];
+    walkFavs(root, (n, path) => { if (n.items) items.push([' '.repeat(path.length) + n.folder, () => moveFav(key, n.id), '', null, !canMove(key, n.id) || 'f:' + n.id === key]); });
+    const box = h('div', { class: 'menu ctx', role: 'menu', 'aria-label': 'Move to', tabindex: -1, onmousedown: (ev) => ev.stopPropagation() });
+    menuItems(box, items, (cmd) => { closeCtx(); runCmd(cmd); });
+    document.body.append(box);
+    ctxMenu = box;
+    ctxReturn = document.activeElement;
+    const r = row.getBoundingClientRect();
+    box.style.left = r.left + 'px';
+    box.style.top = Math.min(r.bottom + 2, innerHeight - box.offsetHeight - 2) + 'px';
+    $('.mi:not(.disabled)', box)?.focus({ preventScroll: true });
+  }
+  async function deleteDownload(t) {
+    await saved.remove(t);
+    setIdle(`Deleted the download of “${t}”.`);
+    if (current?.dl) current.dl.refresh();
+  }
+  // Download all (or a folder): how many aren't downloaded yet, about how big, and the free space. They download one
+  // after another in the background, with the progress in the status bar.
+  async function downloadAllDialog(titles, folder) {
+    if (isOffline()) { setIdle('Offline mode is on. Downloading articles needs the internet.'); return; }
+    const todo = titles.filter((t) => !dlEntry(t) && !dlJob(t) && !dlQueue.some((x) => sameTitle(x, t)));
+    if (!todo.length) { setIdle(folder ? `Everything in “${folder}” is downloaded.` : 'All your favorites are downloaded.'); return; }
+    const sizes = dlList.map((e) => (e.size || 0) - (e.videoSize || 0)).filter((n) => n > 0 && !isNaN(n));
+    const each = sizes.length >= 3 ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 2.5e6;
+    const need = todo.length * each;
+    const free = (await saved.free().catch(() => null)) ?? Infinity;
+    const fits = free === Infinity || need + 200e6 < free;
+    const n = todo.length;
+    dialog(folder ? 'Download Folder' : 'Download All Favorites', folder ? `Download the folder “${folder}”?` : 'Download your favorites?', [
+      `${n === titles.length ? (n === 1 ? (folder ? 'The favorite in it isn’t' : 'It isn’t') : `${folder ? 'The' : 'Your'} ${n} favorites${folder ? ' in it' : ''} aren’t`)
+        : `${n} of ${folder ? 'the' : 'your'} ${titles.length} favorites${folder ? ' in it' : ''} ${n === 1 ? 'isn’t' : 'aren’t'}`} downloaded yet. Downloading lets you read ${n === 1 ? 'it' : 'them'} without the internet.`,
+      h('div', { class: 'space' }, h('span', {}, 'Download size'), h('b', {}, `About ${mb(need)}`), h('span', {}, 'Free space on this drive'), h('b', {}, free === Infinity ? 'Unknown' : mb(free))),
+      fits ? 'With their pictures and sounds. Videos aren’t included (an article’s Download menu offers them).' : 'There isn’t enough free space on this drive for them.',
+      fits ? 'It continues in the background; the status bar shows how far along it is.' : null,
+    ].filter(Boolean), fits ? [[`Download ${n === 1 ? '1 Article' : `${n} Articles`}`, () => queueDownloads(todo), true], ['Cancel']] : [['OK', null, true]], { cls: 'dlall' });
+  }
+  let dlQueue = [], dlQueueBusy = false, dlQueueDone = 0, dlQueueTotal = 0, dlQueueFailed = 0;
+  function queueDownloads(titles) {
+    for (const t of titles) if (!dlQueue.some((x) => sameTitle(x, t))) { dlQueue.push(t); dlQueueTotal++; }
+    if (!dlQueueBusy) runQueue();
+  }
+  async function runQueue() {
+    dlQueueBusy = true;
+    let stop = '';
+    while (dlQueue.length) {
+      const t = dlQueue[0];
+      setStatus(`Downloading articles: ${dlQueueDone + 1} of ${dlQueueTotal} (“${t}”)…`, true);
+      const r = await saved.download(t, {}).catch(() => ({ ok: false }));
+      dlQueue.shift();
+      if (r.ok) dlQueueDone++;
+      else if (r.space || r.offline) { stop = r.space ? 'there isn’t enough free space on this drive' : 'Offline mode is on'; break; }
+      else dlQueueFailed++;
+    }
+    setIdle(stop ? `Downloaded ${dlQueueDone} of ${dlQueueTotal} articles, then stopped: ${stop}.`
+      : `Downloaded ${dlQueueDone === 1 ? '1 article' : `${dlQueueDone} articles`}${dlQueueFailed ? `; ${dlQueueFailed} couldn’t be downloaded (check your connection and try again)` : ''}. They open without the internet.`);
+    dlQueue = []; dlQueueBusy = false; dlQueueDone = 0; dlQueueTotal = 0; dlQueueFailed = 0;
+    if (current?.dl) current.dl.refresh();
   }
 
   // ---------- toolbar ----------
@@ -2533,6 +2953,16 @@
   });
 
   // ---------- menus ----------
+  // The favorites in the Favorites menu, each folder's name above its own (indented), up to 40 lines.
+  function favMenu(root) {
+    const out = [];
+    walkFavs(root, (n, path) => {
+      if (out.length >= 40) return false;
+      const pad = ' '.repeat(path.length);
+      out.push(n.items ? [`${pad}${n.folder}`, null, '', null, true] : [pad + n.title, () => openArticle(n.title)]);
+    });
+    return out;
+  }
   function menus() {
     const f = favs();
     return [
@@ -2542,8 +2972,8 @@
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
         ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
-      ['Favorites', [['Favorites Pane', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', '', null, !current], '-',
-        ...(f.length ? f.map((x) => [x.title, () => openArticle(x.title)]) : [['(No favorites yet)', null, '', null, true]])]],
+      ['Favorites', [['My Articles', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', 'Ctrl+D', null, !current], '-',
+        ...(f.length ? favMenu(f) : [['(No favorites yet)', null, '', null, true]])]],
       // Numbered in the order of Home's Explore shelf.
       ['Features', [['Articles', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
       ['Tools', [['Offline Library…', 'library', 'Ctrl+Shift+L'], ['Offline Mode', 'offline', 'Ctrl+Shift+O', isOffline()], '-', ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
@@ -2704,6 +3134,8 @@
         ['Paste', () => { field.focus(); window.e2k.win('paste'); }, 'Ctrl+V', null, ro], '-',
         ['Select All', () => { field.focus(); field.select(); }, 'Ctrl+A']];
     }
+    const prow = e.target.closest('#fpane [data-key]');
+    if (prow) return paneCtx(prow, e);
     const copyPic = ['Copy Picture', () => window.e2k.copyImageAt(Math.round(e.clientX), Math.round(e.clientY))];
     // An enlarged picture (the media viewer, or a picture opened on its own).
     const big = e.target.closest('.lightbox img, .mstage img');
@@ -3128,7 +3560,7 @@
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeFind(); closeMenus(); closeCtx(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden) toggleFavPane(false); return; }
+    if (k === 'Escape') { closeFind(); closeMenus(); closeCtx(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden && !pinned()) toggleFavPane(false); return; }
     // Home (or Ctrl+Home) goes to the top of an article, unless you're typing.
     if (k === 'Home' && current?.content && !$('.overlay') && !e.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
       e.preventDefault();
@@ -3142,7 +3574,7 @@
     else if (e.ctrlKey && e.shiftKey && !e.altKey && { p: 1, l: 1, o: 1 }[k.toLowerCase()]) { e.preventDefault(); runCmd({ p: 'printNow', l: 'library', o: 'offline' }[k.toLowerCase()]); }
     else if (e.ctrlKey && !e.shiftKey && !e.altKey && /^Digit[1-6]$/.test(e.code)) { e.preventDefault(); runCmd(['explore', 'gallery', 'onthisday', 'world', 'games', 'activities'][e.code.slice(5) - 1]); }
     else if (e.ctrlKey && !e.shiftKey) {
-      const map = { i: 'favpane', p: 'print', f: 'find', e: 'search', '/': 'shortcuts', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
+      const map = { i: 'favpane', d: 'fav', p: 'print', f: 'find', e: 'search', '/': 'shortcuts', h: 'home', m: 'mute', ',': 'options', '=': 'bigger', '+': 'bigger', '-': 'smaller', '0': 'normal' };
       const c = map[k.toLowerCase()];
       if (c) { e.preventDefault(); runCmd(c); }
     }

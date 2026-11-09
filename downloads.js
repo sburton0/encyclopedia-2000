@@ -410,6 +410,7 @@ function setup(opts = {}) {
   });
   ipcMain.handle('downloads:remove', (_e, title) => remove(title));
   ipcMain.handle('downloads:videos', (_e, title) => videos(title).catch(() => null));
+  ipcMain.handle('downloads:free', async () => { const n = await freeSpace(); return Number.isFinite(n) ? n : null; });
 }
 
 module.exports = { setup, download, remove, entryFor };

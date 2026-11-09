@@ -196,37 +196,84 @@ button { font-family: inherit; cursor: default; }
 .crumbs .sep { flex: none; margin: 0 4px; color: #5d6474; }
 .crumbs .here { flex: 0 1 auto; color: #fff; font-weight: 600; }
 
-/* ---------- Favorites pane: slides in over the page from the left, on any screen ---------- */
-.stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
-.fpane { position: absolute; left: 0; top: 0; bottom: 0; width: 250px; z-index: 25; display: flex; flex-direction: column; color: #fff;
+/* ---------- My Articles pane: slides in over the page from the left, on any screen; pinned, it sits beside it ---------- */
+.stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; --fpw: 250px; }
+.stage.pinned #view { margin-left: var(--fpw); }
+.fpane { position: absolute; left: 0; top: 0; bottom: 0; width: var(--fpw); z-index: 25; display: flex; flex-direction: column; color: #fff;
          background: linear-gradient(var(--ink-2), var(--ink-0)); border-right: 1px solid var(--ink-3); box-shadow: 6px 0 18px rgba(0, 0, 0, .45); animation: fpane-in .18s ease-out; }
 .fpane[hidden] { display: none; }
+.stage.pinned .fpane { box-shadow: none; animation: none; }
+body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none; }
 @keyframes fpane-in { from { transform: translateX(-24px); opacity: 0; } to { transform: none; opacity: 1; } }
-.fpane .fh { height: 26px; flex: none; display: flex; align-items: center; gap: 7px; padding: 0 4px 0 10px;
+.fpane .fh { height: 26px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 4px 0 10px;
              background: linear-gradient(#2a2a2a, #0d0d0d); font: 600 12px "Segoe UI"; color: #ddd; }
-.fpane .fh .ic { width: 13px; height: 13px; fill: var(--orange); }
+.fpane .fh > .ic { width: 13px; height: 13px; margin-right: 3px; fill: var(--orange); }
 .fpane .fh span { flex: 1; }
 .fpane .fh button { width: 22px; height: 20px; padding: 0; background: none; border: 1px solid transparent; color: #aaa; display: grid; place-items: center; }
+.fpane .fh button .ic { width: 12px; height: 12px; fill: currentColor; }
 .fpane .fh button:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
-.fpane .fb { flex: 1; overflow: auto; padding: 12px 14px; }
-.fpane .add { display: flex; align-items: center; gap: 7px; width: 100%; margin-bottom: 12px; padding: 5px 8px; text-align: left;
+.fpane .fh .pin.on { color: var(--orange); border-color: #4a5262; background: #1b1f28; }
+.fpane .fh .pin .ic { transform: rotate(35deg); }
+.fpane .fh .pin.on .ic { transform: none; }
+.fpane .pfind { flex: none; display: flex; align-items: center; gap: 6px; height: 26px; margin: 12px 14px 4px; padding: 0 8px; background: #0a0c10; border: 1px solid #4a5262; }
+.fpane .pfind:focus-within { border-color: var(--orange); }
+.fpane .pfind .ic { width: 12px; height: 12px; fill: #8a93a6; flex: none; }
+.fpane .pfind input { flex: 1; min-width: 0; height: 22px; padding: 0; background: none; border: 0; outline: 0; font: 12px "Segoe UI"; color: #fff; }
+.fpane .pfind input::placeholder { color: #5d6474; }
+.fpane .fb { flex: 1; overflow: auto; padding: 8px 14px 12px; }
+.fpane .addrow { display: flex; margin-bottom: 12px; }
+.fpane .add { display: flex; align-items: center; gap: 7px; flex: 1; min-width: 0; padding: 5px 8px; text-align: left;
               background: rgba(var(--deep), .35); border: 1px solid rgba(var(--edge), .3); color: var(--gold); font: 600 12px "Segoe UI"; }
+.fpane .addto { flex: none; width: 22px; padding: 0; background: rgba(var(--deep), .35); border: 1px solid rgba(var(--edge), .3); border-left-color: rgba(255, 255, 255, .15); color: #cfd6e2; font-size: 10px; }
 .fpane .add .ic { width: 12px; height: 12px; fill: var(--orange); flex: none; }
 .fpane .add span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fpane .add:hover { border-color: var(--orange); }
+.fpane .add:hover, .fpane .addto:hover { border-color: var(--orange); }
 .fpane h4 { margin: 0 0 6px; font: 600 15px "Segoe UI"; color: var(--orange); }
+.fpane h4.wb { display: flex; align-items: center; gap: 8px; }
+.fpane h4.wb > span:first-child { flex: none; }
+.fpane h4.drop { outline: 1px dashed var(--orange); outline-offset: 2px; }
+.fpane .hbtns { margin-left: auto; display: flex; gap: 5px; }
+.fpane .hc { font: 11px "Segoe UI"; color: #9fb4d8; }
+.fpane .newf { padding: 1px 7px; background: none; border: 1px solid rgba(255, 255, 255, .35); color: #fff; font: 11px "Segoe UI"; white-space: nowrap; }
+.fpane .newf:hover { border-color: var(--orange); color: var(--gold); }
 .fpane hr { margin: 12px 0; border: 0; border-top: 1px solid rgba(255, 255, 255, .3); }
-.fpane .lnk { position: relative; display: block; width: 100%; padding: 2px 0 2px 26px; background: none; border: 0; text-align: left;
+/* Rows: folders (a twisty and a count) and articles (a star if a favorite; the download state at the right) */
+.fpane .fold { display: flex; align-items: center; gap: 6px; width: 100%; padding: 3px 0 3px calc(4px + var(--lv, 0) * 16px); background: none; border: 0; text-align: left; color: #fff; font: 600 13px "Segoe UI"; }
+.fpane .fold .tw { width: 10px; flex: none; font-size: 9px; color: #9fb4d8; }
+.fpane .fold .ic { width: 13px; height: 13px; flex: none; fill: #f3c25a; }
+.fpane .fold .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fpane .fold .c { margin-left: auto; padding: 0 4px 0 6px; font: 11px "Segoe UI"; color: #9fb4d8; }
+.fpane .fold:hover .t { color: var(--gold); }
+.fpane .fold.drop { background: rgba(243, 194, 90, .18); outline: 1px dashed #f3c25a; }
+.fpane .fold .ren { flex: 1; min-width: 0; height: 20px; padding: 0 4px; background: #0a0c10; border: 1px solid var(--orange); color: #fff; font: 600 13px "Segoe UI"; outline: 0; }
+.fpane .frow { position: relative; display: flex; align-items: center; gap: 4px; padding-left: calc(var(--lv, 0) * 16px); }
+.fpane .lnk { position: relative; display: block; flex: 1; min-width: 0; padding: 2px 0 2px 26px; background: none; border: 0; text-align: left;
               font: 13px/1.5 "Segoe UI"; color: var(--sky); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fpane .lnk.plain { padding-left: 10px; }
 .fpane .lnk .ic { position: absolute; left: 9px; top: 6px; width: 11px; height: 11px; fill: var(--orange); }
 .fpane .lnk:hover { color: var(--gold); }
-.fpane .lnk.here { color: #fff; font-weight: 600; }
-.fpane .more { display: block; margin: 4px 0 0 26px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff;
+.fpane .frow.here .lnk { color: #fff; font-weight: 600; }
+.fpane mark { background: rgba(243, 194, 90, .35); color: #fff; padding: 0 1px; }
+.fpane .mark { flex: none; width: 20px; height: 20px; padding: 0; display: grid; place-items: center; background: none; border: 1px solid transparent; color: #9fb4d8; }
+.fpane .mark svg { width: 14px; height: 14px; }
+.fpane button.mark:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
+.fpane .rx { flex: none; width: 20px; height: 20px; padding: 0; background: none; border: 1px solid transparent; color: #9fb4d8; font: 11px/1 "Segoe UI"; }
+.fpane .rx:hover { color: #fff; border-color: #4a5262; background: #1b1f28; }
+.fpane .path { display: block; margin: 4px 0 1px 10px; font: 11px "Segoe UI"; color: #9fb4d8; }
+.fpane .more { display: block; margin: 4px 0 0 10px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff;
                text-decoration: underline; text-decoration-color: rgba(255, 255, 255, .4); }
 .fpane .more:hover { color: var(--gold); }
 .fpane .note { font: 11.5px/1.45 "Segoe UI"; color: var(--sky); }
+.fpane .savednote { display: flex; gap: 6px; align-items: center; margin-top: 10px; font: 11.5px/1.4 "Segoe UI"; color: #b9c8e4; }
+.fpane .savednote svg { width: 13px; height: 13px; flex: none; }
 .fpane .ff { flex: none; padding: 6px 14px; font: 11px "Segoe UI"; color: var(--sky); border-top: 1px solid rgba(255, 255, 255, .15); }
+.fpane .fgrip { position: absolute; top: 0; bottom: 0; right: -3px; width: 6px; cursor: ew-resize; z-index: 1; }
+/* Download All Favorites: the size and the free space */
+.dialog.dlall { width: 470px; }
+.dialog.dlall .space { display: grid; grid-template-columns: auto 1fr; margin: 10px 0; padding: 4px 12px; background: rgba(0, 0, 0, .25); border: 1px solid rgba(255, 255, 255, .18); }
+.dialog.dlall .space > * { padding: 5px 0; }
+.dialog.dlall .space > :nth-child(n+3) { border-top: 1px solid rgba(255, 255, 255, .15); }
+.dialog.dlall .space b { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
 
 #view { flex: 1; position: relative; overflow: hidden; background: var(--home-bg); }
 .fade-in { animation: viewin .25s ease-out both; }

@@ -32,6 +32,10 @@
     <symbol id="i-q" viewBox="0 0 16 16"><path d="M8 1.5a4 4 0 0 1 4 4c0 2.6-2.9 3-2.9 5H6.9c0-3.1 2.9-3.3 2.9-5a1.8 1.8 0 0 0-3.6 0H4a4 4 0 0 1 4-4zM6.9 12h2.2v2.4H6.9z"/></symbol>
     <symbol id="i-puzzle" viewBox="0 0 16 16"><path d="M3 4h3a2 2 0 1 1 4 0h3v3a2 2 0 1 1 0 4v3H3v-3a2 2 0 1 0 0-4z"/></symbol>
     <symbol id="i-favs" viewBox="0 0 16 16"><path d="M1 3h5l1.5 1.5H15V14H1z" opacity=".55"/><path d="M8.6 6.2l1 2.1 2.3.3-1.7 1.6.4 2.3-2-1.1-2.1 1.1.4-2.3-1.7-1.6 2.4-.3z"/></symbol>
+    <symbol id="i-books" viewBox="0 0 16 16"><path d="M2 2.5h2.6v11H2z"/><path d="M5.4 2.5H8v11H5.4z" opacity=".75"/><path d="M8.9 3.3l2.5-.7 2.9 10.6-2.5.7z"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 16 16"><path d="M1.5 3.5h5l1.4 1.6h6.6v8.4h-13z"/></symbol>
+    <symbol id="i-pin" viewBox="0 0 16 16"><path d="M5.6 1.5h4.8l-.9 1.4v3.3l2.4 2.4V10H8.7v3.6L8 15l-.7-1.4V10H4.1V8.6l2.4-2.4V2.9z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 16 16"><path d="M6.5 1.5a5 5 0 0 1 4 8l3.8 3.8-1.2 1.2-3.8-3.8a5 5 0 1 1-2.8-9.2zm0 1.7a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6z"/></symbol>
     <symbol id="i-gamepad" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M4.6 3.8h6.8a3.6 3.6 0 0 1 3.5 4.4l-.8 3.4a1.9 1.9 0 0 1-3.2.8L9.6 10.6H6.4L5.1 12.4a1.9 1.9 0 0 1-3.2-.8l-.8-3.4a3.6 3.6 0 0 1 3.5-4.4zM4.3 5.9v1.3H3v1.4h1.3v1.3h1.4V8.6H7V7.2H5.7V5.9zm7.1.6a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm-1.6 1.6a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z"/></symbol>
     <symbol id="i-download" viewBox="0 0 16 16"><path d="M7 1.5h2v6.2l2.3-2.3 1.4 1.4L8 11.5 3.3 6.8l1.4-1.4L7 7.7z"/><path d="M2 10.5h1.8v2.2h8.4v-2.2H14v4H2z"/></symbol>
     <symbol id="i-delete" viewBox="0 0 16 16"><path d="M6 1.5h4l.6 1.2H14v1.6H2V2.7h3.4zM3.3 5.2h9.4l-.8 9.3H4.1zm2.6 1.6.3 6.1h1.3l-.1-6.1zm2.8 0-.1 6.1h1.3l.3-6.1z"/></symbol>
@@ -86,7 +90,7 @@
     <button class="tbtn lbl" data-cmd="onthisday" title="On this day in history"><svg class="ic"><use href="#i-clock"/></svg>Timeline</button>
     <button class="tbtn lbl" data-cmd="random" title="Open a random article"><svg class="ic"><use href="#i-dice"/></svg>Random</button>
     <span class="tsep"></span>
-    <button class="tbtn lbl" data-cmd="favpane" title="Show your Favorites (Ctrl+I)"><svg class="ic"><use href="#i-favs"/></svg>Favorites</button>
+    <button class="tbtn lbl" data-cmd="favpane" title="My Articles: your favorites and downloads (Ctrl+I)"><svg class="ic"><use href="#i-books"/></svg>My Articles</button>
     <button class="tbtn" data-cmd="speak" title="Read Aloud"><svg class="ic"><use href="#i-read"/></svg></button>
     <button class="tbtn" data-cmd="copy" title="Copy (Ctrl+C)"><svg class="ic"><use href="#i-copy"/></svg></button>
     <button class="tbtn" data-cmd="print" title="Print Preview (Ctrl+P)"><svg class="ic"><use href="#i-print"/></svg></button>
@@ -107,7 +111,7 @@
   <nav class="crumbs" id="crumbs" aria-label="Location" hidden></nav>
   <div class="stage">
     <main id="view"></main>
-    <aside class="fpane" id="fpane" aria-label="Favorites" hidden></aside>
+    <aside class="fpane" id="fpane" aria-label="My Articles" hidden></aside>
   </div>
 
   <div class="statusbar" role="contentinfo">

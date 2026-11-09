@@ -47,6 +47,8 @@ contextBridge.exposeInMainWorld('e2k', {
     remove: (title) => ipcRenderer.invoke('downloads:remove', title),
     // An article's videos and about how much downloading them adds: { count, size }, or null if it can't be told.
     videos: (title) => ipcRenderer.invoke('downloads:videos', title),
+    // Free space on the drive downloads go to, in bytes.
+    free: () => ipcRenderer.invoke('downloads:free'),
     onUpdate: (cb) => ipcRenderer.on('downloads:update', (_e, s) => cb(s)),
   },
   library: {

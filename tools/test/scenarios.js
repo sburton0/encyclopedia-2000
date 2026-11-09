@@ -1454,6 +1454,185 @@ module.exports = [
     },
   },
   {
+    name: 'my-articles-folders', group: 'My Articles', title: 'My Articles pane: favorites from 0.5 carry over; folders are made, renamed, filled, searched, and deleted',
+    route: 'home',
+    async run(t) {
+      // Favorites as 0.5 saved them (a plain list), and a few recently viewed.
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([{ title: 'Moon', desc: 'Earth’s natural satellite' }, { title: 'Ray Charles', desc: '' }]));
+        localStorage.setItem('e2k.recent', JSON.stringify(['Jupiter', 'Saturn']));`);
+      await t.js('E2K.openArticle("Europa (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Europa (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      t.check('The toolbar button is called My Articles', await t.js('return document.querySelector(".tbtn[data-cmd=favpane]").textContent.trim() === "My Articles";'));
+      await t.command('My Articles', 'i');
+      t.check('Ctrl+I opens the pane, titled My Articles', await t.waitFor('!document.getElementById("fpane").hidden && document.querySelector("#fpane .fh span")?.textContent === "My Articles"', 3000));
+      const rows = () => t.js('return [...document.querySelectorAll("#fpane .fb [data-key]")].map((r) => r.dataset.key);');
+      t.check('The favorites saved before folders are there, and Recently viewed', JSON.stringify(await rows()) === JSON.stringify(['a:Moon', 'a:Ray Charles', 'r:Europa (moon)', 'r:Jupiter', 'r:Saturn']), JSON.stringify(await rows()));
+      t.check('Each favorite shows a button to download it', await t.js('return document.querySelectorAll("#fpane [data-key^=\'a:\'] button.mark.get").length === 2;'));
+      // New folder: named in place.
+      await t.js('[...document.querySelectorAll("#fpane .newf")].find((b) => b.textContent === "New folder").click();');
+      t.check('New folder asks for its name in place', await t.waitFor('document.activeElement?.matches("#fpane input.ren") && document.activeElement.value === "New folder"', 2000));
+      await t.js('document.activeElement.value = "Space";');
+      await t.key('Enter');
+      t.check('…and keeps the name typed', await t.waitFor('document.querySelector("#fpane .fold .t")?.textContent === "Space"', 2000));
+      const space = await t.js('return JSON.parse(localStorage.getItem("e2k.favorites")).find((n) => n.items)?.id;');
+      t.check('The folder comes before the favorites', (await rows())[0] === 'f:' + space, JSON.stringify(await rows()));
+      // The arrow beside Add to Favorites: add this article straight into the folder.
+      await t.js('document.querySelector("#fpane .addto").click();');
+      t.check('The arrow beside Add offers the folders', await t.waitFor('[...document.querySelectorAll(".menu.ctx .mi")].some((m) => m.textContent.trim() === "Space")', 2000));
+      await t.js('[...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.trim() === "Space").click();');
+      t.check('…and adds the article to that folder', await t.waitFor(`JSON.parse(localStorage.getItem("e2k.favorites"))[0].items.some((n) => n.title === "Europa (moon)")`, 2000));
+      t.check('The article’s Add to Favorites button says it’s in Favorites', await t.js('return [...document.querySelectorAll(".band .bbtn")].some((b) => b.textContent === "In Favorites");'));
+      // Right-click › Move To… a favorite into the folder.
+      const ctx = async (key) => t.js(`const r = [...document.querySelectorAll("#fpane [data-key]")].find((x) => x.dataset.key === ${JSON.stringify(key)}); const b = r.getBoundingClientRect();
+        r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.left + 20, clientY: b.top + 5, button: 2 })); return true;`);
+      const pick = (label) => t.js(`const m = [...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.trim().replace(/\\s+/g, ' ').startsWith(${JSON.stringify(label)})); if (m) m.click(); return !!m;`);
+      await ctx('a:Moon');
+      t.check('A favorite’s right-click menu offers Move To…', await pick('Move To…'));
+      t.check('…which lists the folders', await t.waitFor('[...document.querySelectorAll(".menu.ctx .mi")].some((m) => m.textContent.trim() === "Space")', 2000));
+      await pick('Space');
+      t.check('…and moves it there', await t.waitFor(`JSON.parse(localStorage.getItem("e2k.favorites"))[0].items.map((n) => n.title).join() === "Europa (moon),Moon"`, 2000),
+        await t.js('return localStorage.getItem("e2k.favorites");'));
+      t.check('The folder shows how many favorites it holds', await t.js('return document.querySelector("#fpane .fold .c").textContent === "2";'));
+      // A folder inside it, then the third level is the deepest.
+      await ctx('f:' + space);
+      await pick('New Folder Inside');
+      await t.waitFor('document.activeElement?.matches("#fpane input.ren")', 2000);
+      await t.js('document.activeElement.value = "Moons";');
+      await t.key('Enter');
+      const moons = await t.js('return JSON.parse(localStorage.getItem("e2k.favorites"))[0].items.find((n) => n.items)?.id;');
+      t.check('A folder can hold folders', !!moons && await t.waitFor('[...document.querySelectorAll("#fpane .fold .t")].map((x) => x.textContent).join() === "Space,Moons"', 2000));
+      await ctx('f:' + moons);
+      await pick('New Folder Inside');
+      await t.waitFor('document.activeElement?.matches("#fpane input.ren")', 2000);
+      await t.key('Enter');
+      const third = await t.js('return JSON.parse(localStorage.getItem("e2k.favorites"))[0].items[0].items.find((n) => n.items)?.id;');
+      await ctx('f:' + third);
+      t.check('Three levels is the deepest: no New Folder Inside on the third', await t.js('return [...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.includes("New Folder Inside"))?.classList.contains("disabled");'));
+      await t.key('Escape');
+      // Closing a folder hides what's in it, and is remembered.
+      await t.js(`[...document.querySelectorAll("#fpane .fold")].find((f) => f.dataset.key === "f:${space}").click();`);
+      t.check('Clicking a folder closes it', await t.waitFor('!document.querySelector("#fpane [data-key=\'a:Moon\']") && document.querySelector("#fpane .fold").getAttribute("aria-expanded") === "false"', 2000));
+      // Search: matches in closed folders too, under their folder's name, with the words marked.
+      await t.js('const i = document.querySelector("#fpane .pfind input"); i.focus(); i.value = "moon"; i.dispatchEvent(new Event("input"));');
+      const s = await t.js('return { text: document.querySelector("#fpane .fb").innerText, marks: document.querySelectorAll("#fpane .fb mark").length };');
+      t.check('Searching finds favorites in folders, under the folder’s name', /Favorites\s*2 found/.test(s.text) && /Space\s*\n\s*Europa \(moon\)\s*\n\s*Moon/.test(s.text) && s.marks >= 3, JSON.stringify(s));
+      t.check('…and in Recently viewed', /Recently viewed\s*1 found/.test(s.text), s.text);
+      await t.shot('search');
+      await t.js('const i = document.querySelector("#fpane .pfind input"); i.value = ""; i.dispatchEvent(new Event("input"));');
+      // Ctrl+D removes and adds the article on screen.
+      await t.command('Remove from Favorites', 'd');
+      t.check('Ctrl+D removes the article on screen from Favorites', await t.waitFor('!JSON.stringify(JSON.parse(localStorage.getItem("e2k.favorites"))).includes("Europa (moon)")', 2000));
+      await t.command('Add to Favorites', 'd');
+      t.check('…and adds it again, at the top level below the folders', await t.waitFor('JSON.parse(localStorage.getItem("e2k.favorites"))[1]?.title === "Europa (moon)"', 2000),
+        await t.js('return localStorage.getItem("e2k.favorites");'));
+      await t.shot('folders');
+      t.check('No serious accessibility problems in the pane', !(await t.axe()).some((v) => /#fpane/.test(v)), JSON.stringify(await t.axe()));
+      // Deleting a folder with favorites in it asks first.
+      await ctx('f:' + space);
+      await pick('Delete Folder');
+      t.check('Deleting a folder with favorites asks first, saying they go too', await t.waitFor('/The favorite in it will be removed/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 2000),
+        await t.js('return document.querySelector(".overlay .dialog")?.innerText || "";'));
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Delete Folder").click();');
+      t.check('…and removes it', await t.waitFor('JSON.stringify(JSON.parse(localStorage.getItem("e2k.favorites")).map((n) => n.title || n.folder)) === JSON.stringify(["Europa (moon)", "Ray Charles"])', 2000),
+        await t.js('return localStorage.getItem("e2k.favorites");'));
+    },
+  },
+  {
+    name: 'my-articles-close-pin', group: 'My Articles', title: 'My Articles pane: a click outside closes it; pinned, it sits beside the page and stays open; its width can be dragged',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Europa (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Europa (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      const open = () => t.js('return !document.getElementById("fpane").hidden;');
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      t.check('The toolbar button opens the pane', await t.waitFor('!document.getElementById("fpane").hidden', 2000));
+      t.check('…with the keyboard focus in its search box', await t.js('return document.activeElement === document.querySelector("#fpane .pfind input");'));
+      const fb = await t.js('const r = document.querySelector("#fpane .fb").getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };');
+      await t.click(fb.x, fb.y);
+      t.check('A click inside it doesn’t close it', await open());
+      const page = await t.js('const r = document.querySelector(".content.article").getBoundingClientRect(); return { x: r.left + r.width * 0.6, y: r.top + 200 };');
+      await t.click(page.x, page.y);
+      t.check('A click on the page closes it', !(await open()));
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      await t.waitFor('!document.getElementById("fpane").hidden', 2000);
+      await t.key('Escape');
+      t.check('Escape closes it', !(await open()));
+      t.check('…and the focus goes back where it was', (await t.focused()).where !== 'none' && !(await t.js('return document.getElementById("fpane").contains(document.activeElement);')));
+      // Pinned: beside the page, not over it.
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      await t.waitFor('!document.getElementById("fpane").hidden', 2000);
+      await t.js('document.querySelector("#fpane .pin").click();');
+      const side = await t.js('const p = document.getElementById("fpane").getBoundingClientRect(), v = document.getElementById("view").getBoundingClientRect(); return { pane: Math.round(p.right), view: Math.round(v.left), pressed: document.querySelector("#fpane .pin").getAttribute("aria-pressed") };');
+      t.check('Pinned, the page moves over beside it', Math.abs(side.view - side.pane) <= 2 && side.pressed === 'true', JSON.stringify(side));
+      const page2 = await t.js('const r = document.querySelector(".content.article").getBoundingClientRect(); return { x: r.left + r.width * 0.6, y: r.top + 200 };');
+      await t.click(page2.x, page2.y);
+      t.check('…and a click on the page leaves it open', await open());
+      await t.key('Escape');
+      t.check('…and so does Escape', await open());
+      await t.shot('pinned');
+      // Its edge drags wider, within limits, and is remembered.
+      const g = await t.js('const r = document.querySelector("#fpane .fgrip").getBoundingClientRect(); return { x: r.left + 3, y: r.top + 300 };');
+      await t.js(`const g = document.querySelector("#fpane .fgrip");
+        g.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: ${g.x}, clientY: ${g.y}, button: 0 }));
+        dispatchEvent(new MouseEvent('mousemove', { clientX: ${g.x + 90}, clientY: ${g.y} }));
+        dispatchEvent(new MouseEvent('mouseup', { clientX: ${g.x + 90}, clientY: ${g.y} }));`);
+      const w = await t.js('return { w: Math.round(document.getElementById("fpane").getBoundingClientRect().width), saved: localStorage.getItem("e2k.paneWidth") };');
+      t.check('Dragging its edge makes it wider (and it’s remembered)', Math.abs(w.w - 340) <= 2 && w.saved === '340', JSON.stringify(w));
+      await t.js(`const g = document.querySelector("#fpane .fgrip");
+        g.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 340, clientY: 300, button: 0 }));
+        dispatchEvent(new MouseEvent('mousemove', { clientX: 900, clientY: 300 }));
+        dispatchEvent(new MouseEvent('mouseup', { clientX: 900, clientY: 300 }));`);
+      t.check('…up to 480 pixels', await t.js('return Math.round(document.getElementById("fpane").getBoundingClientRect().width) === 480;'));
+      // The pane, pinned, stays pinned the next time.
+      await t.js('location.reload();');
+      await t.waitFor('document.querySelector(".tbtn[data-cmd=favpane]")', 20000);
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      t.check('Pinned is remembered', await t.waitFor('!document.getElementById("fpane").hidden && document.querySelector(".stage").classList.contains("pinned") && Math.round(document.getElementById("fpane").getBoundingClientRect().width) === 480', 3000));
+      await t.js('document.querySelector("#fpane .pin").click();');
+      t.check('Unpinned, the page is under it again', await t.js('return !document.querySelector(".stage").classList.contains("pinned") && Math.round(document.getElementById("view").getBoundingClientRect().left) === 0;'));
+    },
+  },
+  {
+    name: 'my-articles-downloads', group: 'My Articles', title: 'My Articles pane: each favorite’s download state (download it from there), Downloaded, Download all, and Recently viewed’s ✕ and Clear all',
+    route: 'home',
+    async run(t) {
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([{ folder: 'Moons', id: 'm1', open: true, items: [{ title: 'Deimos (moon)' }, { title: 'Phobos (moon)' }] }, { title: 'Callisto (moon)' }]));
+        localStorage.setItem('e2k.recent', JSON.stringify(['Jupiter', 'Saturn']));`);
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      await t.waitFor('document.querySelector("#fpane [data-key=\'a:Deimos (moon)\'] .mark")', 5000);
+      t.check('Download all is offered while some favorites aren’t downloaded', await t.js('return [...document.querySelectorAll("#fpane .newf")].some((b) => b.textContent === "Download all");'));
+      await t.js('document.querySelector("#fpane [data-key=\'a:Deimos (moon)\'] button.mark").click();');
+      t.check('A favorite’s download button downloads it, showing a ring meanwhile, then the check', await t.waitFor('document.querySelector("#fpane [data-key=\'a:Deimos (moon)\'] .mark.done")', 60000));
+      t.check('It’s listed under Downloaded', await t.waitFor('document.querySelector("#fpane [data-key=\'d:Deimos (moon)\']")', 5000));
+      t.check('…with the space downloads use', await t.js('return /Downloaded\\s*[\\d.]+ (MB|GB)/.test(document.querySelector("#fpane .fb").innerText);'));
+      // Download Folder…: the confirmation, with the count, the size, and the free space.
+      await t.js(`const r = document.querySelector("#fpane [data-key='f:m1']"); const b = r.getBoundingClientRect();
+        r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.left + 20, clientY: b.top + 5, button: 2 }));
+        [...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.startsWith("Download Folder")).click();`);
+      await t.waitFor('document.querySelector(".overlay .dialog.dlall")', 5000);
+      const d = await t.js('return document.querySelector(".overlay .dialog.dlall")?.innerText || "";');
+      t.check('Download Folder… asks first, with how many, about how big, and the free space', /1 of the 2 favorites in it isn’t downloaded yet/.test(d || '') && /Download size\s*About/.test(d) && /Free space on this drive/.test(d) && /Download 1 Article/.test(d), d);
+      await t.shot('download-folder');
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Download 1 Article").click();');
+      t.check('…then downloads it in the background, with the status bar telling how far along', await t.waitFor('/Downloading articles: 1 of 1/.test(document.getElementById("status").textContent)', 5000)
+        && await t.waitFor('document.querySelector("#fpane [data-key=\'a:Phobos (moon)\'] .mark.done") && /Downloaded 1 article/.test(document.getElementById("status").textContent)', 90000),
+        await t.js('return document.getElementById("status").textContent;'));
+      // Recently viewed: ✕ removes one; Clear all asks, then clears.
+      await t.js('document.querySelector("#fpane [data-key=\'r:Saturn\'] .rx").click();');
+      t.check('✕ removes an article from Recently viewed', await t.waitFor('!document.querySelector("#fpane [data-key=\'r:Saturn\']") && localStorage.getItem("e2k.recent") === JSON.stringify(["Jupiter"])', 2000));
+      await t.js('[...document.querySelectorAll("#fpane .newf")].find((b) => b.textContent === "Clear all").click();');
+      t.check('Clear all asks first', await t.waitFor('/recently viewed/i.test(document.querySelector(".overlay .dialog")?.innerText || "")', 2000));
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Clear").click();');
+      t.check('…then clears the list', await t.waitFor('localStorage.getItem("e2k.recent") === "[]" && !document.querySelector("#fpane [data-key^=\'r:\']")', 2000));
+      // Delete Download from the right-click menu.
+      await t.js(`const r = document.querySelector("#fpane [data-key='d:Deimos (moon)']"); const b = r.getBoundingClientRect();
+        r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.left + 20, clientY: b.top + 5, button: 2 }));
+        [...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.startsWith("Delete Download")).click();`);
+      t.check('Delete Download removes the copy; the favorite gets its download button back', await t.waitFor('!document.querySelector("#fpane [data-key=\'d:Deimos (moon)\']") && document.querySelector("#fpane [data-key=\'a:Deimos (moon)\'] button.mark.get")', 5000));
+      for (const x of ['Deimos (moon)', 'Phobos (moon)']) await t.js(`await window.e2k.saved.remove(${JSON.stringify(x)}); return true;`);
+    },
+  },
+  {
     name: 'download-sounds', group: 'Downloaded articles', title: 'A downloaded article’s sounds and pronunciation play offline; a recording of the whole article read aloud isn’t downloaded',
     route: 'home',
     async run(t) {
