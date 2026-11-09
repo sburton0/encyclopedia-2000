@@ -719,6 +719,12 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .mstage.audio.playing .wave i { animation: wave .55s ease-in-out infinite alternate; }
 .mstage.audio.playing .wave i:nth-child(3n) { animation-duration: .4s; }
 .mstage.audio.playing .wave i:nth-child(4n + 1) { animation-duration: .75s; }
+/* A sound with its article's picture: the picture above, the waveform and title below it. */
+.mstage.audio.art .coverbg { position: absolute; inset: -40px; background: center / cover no-repeat; filter: blur(28px) brightness(.4) saturate(1.1); }
+.mstage.audio.art img.cover { inset: 6% 0 auto; height: 64%; object-fit: contain; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .55)); }
+.mstage.audio.art .wave { top: 73%; height: 12%; left: 22%; right: 22%; }
+.mstage.audio.art .lbl { bottom: 4%; }
+.mstage.audio.art .big { top: 38%; }
 .mstage .big { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; display: grid; place-items: center; border-radius: 50%;
   background: rgba(10, 20, 50, .72); border: 2px solid #fff; color: #fff; box-shadow: 0 2px 10px rgba(0, 0, 0, .5); cursor: pointer; }
 .mstage .big .ic { width: 24px; height: 24px; margin-left: 4px; }

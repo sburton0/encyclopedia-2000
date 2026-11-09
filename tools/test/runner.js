@@ -92,6 +92,14 @@ async function run(win) {
       wc.sendInputEvent({ type: 'mouseMove', x: Math.round(x), y: Math.round(y) });
       await sleep(250);
     },
+    // Clicks at a point in the window as the mouse does (a real click, so a sound or video may start playing).
+    async click(x, y) {
+      const p = { x: Math.round(x), y: Math.round(y) };
+      wc.sendInputEvent({ type: 'mouseMove', ...p });
+      wc.sendInputEvent({ type: 'mouseDown', ...p, button: 'left', clickCount: 1 });
+      wc.sendInputEvent({ type: 'mouseUp', ...p, button: 'left', clickCount: 1 });
+      await sleep(250);
+    },
     // What has focus: its role, its name or text, and where it is.
     focused: () => t.js(`const e = document.activeElement; if (!e || e === document.body) return { where: 'none' };
       return { tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || '', text: (e.getAttribute('aria-label') || e.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 60),

@@ -1483,6 +1483,11 @@ module.exports = [
       t.check('…and the sound plays from this computer', p.ok && p.src.startsWith('e2k-saved:') && p.duration > 10, JSON.stringify(p));
       t.check('The article’s Media list has the sound too (for the media viewer)', await t.waitFor('[...document.querySelectorAll("button, a")].some((b) => /^\\s*1 sound\\s*$/.test(b.textContent))', 8000),
         await t.js('return [...document.querySelectorAll("button, a")].map((b) => b.textContent.trim()).filter((x) => /^\\d+ (picture|video|sound)/.test(x)).join(", ");'));
+      await t.js('[...document.querySelectorAll(".mbox button")].find((b) => /♪/.test(b.textContent))?.click();');
+      const cov = await t.js(`await new Promise((r) => setTimeout(r, 1500)); const img = document.querySelector('.mview .mstage.audio.art img.cover');
+        return { src: (img?.src || '').slice(0, 40), shown: img?.naturalWidth || 0 };`);
+      t.check('In the viewer the sound shows the article’s picture, from the downloaded copy', cov.src.startsWith('e2k-saved:') && cov.shown > 0, JSON.stringify(cov));
+      await t.js('document.querySelector(".mview")?.remove();');
       await t.shot('sound-offline');
       await t.js('E2K.openArticle("Worcestershire sauce");');
       t.check('Worcestershire sauce opens with its pronunciation button', await t.waitFor('document.querySelector(".band h1")?.textContent === "Worcestershire sauce" && document.querySelector(".pron audio")', 20000),
@@ -1551,6 +1556,29 @@ module.exports = [
         JSON.stringify({ before: withV?.size, after: without?.size, videos: without?.videos }));
       await t.js('document.querySelector(".bsplit .darrow").click();');
       t.check('…and offers its videos again', await t.waitFor('/Download again with its videos\\s+Its 2 videos/.test(document.querySelector(".rmenu")?.innerText || "")', 15000), await t.js(menuText));
+    },
+  },
+  {
+    name: 'sound-cover', group: 'Reading', title: 'A sound in the media viewer shows its article’s picture, like a record cover',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Florence Nightingale");');
+      t.check('The article opens with its sound in the Media list', await t.waitFor('document.querySelector(".band h1")?.textContent === "Florence Nightingale" && [...document.querySelectorAll(".mbox button")].some((b) => /♪/.test(b.textContent))', 40000));
+      await t.js('[...document.querySelectorAll(".mbox button")].find((b) => /♪/.test(b.textContent)).click();');
+      t.check('The sound opens in the viewer', await t.waitFor('document.querySelector(".mview .mstage.audio")', 8000));
+      const cover = `const s = document.querySelector('.mview .mstage.audio'), img = s?.querySelector('img.cover');
+        if (img && !img.complete) await new Promise((r) => { img.onload = img.onerror = r; setTimeout(r, 8000); });
+        const lead = document.querySelector('.media .frame img');
+        return { art: s?.classList.contains('art'), src: img?.src || '', shown: img?.naturalWidth || 0, alt: img?.alt, lead: lead?.src || '',
+          wave: !!s?.querySelector('.wave'), label: s?.querySelector('.lbl')?.textContent || '' };`;
+      const c = await t.js(cover);
+      t.check('…with the article’s picture (her portrait), shown', c.art && c.shown > 200 && /Nightingale/i.test(decodeURIComponent(c.src)), JSON.stringify(c));
+      t.check('…and the waveform and title under it (the picture is decoration: alt "")', c.wave && c.label && c.alt === '', JSON.stringify(c));
+      // Opened from the Media list, it starts playing at once.
+      t.check('It plays', await t.waitFor('document.querySelector(".mview .mstage.audio.playing")', 8000));
+      await t.sleep(800);
+      await t.shot('sound-cover');
+      await t.js('document.querySelector(".mview")?.remove();');
     },
   },
   {

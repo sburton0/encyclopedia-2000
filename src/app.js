@@ -908,6 +908,9 @@
       for (const m of items) if (!m.caption) m.caption = soundNames.find(([f]) => sameFile(f, m.file))?.[1] || '';
       const kept = items.filter((m) => ![...decor].some((f) => sameFile(f, m.file)));
       kept.spoken = items.spoken;
+      // A sound shows the article's picture in the viewer, like a record's cover (Brahms's face while he plays).
+      const art = sum.thumbnail?.source ? sized(sum.thumbnail.source, sum.originalimage?.source || sum.thumbnail.source, sum.originalimage?.width || 0, 1280) : '';
+      if (art) for (const m of kept) if (m.type === 'audio') m.art = art;
       return kept;
     });
     mediaP.catch(() => {});
@@ -2248,6 +2251,12 @@
         if (m.type === 'video') {
           el.addEventListener('click', toggle);
           stage.append(el, big);
+        } else if (m.art) {
+          // The article's picture, over a soft, darkened copy of itself; the waveform and the title beneath it.
+          stage.classList.add('art');
+          const pic = h('img', { class: 'cover', src: m.art, alt: '' });
+          pic.addEventListener('error', () => stage.classList.remove('art'));
+          stage.append(h('div', { class: 'coverbg', style: bg(m.art) }), pic, waveform(m.file, 48), h('div', { class: 'lbl' }, label), big, el);
         } else {
           stage.append(waveform(m.file, 48), h('div', { class: 'lbl' }, label), big, el);
         }
