@@ -1337,6 +1337,46 @@ module.exports = [
       await t.js('E2K.openArticle("Eleanor Rigby (person)");');
       t.check('Opening it opens the article', await t.waitFor('document.querySelector(".band h1")?.textContent === "Eleanor Rigby" && document.querySelectorAll(".content.article .text p").length > 3', 15000),
         await t.js('return document.querySelector(".band h1")?.textContent || document.querySelector(".errbox")?.innerText || "";'));
+      // The heading of a section at the top of the article's scrolling area (within a few lines), not at the very top.
+      const at = (heading) => `(() => { const c = document.querySelector(".content.article"); const h = c && [...c.querySelectorAll("h2, h3")].find((x) => x.textContent.trim() === ${JSON.stringify(heading)});
+        if (!h) return false; const d = h.getBoundingClientRect().top - c.getBoundingClientRect().top; return c.scrollTop > 100 && d > -5 && d < 80; })()`;
+      const where = 'return (() => { const c = document.querySelector(".content.article"); return c ? `scrolled ${Math.round(c.scrollTop)}` : "no article"; })();';
+      t.check('…at the section it leads to', await t.waitFor(at('The real-life Eleanor Rigby'), 8000), await t.js(where));
+      t.check('…with the focus on that section’s heading (read by screen readers)',
+        await t.js('return document.activeElement?.textContent?.trim() === "The real-life Eleanor Rigby";'), await t.js('return document.activeElement?.outerHTML.slice(0, 120) || "";'));
+      await t.sleep(2500);                    // pictures above it load (it stays at the section)
+      t.check('…and stays there while the pictures above it load', await t.js('return ' + at('The real-life Eleanor Rigby') + ';'), await t.js(where));
+      await t.js('E2K.openArticle("Here We Go Again (Nancy Sinatra song)");');
+      t.check('Another such page opens its article at its section', await t.waitFor('document.querySelector(".band h1")?.textContent === "Here We Go Again (Ray Charles song)"', 15000)
+        && await t.waitFor(at('Nancy Sinatra version'), 8000), await t.js(where));
+      // A link to a section ("Eleanor Rigby#The_real-life_Eleanor_Rigby") opens the article there; the plain title at the top.
+      await t.js('E2K.openArticle("Eleanor Rigby#The_real-life_Eleanor_Rigby");');
+      t.check('A link to a section of an article opens it at that section', await t.waitFor('document.querySelector(".band h1")?.textContent === "Eleanor Rigby"', 15000)
+        && await t.waitFor(at('The real-life Eleanor Rigby'), 8000), await t.js(where));
+      t.check('…and the location bar names the article, not the section',
+        await t.js('return document.querySelector("#crumbs .here")?.textContent === "Eleanor Rigby";'), await t.js('return document.querySelector("#crumbs .here")?.textContent || "";'));
+      await t.js('E2K.openArticle("Eleanor Rigby");');
+      t.check('The article on its own opens at the top', await t.waitFor('document.querySelector(".band h1")?.textContent === "Eleanor Rigby" && document.querySelectorAll(".content.article .text p").length > 3', 15000)
+        && await t.js('await new Promise((r) => setTimeout(r, 800)); return document.querySelector(".content.article").scrollTop < 5;'), await t.js(where));
+      // A link in the article to one of its own sections scrolls there, without opening the article again.
+      const opened = await t.js('return performance.getEntriesByName("article:start").length;');
+      await t.js('const a = document.createElement("a"); a.href = "#"; a.dataset.title = "Eleanor Rigby"; a.dataset.section = "The_real-life_Eleanor_Rigby"; a.id = "e2k-test-link"; a.textContent = "link"; document.querySelector(".content.article .text").prepend(a); a.click();');
+      t.check('A link to a section of the article you’re reading just scrolls to it', await t.waitFor(at('The real-life Eleanor Rigby'), 5000)
+        && await t.js(`return performance.getEntriesByName("article:start").length === ${opened};`), await t.js(where));
+      await t.js('document.getElementById("e2k-test-link")?.remove();');
+    },
+  },
+  {
+    name: 'section-redirect-online', group: 'Reading', title: 'A title that redirects to a section of another article opens it at that section (online)',
+    route: 'home',
+    async run(t) {
+      // On Wikipedia, "Michael Jackson's finances" redirects to Michael Jackson › Earnings.
+      await t.js('E2K.openArticle("Michael Jackson\'s finances");');
+      t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Michael Jackson" && document.querySelectorAll(".content.article .text p").length > 3', 40000),
+        await t.js('return document.querySelector(".band h1")?.textContent || document.querySelector(".errbox")?.innerText || "";'));
+      t.check('…at the section the redirect leads to', await t.waitFor(`(() => { const c = document.querySelector(".content.article"); const h = [...c.querySelectorAll("h2, h3")].find((x) => x.textContent.trim() === "Earnings");
+        if (!h) return false; const d = h.getBoundingClientRect().top - c.getBoundingClientRect().top; return c.scrollTop > 100 && d > -5 && d < 80; })()`, 15000),
+        await t.js('return `scrolled ${Math.round(document.querySelector(".content.article")?.scrollTop || 0)}`;'));
     },
   },
   {

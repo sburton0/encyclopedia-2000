@@ -103,6 +103,8 @@
   const sized = (thumb, original, width, px) => (width > px ? bigThumb(thumb, px) : original || thumb);
   const longDate = (d = new Date()) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
   const route = (name, arg) => (arg === undefined ? name : `${name}/${encodeURIComponent(arg)}`);
+  // An article route's title can name a section: "Moon#Orbit" (Wikipedia titles never contain "#"). [title, section].
+  const splitSection = (arg) => { const i = arg.indexOf('#'); return i < 0 ? [arg, ''] : [arg.slice(0, i), arg.slice(i + 1)]; };
 
   // ---------- state ----------
   const view = $('#view');
@@ -222,7 +224,7 @@
     if (SECTIONS[name]) return [home, { label: SECTIONS[name], r: name }];
     if (name === 'random') return [home, { label: 'Random article' }];
     if (name === 'search') return [home, { label: 'Search' }, { label: `“${arg}”`, r }];
-    if (name === 'article') return [...(from || [home, { label: 'Articles', r: 'explore' }]), { label: arg, r }];
+    if (name === 'article') return [...(from || [home, { label: 'Articles', r: 'explore' }]), { label: splitSection(arg)[0], r }];
     if (name === 'game') return [home, { label: 'Games', r: 'games' }, { label: E2KGames.get(arg)?.name || arg, r }];
     if (name === 'activity') return [home, { label: 'Activities', r: 'activities' }, { label: E2KActivities.get(arg)?.name || arg, r }];
     return [home];
@@ -329,7 +331,7 @@
     setTrail(r);
     try {
       switch (name) {
-        case 'article': await viewArticle(arg, token); break;
+        case 'article': await viewArticle(arg, token, restore); break;
         case 'search': await viewSearch(arg, token); break;
         case 'explore': await viewExplore(token); break;
         case 'gallery': await viewGallery(arg, token); break;
@@ -682,9 +684,11 @@
       const rel = a.getAttribute('rel') || '';
       // Links to other wikis (Wiktionary, Wikiquote…) are marked as wiki links too, but have full web addresses.
       if ((href.startsWith('./') || rel.includes('mw:WikiLink')) && !/^([a-z][a-z0-9+.-]*:)?\/\//i.test(href)) {
-        const raw = href.replace(/^\.\//, '').split('#')[0].split('?')[0];
+        const [raw, frag = ''] = href.replace(/^\.\//, '').split('?')[0].split('#');
         let t;
         try { t = decodeURIComponent(raw).replace(/_/g, ' '); } catch { t = raw.replace(/_/g, ' '); }
+        // A link to a section of an article ("Moon#Orbit") opens it there.
+        if (frag) { try { a.dataset.section = decodeURIComponent(frag); } catch { a.dataset.section = frag; } }
         if (/^(File|Image):/i.test(t)) {
           a.setAttribute('href', '#');
           a.dataset.file = t;
@@ -725,7 +729,45 @@
     return { nodes: [...body.childNodes], facts, toc, related, infoImg, pron, decor };
   }
 
-  async function viewArticle(title, token) {
+  // ---------- sections ----------
+  // An article can be opened at a section: "Moon#Orbit" (see splitSection). The section is an anchor, usually a
+  // heading's id ("The_real-life_Eleanor_Rigby"); failing that, a heading with that text.
+  function sectionIn(root, sec) {
+    for (const id of new Set([sec, sec.replace(/ /g, '_'), sec.replace(/_/g, ' ')])) {
+      const el = id && root.querySelector('#' + CSS.escape(id));
+      if (el) return el;
+    }
+    const want = sec.replace(/_/g, ' ').trim().toLowerCase();
+    return [...root.querySelectorAll('h2, h3, h4, h5, h6')].find((x) => x.textContent.trim().toLowerCase() === want) || null;
+  }
+  // Scrolls the article to a section, and keeps it there for a few seconds while pictures above it load and push it
+  // down, until the reader scrolls themselves. Focus moves to its heading (for screen readers) unless it's been moved
+  // on already. False if the article has no such section (it then stays at the top).
+  function goToSection(pg, sec, token) {
+    const el = sectionIn(pg.text, sec);
+    if (!el) return false;
+    const c = pg.content, block = el.closest('.mw-heading') || el;
+    const put = () => c.scrollTo({ top: block.getBoundingClientRect().top - c.getBoundingClientRect().top + c.scrollTop - 10, behavior: 'instant' });
+    stopRestore();
+    put();
+    const watch = new ResizeObserver(() => { if (live(token)) put(); });
+    [...c.children].forEach((x) => watch.observe(x));
+    const stop = () => { watch.disconnect(); ['wheel', 'mousedown', 'keydown', 'touchstart'].forEach((e) => removeEventListener(e, stop, true)); };
+    stopRestore = stop;
+    ['wheel', 'mousedown', 'keydown', 'touchstart'].forEach((e) => addEventListener(e, stop, true));
+    setTimeout(stop, 5000);
+    const head = el.matches('h2, h3, h4, h5, h6') ? el : block.querySelector('h2, h3, h4, h5, h6');
+    const a = document.activeElement;
+    if (head && (!a || a === document.body || a.classList.contains('landing'))) {
+      head.tabIndex = -1;
+      head.classList.add('landing');
+      head.focus({ preventScroll: true });
+    }
+    return true;
+  }
+
+  async function viewArticle(arg, token, restore = false) {
+    const [title, askedSection] = splitSection(arg);
     const favBtn = bandBtn('Add to Favorites', () => toggleFav(), 'star');
     const speakBtn = bandBtn('Read Aloud', () => toggleSpeak(), 'read');
     const wikiBtn = bandBtn('View on Wikipedia', null, 'ext');
@@ -839,6 +881,16 @@
       h('div', { class: 'r' }, h('span', {}, 'License'), h('span', {}, 'CC BY-SA 4.0')));
     pg.media.append(factsBox);
 
+    // Opened at a section: a link to one ("Moon#Orbit"), a library page that only leads to a section of this article,
+    // or (online) a title that redirects to one. Back and Forward return to where the page was instead (render).
+    if (!restore) {
+      const sec = askedSection || sum.section || '';
+      if (sec) goToSection(pg, sec, token);
+      else if (!sum.fromLibrary && name.replace(/_/g, ' ').toLowerCase() !== title.replace(/_/g, ' ').trim().toLowerCase()) {
+        Wiki.redirectSection(title).then((s) => { if (s && live(token) && pg.content.scrollTop < 5) goToSection(pg, s, token); });
+      }
+    }
+
     updateToolbar();
     setIdle(sum.type === 'disambiguation' ? `“${name}” may refer to several subjects` : 'Done');
     mark('done');
@@ -849,8 +901,14 @@
     const a = e.target.closest('a');
     if (!a) return;
     e.preventDefault();
-    if (a.dataset.title) openArticle(a.dataset.title, linkFrom());
-    else if (a.dataset.ext) window.e2k.openExternal(a.dataset.ext);
+    if (a.dataset.title) {
+      const sec = a.dataset.section || '';
+      // A section of the article that's open: just go there.
+      if (sec && current && current.title.toLowerCase() === a.dataset.title.toLowerCase() && current.content) {
+        if (goToSection({ text: current.content.querySelector('.text') || current.content, content: current.content }, sec, renderToken)) return;
+      }
+      openArticle(sec ? `${a.dataset.title}#${sec}` : a.dataset.title, linkFrom());
+    } else if (a.dataset.ext) window.e2k.openExternal(a.dataset.ext);
     else if (a.dataset.file) {
       const img = a.querySelector('img');
       if (img) {
@@ -870,7 +928,7 @@
   view.addEventListener('mouseover', (e) => {
     const a = e.target.closest('a');
     if (!a) return;
-    if (a.dataset.title) setStatus('Article: ' + a.dataset.title);
+    if (a.dataset.title) setStatus('Article: ' + a.dataset.title + (a.dataset.section ? ` › ${a.dataset.section.replace(/_/g, ' ')}` : ''));
     else if (a.dataset.ext) setStatus('Opens in your web browser: ' + a.dataset.ext);
   });
   view.addEventListener('mouseout', (e) => { if (e.target.closest('a')) setStatus(statusIdle); });

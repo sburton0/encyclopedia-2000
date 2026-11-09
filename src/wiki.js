@@ -133,6 +133,7 @@ window.Wiki = (() => {
     if (para) para.querySelectorAll('style, link, sup.reference, sup.mw-ref, .mw-ref').forEach((x) => x.remove());
     const extract = para ? para.textContent.replace(/\[(\d+|[a-z])\]/g, '').replace(/\s+/g, ' ').trim() : '';
     return { titles: { normalized: found.title, canonical: found.path }, title: found.title, description: '', extract, fromLibrary: true,
+      section: found.section || '',   // a page that leads to a section of this article: that section
       thumbnail: img ? { source: new URL(img.getAttribute('src'), base).href, sharp: sharp() ? sharpUrl(img.getAttribute('src'), 500) : '' } : undefined };
   }
   // The article's pictures, in the shape of Wikipedia's media list (the library has no videos or sounds).
@@ -222,6 +223,10 @@ window.Wiki = (() => {
       return get(`${BASE}/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text&parsoid=1&redirects=1&format=json&formatversion=2&origin=*`)
         .then((r) => { if (!r.parse?.text) throw e; return r.parse.text; });
     }), libHtml),
+    // Online, a title that redirects to a section of another article ("Michael Jackson's finances" → Earnings): that
+    // section's anchor, or ''. (The page service follows the redirect but drops the section.)
+    redirectSection: (title) => get(`${BASE}/w/api.php?action=query&redirects=1&titles=${encodeURIComponent(title)}&format=json&formatversion=2&origin=*`)
+      .then((r) => (r.query?.redirects || []).map((x) => x.tofragment || '').filter(Boolean).pop() || '', () => ''),
     // Every picture, video, and sound in an article, in the order they appear.
     mediaList: (title) => article(title, () => get(`${BASE}/api/rest_v1/page/media-list/${enc(title)}?redirect=true`), libMedia),
     // Size, length, file address, a still picture, and the credit for up to 50 files ("File:…" titles).

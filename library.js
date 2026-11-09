@@ -191,33 +191,39 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // of another article ("Michael Jackson's finances" goes to Michael Jackson › Earnings); those are followed too, so
 // they aren't listed or opened as articles of their own. Reading a page to tell is slow (its whole cluster is
 // unpacked), but these pages are packed thousands to a cluster, and an article's cluster holds only a handful: so
-// unless `sure`, only a page stored deep in its cluster (or in one already known to hold them) is read. Remembered.
+// unless `sure`, only a page stored deep in its cluster (or in one already known to hold them) is read. Remembered,
+// with the section it leads to ("The_real-life_Eleanor_Rigby"), so the article can open there.
 const stubs = new Map(), stubClusters = new Set();
-function follow(e, sure = false) {
+function followTo(e, sure = false) {
   e = lib.resolve(e);
-  if (!e || e.mime !== 'text/html') return e;
+  if (!e || e.mime !== 'text/html') return { e, section: '' };
   if (!stubs.has(e.i)) {
-    if (!sure && e.blob < 16 && !stubClusters.has(e.cluster)) return e;
-    let to = null;
+    if (!sure && e.blob < 16 && !stubClusters.has(e.cluster)) return { e, section: '' };
+    let to = null, section = '';
     try {
       const html = lib.content(e);
-      const m = html.length < 2048 && /<meta http-equiv="refresh" content="0;\s*URL='\.\/([^'#]+)/i.exec(html.toString('utf8'));
+      const m = html.length < 2048 && /<meta http-equiv="refresh" content="0;\s*URL='\.\/([^'#]+)(?:#([^']*))?/i.exec(html.toString('utf8'));
       if (m) {
         stubClusters.add(e.cluster);
         let p = m[1];
         try { p = decodeURIComponent(p); } catch {}
         to = lib.resolve(lib.find('C', p));
+        section = m[2] || '';
+        try { section = decodeURIComponent(section); } catch {}
       }
     } catch {}
-    stubs.set(e.i, to && to.mime === 'text/html' && to.i !== e.i ? to : null);
+    stubs.set(e.i, to && to.mime === 'text/html' && to.i !== e.i ? { to, section } : null);
   }
-  return stubs.get(e.i) || e;
+  const s = stubs.get(e.i);
+  return s ? { e: s.to, section: s.section } : { e, section: '' };
 }
+const follow = (e, sure = false) => followTo(e, sure).e;
+// An article by title: { path, title, section }, where section is the part of it a section page leads to ('' for none).
 function find(title) {
   if (!lib) return null;
   for (const p of new Set([toPath(title), cap(toPath(title))])) {
-    const e = follow(lib.find('C', p), true);
-    if (e && e.mime === 'text/html') return { path: e.path, title: e.title };
+    const { e, section } = followTo(lib.find('C', p), true);
+    if (e && e.mime === 'text/html') return { path: e.path, title: e.title, section };
   }
   return null;
 }
