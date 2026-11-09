@@ -758,7 +758,7 @@
         if (job) label.textContent = `Downloading… ${Math.round((job.done / Math.max(job.total, 1)) * 100)}%`;
         else label.textContent = dl.entry ? 'Downloaded' : 'Download for Offline';
         main.title = dl.entry ? `Downloaded ${new Date(dl.entry.at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} · ${mb(dl.entry.size)}. It opens without the internet.`
-          : 'Download this article with its pictures and sounds, so it opens without the internet';
+          : `Download this article (${whatComes().replace(/^W/, 'w').replace(/^A/, 'a')}), so it opens without the internet`;
       } };
     return dl;
   }
@@ -767,11 +767,22 @@
     await downloadTitle(current.title, opts);
     if (current && current.dl === dl) dl.refresh();
   }
+  // What a downloaded article brings with it, from Options › Storage; a choice made for one download goes over it.
+  const downloadDefaults = () => ({ textOnly: store.get('dlPictures', 'reading') === 'none', sounds: store.get('dlSounds', true) !== false,
+    videos: store.get('dlVideos', false) === true, spoken: store.get('dlSpoken', false) === true });
+  const dlWith = (title, opts = {}) => saved.download(title, { ...downloadDefaults(), ...opts });
+  // What "Download this article" brings, in words.
+  function whatComes() {
+    const d = downloadDefaults();
+    if (d.textOnly) return 'As text only (Options › Storage)';
+    const extra = [d.sounds ? 'sounds' : '', d.videos ? 'videos' : '', d.spoken ? 'its spoken recording' : ''].filter(Boolean);
+    return `With its pictures${extra.length ? (extra.length === 1 ? ` and ${extra[0]}` : `, ${extra.slice(0, -1).join(', ')}, and ${extra[extra.length - 1]}`) : ''}`;
+  }
   // Downloads one article (from its button, or the My Articles pane), telling how it went in the status bar.
   async function downloadTitle(title, opts = {}) {
     if (isOffline()) { setIdle('Offline mode is on. Downloading an article needs the internet.'); return; }
     setStatus(`Downloading “${title}”…`, true);
-    const r = await saved.download(title, opts);
+    const r = await dlWith(title, opts);
     if (r.ok) setIdle(`Downloaded “${r.entry.title}”${r.entry.videos ? ` with its ${r.entry.videos === 1 ? 'video' : 'videos'}` : ''} (${mb(r.entry.size)}). It opens without the internet.`);
     else if (r.space) setIdle(`“${title}” wasn’t downloaded: there isn’t enough free space on this drive.`);
     else if (r.offline) setIdle('Offline mode is on. Downloading an article needs the internet.');
@@ -784,7 +795,7 @@
       h('span', { class: 'rio' }, icon(ic)), h('span', {}, h('b', {}, title), h('span', { class: 's' }, sub)));
     const e = dl.entry;
     // Videos are downloaded only on request. The choice shows once the article is known to have some, with their size.
-    const videoItem = (!e || !e.textOnly) && !(e && e.withVideos) ? item('film', e ? 'Download again with its videos' : 'Download it with its videos too',
+    const videoItem = (!e || !e.textOnly) && !(e && e.withVideos) && !(!e && downloadDefaults().videos) ? item('film', e ? 'Download again with its videos' : 'Download it with its videos too',
       'Checking how big they are…', () => startDownload(dl, { videos: true })) : null;
     if (videoItem) {
       videoItem.hidden = true;
@@ -805,7 +816,7 @@
         dl.refresh();
       }),
     ] : [
-      item('download', 'Download this article', 'With its pictures and sounds, so it opens without the internet.', () => startDownload(dl)),
+      item('download', 'Download this article', `${whatComes()}, so it opens without the internet.`, () => startDownload(dl)),
       videoItem,
       item('book', 'Download it as text only', 'Smaller: the text without its pictures.', () => startDownload(dl, { textOnly: true })),
     ]), item('folder', 'Download a category…', 'Articles like this one: pick one of its Wikipedia categories.', () => categoryDialog(current.title)),
@@ -2943,7 +2954,7 @@
     while (dlQueue.length) {
       const { t, opts, label } = dlQueue[0];
       setStatus(`Downloading ${label ? `“${label}”` : 'articles'}: ${dlQueueDone + 1} of ${dlQueueTotal} (“${t}”)…`, true);
-      const r = await saved.download(t, opts).catch(() => ({ ok: false }));
+      const r = await dlWith(t, opts).catch(() => ({ ok: false }));
       dlQueue.shift();
       if (r.ok) dlQueueDone++;
       else if (r.space || r.offline) { stop = r.space ? 'there isn’t enough free space on this drive' : 'Offline mode is on'; break; }
@@ -2984,8 +2995,8 @@
         big ? h('small', {}, `Too big to download (over ${CAT_TOO_BIG.toLocaleString()} articles). Try a smaller category.`)
           : c.count > CAT_MAX ? h('small', {}, `Over ${CAT_MAX} articles: downloads the ${CAT_MAX} most read.`) : null);
     });
-    const pics = h('input', { type: 'checkbox', checked: true, onchange: () => update() });
-    const vids = h('input', { type: 'checkbox' });
+    const pics = h('input', { type: 'checkbox', checked: !downloadDefaults().textOnly, onchange: () => update() });
+    const vids = h('input', { type: 'checkbox', checked: downloadDefaults().videos });
     const toFav = h('input', { type: 'checkbox', onchange: () => update() });
     const folderSel = h('select', { 'aria-label': 'Favorites folder' });
     const picsLabel = h('span', {});
@@ -3047,6 +3058,25 @@
     queueDownloads(titles.filter((t) => !dlEntry(t) || (opts.videos && !dlEntry(t).withVideos)), { opts, label: cat.name });
     drawFavPane();
     refreshMyPage();
+  }
+  // Options › Storage › Remove…: every downloaded article, after asking.
+  async function removeAllDownloads(done) {
+    const list = await saved.list().catch(() => []);
+    if (!list.length) return;
+    const size = list.reduce((n, e) => n + (e.size || 0), 0);
+    const favN = list.filter((e) => isFavTitle(e.title)).length;
+    dialog('Remove Downloaded Articles', 'Remove all downloaded articles?', [
+      `${list.length === 1 ? '1 article' : `${list.length} articles`}, ${mb(size)}. They still open when you’re online.`,
+      favN ? `${favN === 1 ? 'The favorite among them stays a favorite' : `The ${favN} favorites among them stay favorites`}.` : null].filter(Boolean),
+    [['Remove All', async () => {
+      for (const e of list) await saved.remove(e.title);
+      store.set('dlCategories', []);
+      setIdle(`Removed ${list.length === 1 ? '1 downloaded article' : `${list.length} downloaded articles`}, freeing ${mb(size)}.`);
+      if (current?.dl) current.dl.refresh();
+      drawFavPane();
+      refreshMyPage();
+      done && done();
+    }, true], ['Cancel']]);
   }
   // A downloaded category's articles that are downloaded now.
   const catDownloaded = (c) => c.titles.filter((t) => dlEntry(t));
@@ -4122,6 +4152,12 @@
   // ---------- API for games ----------
   const E2K = window.E2K = {
     h, svg, icon, store, route, go, maxCanvas: MAX_CANVAS,
+    // For Options: History, and what's downloaded.
+    historyCount: () => history().length,
+    clearHistory: (done) => { clearHistoryDialog(); const ov = $$('.overlay').pop(); if (ov && done) new MutationObserver((_, mo) => { if (!ov.isConnected) { mo.disconnect(); done(); } }).observe(document.body, { childList: true }); },
+    downloadedCategories: () => dlCats().map((c) => ({ name: c.name, n: catDownloaded(c).length })).filter((c) => c.n),
+    removeAllDownloads,
+    downloadTitle,
     openArticle: (t) => openArticle(t, linkFrom()),
     setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet, announce,

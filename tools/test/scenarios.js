@@ -1792,6 +1792,49 @@ module.exports = [
     },
   },
   {
+    name: 'options-storage', group: 'Downloaded articles', title: 'Options › Storage: the space used and free, Show and Remove for downloads, and what a downloaded article brings (no sounds; spoken recordings)',
+    route: 'home',
+    async run(t) {
+      const first = await t.js('return await window.e2k.saved.download("Deimos (moon)");');
+      t.check('An article is downloaded to begin with', first?.ok, JSON.stringify(first));
+      await t.js('E2KOptions.open(E2K, "Storage");');
+      t.check('Options has a Storage tab', await t.waitFor('[...document.querySelectorAll(".options .otab.on")].some((b) => b.textContent === "Storage")', 3000));
+      t.check('It shows the space downloaded articles use, and the free space', await t.waitFor('/Downloaded articles [\\d.]+ (MB|GB)/.test(document.querySelector(".ostore .slegend")?.innerText || "") && /Free on this drive/.test(document.querySelector(".ostore .slegend").innerText)', 5000),
+        await t.js('return document.querySelector(".ostore")?.innerText || "";'));
+      t.check('…and how many articles are downloaded', await t.js('return /1 article/.test(document.querySelectorAll(".ostore .srow")[1].innerText);'));
+      const boxes = () => t.js('return [...document.querySelectorAll(".ostore .ocheck input")].map((i) => i.checked);');
+      t.check('Sounds come with downloaded articles; videos and spoken recordings don’t', JSON.stringify(await boxes()) === '[true,false,false]', JSON.stringify(await boxes()));
+      await t.sleep(600);
+      await t.shot('storage');
+      // No sounds.
+      await t.js('document.querySelectorAll(".ostore .ocheck input")[0].click(); [...document.querySelectorAll(".options .df .go")].find((b) => b.textContent === "OK").click();');
+      t.check('The choice is saved', await t.waitFor('localStorage.getItem("e2k.dlSounds") === "false"', 3000));
+      await t.js('E2K.openArticle("Worcestershire sauce");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Worcestershire sauce" && document.querySelector(".bsplit .dmain")?.title', 40000);
+      t.check('The Download button says what comes', await t.js('return /with its pictures\\)/.test(document.querySelector(".bsplit .dmain")?.title || "");'),
+        await t.js('return (document.querySelector(".band h1")?.textContent || "-") + " | " + (document.querySelector(".bsplit .dmain")?.title || "-") + " | " + !!document.querySelector(".overlay");'));
+      await t.js('document.querySelector(".bsplit .dmain").click();');
+      await t.waitFor('document.querySelector(".bsplit .dmain")?.textContent === "Downloaded"', 60000);
+      const sauce = await t.js('return await window.e2k.saved.get("Worcestershire sauce");');
+      t.check('Without sounds, an article’s pronunciation isn’t downloaded', sauce && sauce.sounds === 0 && sauce.noSounds && sauce.pictures > 0, JSON.stringify(sauce));
+      // Sounds and spoken recordings.
+      await t.js('localStorage.setItem("e2k.dlSounds", "true"); localStorage.setItem("e2k.dlSpoken", "true");');
+      const whale = await t.js('return await new Promise((r) => { E2K.downloadTitle("Humpback whale").then(async () => r(await window.e2k.saved.get("Humpback whale"))); });');
+      t.check('With spoken recordings, the article read aloud downloads too', whale && whale.spoken >= 1, JSON.stringify(whale));
+      // Remove… everything.
+      await t.js('E2KOptions.open(E2K, "Storage");');
+      await t.waitFor('/3 articles/.test(document.querySelectorAll(".ostore .srow")[1]?.innerText || "")', 5000);
+      await t.js('[...document.querySelectorAll(".ostore .srow .go")].find((b) => b.textContent === "Remove…").click();');
+      t.check('Remove… asks first', await t.waitFor('/Remove all downloaded articles/.test([...document.querySelectorAll(".overlay .dialog")].pop()?.innerText || "")', 3000));
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Remove All").click();');
+      t.check('…then removes them all, and the tab updates', await t.waitFor('(await window.e2k.saved.list()).length === 0 && /None yet/.test(document.querySelectorAll(".ostore .srow")[1]?.innerText || "")', 15000));
+      // Privacy: History.
+      await t.js('[...document.querySelectorAll(".options .otab")].find((b) => b.textContent === "Privacy").click();');
+      t.check('Privacy’s History says how many articles it holds', await t.js('return /\\d+ articles? in your history/.test(document.querySelector(".options .obody").innerText);'),
+        await t.js('return document.querySelector(".options .obody").innerText;'));
+    },
+  },
+  {
     name: 'download-sounds', group: 'Downloaded articles', title: 'A downloaded article’s sounds and pronunciation play offline; a recording of the whole article read aloud isn’t downloaded',
     route: 'home',
     async run(t) {

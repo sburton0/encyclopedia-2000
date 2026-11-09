@@ -38,6 +38,8 @@ const MAX_PICTURE = 1.5 * 1024 * 1024;
 const MAX_SOUND = 20 * 1024 * 1024;
 // Videos are downloaded only when asked for; one bigger than this (about an hour at 480p) isn't.
 const MAX_VIDEO = 400 * 1024 * 1024;
+// A recording of a whole article read aloud (Spoken Wikipedia), downloaded only when Options › Storage says so.
+const MAX_SPOKEN = 120 * 1024 * 1024;
 const API = 'https://en.wikipedia.org/w/api.php';
 
 let index = { articles: {} };
@@ -60,7 +62,7 @@ function entryFor(title) {
   if (!n) return null;
   return Object.values(index.articles).find((a) => a.aliases.some((x) => norm(x) === n)) || null;
 }
-const publicEntry = (a) => (a ? { key: a.key, title: a.title, desc: a.desc, thumb: a.thumb, size: a.size, at: a.at, pictures: a.pictures, sounds: a.sounds || 0, videos: a.videos || 0, videoSize: a.videoSize || 0, withVideos: !!a.withVideos, textOnly: !!a.textOnly } : null);
+const publicEntry = (a) => (a ? { key: a.key, title: a.title, desc: a.desc, thumb: a.thumb, size: a.size, at: a.at, pictures: a.pictures, sounds: a.sounds || 0, spoken: a.spoken || 0, videos: a.videos || 0, videoSize: a.videoSize || 0, withVideos: !!a.withVideos, textOnly: !!a.textOnly, noSounds: !!a.noSounds } : null);
 function tell() {
   const s = state();
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('downloads:update', s);
@@ -172,12 +174,15 @@ async function videos(title) {
 
 // Downloads an article (with its pictures and sounds; with its videos too if asked; or as text only) and replaces any
 // earlier copy. Resolves to its entry.
-async function download(title, { textOnly = false, videos: withVideos = false } = {}) {
+// Choices (Options › Storage, or the article's Download menu): textOnly (no pictures, sounds, or videos), videos, sounds
+// (on unless false), spoken (recordings of the whole article read aloud; off unless true).
+async function download(title, { textOnly = false, videos: withVideos = false, sounds: withSounds = true, spoken: withSpoken = false } = {}) {
   title = String(title || '').trim();
   if (!title) throw new Error('No article');
   if (offline()) throw Object.assign(new Error('Offline mode is on'), { offline: true });
   if (await freeSpace() < MIN_FREE) throw Object.assign(new Error('There isn’t enough free space on this drive'), { space: true });
-  if (textOnly) withVideos = false;
+  if (textOnly) { withVideos = false; withSounds = false; }
+  if (!withSounds) withSpoken = false;
   const job = { title, done: 0, total: 3 };
   active.set(title, job);
   tell();
@@ -213,9 +218,10 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
 
     // The sounds: the media list's, except recordings of the whole article read aloud.
     const items0 = media.items || [];
-    const spoken = new Set(items0.filter((m) => m.type === 'audio' && m.audio_type === 'spoken').map((m) => fileKey(m.title)));
+    const spokenFiles = new Set(items0.filter((m) => m.type === 'audio' && m.audio_type === 'spoken').map((m) => fileKey(m.title)));
+    const spoken = withSpoken ? new Set() : spokenFiles;   // the ones left out
     const soundAt = new Map(), videoAt = new Map();   // file title → its downloaded copy
-    if (!textOnly) {
+    if (withSounds) {
       // The sound players in the text: one source each, the MP3 (or Ogg) Wikipedia offers.
       page = page.replace(/<audio\b([^>]*)>([\s\S]*?)<\/audio>/gi, (whole, attrs, inner) => {
         const file = fileKey(/\sresource="([^"]*)"/i.exec(attrs)?.[1] || '');
@@ -223,7 +229,7 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
         const sources = sourcesIn(inner);
         const pick = sources.find((s) => isUpload(s.src) && /mpeg|ogg|opus/.test(s.type)) || sources.find((s) => isUpload(s.src));
         if (!pick) return whole;
-        const mine = soundAt.get(file) || fileFor(pick.src, 'sound');
+        const mine = soundAt.get(file) || fileFor(pick.src, spokenFiles.has(file) ? 'spoken' : 'sound');
         soundAt.set(file, mine);
         return `<audio${attrs}><source src="${mine}" type="${pick.type}"/></audio>`;
       });
@@ -232,6 +238,8 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
         const u = href.replace(/\\\//g, '/');
         return isUpload(u) ? `"href":"${fileFor(u, 'sound').replace(/\//g, '\\/')}"` : m;
       }));
+    }
+    if (!textOnly) {
       // The videos in the text: their still pictures always; the video itself (one WebM) only when asked for.
       page = page.replace(/<video\b([^>]*)>([\s\S]*?)<\/video>/gi, (whole, attrs, inner) => {
         const a = attrs.replace(/\sposter="([^"]+)"/i, (m, u) => (isUpload(u) ? ` poster="${fileFor(u)}"` : m));
@@ -243,7 +251,7 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
         return `<video${a}><source src="${mine}" type="video/webm" data-height="${pick.h}"/></video>`;
       });
     }
-    const sounds = textOnly ? [] : items0.filter((m) => m.type === 'audio' && !spoken.has(fileKey(m.title)));
+    const sounds = withSounds ? items0.filter((m) => m.type === 'audio' && !spoken.has(fileKey(m.title))) : [];
     const vids = withVideos ? items0.filter((m) => m.type === 'video' && videoPick(m.sources)) : [];
     const info = sounds.length || vids.length ? await commonsInfo([...sounds, ...vids].map((m) => m.title)) : {};
     for (const m of sounds) {
@@ -251,7 +259,7 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
       if (!ii?.url) continue;
       const original = abs(ii.url);
       const mp3 = /^audio\/mpeg$/.test(ii.mime) ? original : original.replace(/\/commons\/(\w\/\w\w)\/([^/]+)$/, '/commons/transcoded/$1/$2/$2.mp3');
-      if (!soundAt.has(fileKey(m.title))) soundAt.set(fileKey(m.title), fileFor(mp3, 'sound'));
+      if (!soundAt.has(fileKey(m.title))) soundAt.set(fileKey(m.title), fileFor(mp3, spokenFiles.has(fileKey(m.title)) ? 'spoken' : 'sound'));
       const n = soundAt.get(fileKey(m.title)).split('/').pop();
       if (mp3 !== original && !/midi/.test(ii.mime)) fallback.set(n, original);
     }
@@ -287,15 +295,15 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
     fs.mkdirSync(path.join(tmp, 'files'), { recursive: true });
     const types = {};
     const missed = new Map();   // file number → its address on Wikipedia, for those that weren't downloaded
-    const count = { picture: 0, sound: 0, video: 0 };
+    const count = { picture: 0, sound: 0, spoken: 0, video: 0 };
     let videoSize = 0;
-    const ACCEPT = { picture: /^image\//, sound: /^(audio\/|application\/ogg)/, video: /^(video\/|application\/ogg)/ };
-    const LIMIT = { picture: MAX_PICTURE, sound: MAX_SOUND, video: MAX_VIDEO };
+    const ACCEPT = { picture: /^image\//, sound: /^(audio\/|application\/ogg)/, spoken: /^(audio\/|application\/ogg)/, video: /^(video\/|application\/ogg)/ };
+    const LIMIT = { picture: MAX_PICTURE, sound: MAX_SOUND, spoken: MAX_SPOKEN, video: MAX_VIDEO };
     await Promise.all([...files].map(async ([url, n]) => {
       const k = kind.get(n), file = path.join(tmp, 'files', n);
       const fetchOne = async (u) => {
         // Videos go straight to the disk (they can be big); the rest are small enough to check first.
-        if (k === 'video') return get(u, { file, accept: ACCEPT.video, max: LIMIT.video });
+        if (k === 'video' || k === 'spoken') return get(u, { file, accept: ACCEPT[k], max: LIMIT[k] });
         const r = await get(u, 'raw');
         if (!ACCEPT[k].test(r.type)) throw new Error('not the right kind of file');
         if (r.data.length > LIMIT[k]) throw Object.assign(new Error('too big'), { big: true });
@@ -337,7 +345,7 @@ async function download(title, { textOnly = false, videos: withVideos = false } 
     const before = index.articles[key];
     const aliases = [...new Set([...(before ? before.aliases : []), title, name, canonical.replace(/_/g, ' ')])];
     index.articles[key] = { key, title: name, canonical, aliases, desc: sum.description || '', thumb: lead, size, at: new Date().toISOString(),
-      pictures: count.picture, sounds: count.sound, videos: count.video, videoSize, withVideos: !!withVideos, textOnly: !!textOnly };
+      pictures: count.picture, sounds: count.sound + count.spoken, spoken: count.spoken, videos: count.video, videoSize, withVideos: !!withVideos, textOnly: !!textOnly, noSounds: !textOnly && !withSounds };
     save();
     return publicEntry(index.articles[key]);
   } finally {

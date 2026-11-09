@@ -1,7 +1,8 @@
 // Tools > Options: a tabbed settings dialog with OK, Cancel, and Apply.
 // Changes are staged in `draft` and only saved on OK or Apply. "Clear" and "Reset" act immediately.
 window.E2KOptions = (() => {
-  const RENDERER_KEYS = ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted'];
+  const RENDERER_KEYS = ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'fontScale', 'articleFont', 'animations', 'volume', 'muted',
+    'dlSounds', 'dlVideos', 'dlSpoken', 'dlPictures'];
 
   // Scrolls an Options group (by its title, such as 'Units') into view, for links straight to one setting.
   function reveal(root, section) {
@@ -36,6 +37,11 @@ window.E2KOptions = (() => {
       fontScale: store.get('fontScale', 1),
       articleFont: store.get('articleFont', 'serif'),
       animations: store.get('animations', true),
+      // What downloaded articles bring with them (Storage).
+      dlSounds: store.get('dlSounds', true),
+      dlVideos: store.get('dlVideos', false),
+      dlSpoken: store.get('dlSpoken', false),
+      dlPictures: store.get('dlPictures', 'reading'),
     });
     let draft = read();
     let saved = JSON.stringify(draft);
@@ -147,17 +153,14 @@ window.E2KOptions = (() => {
 
     // ---------- Privacy ----------
     const recentCount = h('span');
-    const updateRecent = () => { const n = store.get('recent', []).length; recentCount.textContent = n ? `${n} article${n === 1 ? '' : 's'} in your list.` : 'Your list is empty.'; };
+    const updateRecent = () => { const n = api.historyCount(); recentCount.textContent = n ? `${n} article${n === 1 ? '' : 's'} in your history.` : 'Your history is empty.'; };
     updateRecent();
     const privacy = h('div', { class: 'opane' },
-      group('Recently viewed',
-        h('p', { class: 'onote' }, 'The Find box’s drop-down list remembers the last articles you opened. ', recentCount),
-        h('div', { class: 'orow end' }, h('button', { class: 'go', onclick: () => {
-          store.set('recent', []);
-          store.set('lastArticle', '');
-          updateRecent();
-          api.setIdle('Recently viewed list cleared');
-        } }, 'Clear Recently Viewed'))),
+      group('History',
+        h('p', { class: 'onote' }, 'History lists the articles you’ve read, and stays on this computer. Its newest are Recently viewed, in My Articles and the Find box’s list. ', recentCount),
+        h('div', { class: 'orow end' },
+          h('button', { class: 'go', onclick: () => { close(); api.go('myarticles/history'); } }, 'Show History'),
+          h('button', { class: 'go', onclick: () => api.clearHistory(updateRecent) }, 'Clear History…'))),
       group('Updates',
         main.portableSelf
           // The Windows portable (updater.js): checking only tells, unless it also downloads and installs by itself.
@@ -186,6 +189,50 @@ window.E2KOptions = (() => {
             }], ['Cancel']]);
         } }, 'Reset All Settings…'))));
 
+    // ---------- Storage ----------
+    // What's on this computer (the offline library, downloaded articles, the free space), and what a downloaded article
+    // brings with it.
+    const mb = (b) => (b >= 1e9 ? `${(b / 1e9).toFixed(1)} GB` : b >= 1e7 ? `${Math.round(b / 1e6)} MB` : `${Math.max(0.1, b / 1e6).toFixed(1)} MB`);
+    const bar = h('div', { class: 'sbar', role: 'img' });
+    const legend = h('div', { class: 'slegend' });
+    const libRow = h('div', { class: 'srow' });
+    const dlRow = h('div', { class: 'srow' });
+    async function fillStorage() {
+      const [ls, list, free] = await Promise.all([window.e2k.library.state().catch(() => ({})), window.e2k.saved.list().catch(() => []), window.e2k.saved.free().catch(() => null)]);
+      const lib = ls.current?.size || 0, dl = list.reduce((n, e) => n + (e.size || 0), 0), fr = free || 0;
+      const total = lib + dl + fr || 1;
+      // Drawn so even a small part shows.
+      const w = (n) => (n ? Math.max(1.2, (n / total) * 100) : 0);
+      bar.replaceChildren(h('span', { class: 'lib', style: `width:${w(lib)}%` }), h('span', { class: 'dl', style: `width:${w(dl)}%` }));
+      bar.setAttribute('aria-label', `Offline library ${lib ? mb(lib) : 'none'}, downloaded articles ${mb(dl)}, free ${free == null ? 'unknown' : mb(fr)}`);
+      legend.replaceChildren(h('span', {}, h('i', { class: 'lib' }), `Offline library ${lib ? mb(lib) : '(none)'}`), h('span', {}, h('i', { class: 'dl' }), `Downloaded articles ${mb(dl)}`),
+        free == null ? null : h('span', {}, h('i', { class: 'fr' }), `Free on this drive ${mb(fr)}`));
+      libRow.replaceChildren(h('div', {}, h('b', {}, 'Offline library'), h('small', {}, ls.current ? ls.current.label || 'Your library' : 'None yet. Download one to read everything without the internet.')),
+        h('div', { class: 'btns' }, h('button', { class: 'go', onclick: () => { close(); E2KLibrary.open(window.E2K); } }, 'Offline Library…')));
+      const cats = api.downloadedCategories();
+      const inCat = cats.reduce((n, c) => n + c.n, 0);
+      const desc = list.length ? `${list.length === 1 ? '1 article' : `${list.length} articles`}${cats.length ? `: ${cats.map((c) => `${c.name} (${c.n})`).join(', ')}${list.length > inCat ? `, and ${list.length - inCat} on their own` : ''}` : ''}` : 'None yet. An article’s Download for Offline button keeps a copy that opens without the internet.';
+      dlRow.replaceChildren(h('div', {}, h('b', {}, 'Downloaded articles'), h('small', {}, desc)),
+        h('div', { class: 'btns' }, h('button', { class: 'go', disabled: !list.length, onclick: () => { close(); api.go('myarticles/downloaded'); } }, 'Show…'),
+          h('button', { class: 'go', disabled: !list.length, onclick: () => api.removeAllDownloads(fillStorage) }, 'Remove…')));
+    }
+    fillStorage();
+    const storage = h('div', { class: 'opane ostore' },
+      group('On this computer', bar, legend, libRow, dlRow),
+      group('Videos and sounds in downloaded articles',
+        check('dlSounds', 'Sounds', 'Pronunciations, music samples, animal calls. Usually under 1 MB each.'),
+        check('dlVideos', 'Videos', 'Often 20–200 MB each. You can still choose them for one article in its Download menu.'),
+        check('dlSpoken', 'Spoken recordings', 'Wikipedia’s narrated articles, which Read Aloud plays: often 10–50 MB.')),
+      group('Pictures in downloaded articles', radios('dlPictures', 'o-pics', [['reading', 'Pictures at reading size'], ['none', 'Text only (no pictures, sounds, or videos)']]),
+        h('p', { class: 'onote' }, 'For articles you download from now on. Download again to change one already downloaded.')));
+    refreshers.push(() => {
+      const none = draft.dlPictures === 'none';
+      storage.querySelectorAll('.ocheck').forEach((c) => c.classList.toggle('off', none));
+      storage.querySelectorAll('.ocheck input').forEach((i) => { i.disabled = none; });
+      storage.querySelectorAll('.ocheck')[2].classList.toggle('off', none || !draft.dlSounds);
+      storage.querySelectorAll('.ocheck input')[2].disabled = none || !draft.dlSounds;
+    });
+
     // ---------- dialog shell ----------
     // ---------- Appearance ----------
     const picks = E2KThemes.list.map((t) => h('button', { type: 'button', class: 'theme-pick', title: t.blurb, onclick: () => set('theme', t.id) },
@@ -203,7 +250,7 @@ window.E2KOptions = (() => {
       group('Units', radios('units', 'o-units', [['metric', 'Metric (km, kg, °C)'], ['imperial', 'Imperial (miles, pounds, °F)']]),
         h('p', { class: 'onote' }, 'The default for the Solar System and World Explorer; each also has a Units menu to switch until you close the app. Facts in articles come from Wikipedia, which shows both.')));
 
-    const TABS = [['Startup', startup], ['Appearance', appearance], ['Sound', sound], ['Reading', reading], ['Privacy', privacy]];
+    const TABS = [['Startup', startup], ['Appearance', appearance], ['Sound', sound], ['Reading', reading], ['Privacy', privacy], ['Storage', storage]];
     const tabBtns = TABS.map(([label], i) => h('button', { class: 'otab', role: 'tab', onclick: () => show(i) }, label));
     const body = h('div', { class: 'obody' });
     function show(i) {
@@ -224,7 +271,7 @@ window.E2KOptions = (() => {
       window.e2k.notice.refresh();
       window.e2k.update.settingsChanged();
       if (draft.units !== E2KUnits.system()) E2KUnits.clearPicks();
-      ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations'].forEach((k) => store.set(k, draft[k]));
+      ['theme', 'clock24', 'units', 'startupSound', 'startOn', 'clicks', 'voice', 'rate', 'articleFont', 'animations', 'dlSounds', 'dlVideos', 'dlSpoken', 'dlPictures'].forEach((k) => store.set(k, draft[k]));
       api.setFontScale(draft.fontScale);
       E2KAudio.setVolume(draft.volume / 100);
       E2KAudio.setMuted(draft.muted);

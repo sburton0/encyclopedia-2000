@@ -800,6 +800,18 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 #updatebar .ux { margin-left: 2px; padding: 0 6px; background: none; border: 0; color: inherit; opacity: .8; cursor: pointer; }
 #updatebar .ux:hover { opacity: 1; }
 .options .osub { margin-left: 28px; }
+/* Options › Storage: what's on this computer */
+.ostore .sbar { display: flex; height: 16px; margin: 4px 0 6px; border: 1px solid #9aa6bf; background: #e9edf5; }
+.ostore .sbar span { display: block; height: 100%; }
+.ostore .sbar .lib, .ostore .slegend i.lib { background: #2f63c6; }
+.ostore .sbar .dl, .ostore .slegend i.dl { background: #3fb36a; }
+.ostore .slegend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-bottom: 4px; font: 12px "Segoe UI"; color: #dfe7fa; }
+.ostore .slegend i { display: inline-block; width: 10px; height: 10px; margin-right: 5px; vertical-align: -1px; }
+.ostore .slegend i.fr { background: #e9edf5; border: 1px solid #9aa6bf; }
+.ostore .srow { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, .2); font: 13px "Segoe UI"; color: #fff; }
+.ostore .srow b { font-weight: 600; }
+.ostore .srow small { display: block; color: var(--sky); font-size: 12px; }
+.ostore .srow .btns { display: flex; gap: 6px; }
 .dialog .dt { height: 26px; display: flex; align-items: center; gap: 7px; padding: 0 8px; background: linear-gradient(#2a2a2a, #0d0d0d); font-size: 12px; color: #ddd; user-select: none; }
 .dialog .dt img { width: 16px; height: 16px; }
 .dialog .db { display: flex; gap: 14px; padding: 18px 18px 8px; font: 13px/1.5 "Segoe UI"; color: #e6eefc; }
