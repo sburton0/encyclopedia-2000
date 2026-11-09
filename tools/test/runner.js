@@ -87,6 +87,11 @@ async function run(win) {
       wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
       await sleep(120);
     },
+    // Moves the mouse pointer to a point in the window (for hover states).
+    async hover(x, y) {
+      wc.sendInputEvent({ type: 'mouseMove', x: Math.round(x), y: Math.round(y) });
+      await sleep(250);
+    },
     // What has focus: its role, its name or text, and where it is.
     focused: () => t.js(`const e = document.activeElement; if (!e || e === document.body) return { where: 'none' };
       return { tag: e.tagName.toLowerCase(), role: e.getAttribute('role') || '', text: (e.getAttribute('aria-label') || e.textContent || '').trim().replace(/\\s+/g, ' ').slice(0, 60),

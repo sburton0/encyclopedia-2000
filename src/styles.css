@@ -429,6 +429,10 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .bsplit .dmain { border-right-width: 0; }
 .bsplit .darrow { padding: 0 6px; border-left-color: rgba(255, 255, 255, .25); font-size: 10px; }
 .bsplit .dmain.on + .darrow { border-color: var(--orange); border-left-color: rgba(255, 255, 255, .25); color: var(--orange); }
+/* A split button is one control: hovering either part outlines the whole of it, and only the part under the pointer
+   lights up (as in Windows and Office; each part's own :hover does that). The line between them stays. */
+.bsplit:hover .bbtn { border-color: var(--orange); }
+.bsplit:hover .darrow { border-left-color: rgba(255, 255, 255, .25); }
 .content { flex: 1; min-height: 0; overflow: auto; display: flex; align-items: flex-start; gap: 22px; padding: 18px 24px 30px; background: #fbfcfe; }
 .content.wide { display: block; }
 /* Center the reading column and picture column in wide windows. */

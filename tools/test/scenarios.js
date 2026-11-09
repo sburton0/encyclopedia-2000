@@ -1404,6 +1404,27 @@ module.exports = [
     },
   },
   {
+    name: 'download-button-hover', group: 'Downloaded articles', title: 'The Download for Offline button is one control: hovering either part outlines all of it',
+    route: 'article/Io (moon)',
+    async run(t) {
+      t.check('The article opens', await t.waitFor('document.querySelector(".bsplit .dmain") && document.querySelectorAll(".content.article .text p").length > 3', 40000));
+      const look = `const s = (sel) => { const e = document.querySelector(sel), c = getComputedStyle(e); return { border: c.borderTopColor, color: c.color }; };
+        return { main: s('.bsplit .dmain'), arrow: s('.bsplit .darrow') };`;
+      const box = (sel) => t.js(`const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 };`);
+      const at = await box('.bsplit .dmain');
+      await t.hover(at.x, at.y);
+      const onMain = await t.js(look);
+      t.check('Hovering the main part outlines the arrow too', onMain.main.border === onMain.arrow.border, JSON.stringify(onMain));
+      t.check('…and only the main part lights up', onMain.main.color !== onMain.arrow.color, JSON.stringify(onMain));
+      await t.shot('hover-main');
+      const ar = await box('.bsplit .darrow');
+      await t.hover(ar.x, ar.y);
+      const onArrow = await t.js(look);
+      t.check('Hovering the arrow outlines the main part too, and only the arrow lights up', onArrow.main.border === onArrow.arrow.border && onArrow.main.color !== onArrow.arrow.color, JSON.stringify(onArrow));
+      await t.shot('hover-arrow');
+    },
+  },
+  {
     name: 'download-offline-restart', group: 'Downloaded articles', title: '…and with downloaded articles but no offline library, Offline mode stays on after a restart',
     route: 'article/Io (moon)', reuse: 'download-article',
     async run(t) {
