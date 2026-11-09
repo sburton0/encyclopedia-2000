@@ -1454,6 +1454,46 @@ module.exports = [
     },
   },
   {
+    name: 'download-sounds', group: 'Downloaded articles', title: 'A downloaded article’s sounds and pronunciation play offline; a recording of the whole article read aloud isn’t downloaded',
+    route: 'home',
+    async run(t) {
+      // Humpback whale: a whale's song, and a recording of the article read aloud. Worcestershire sauce: how it's said.
+      const whale = await t.js('return await window.e2k.saved.download("Humpback whale");');
+      t.check('Humpback whale downloads with its sound', whale?.ok && whale.entry.sounds >= 1, JSON.stringify(whale));
+      const sauce = await t.js('return await window.e2k.saved.download("Worcestershire sauce");');
+      t.check('Worcestershire sauce downloads with its pronunciation', sauce?.ok && sauce.entry.sounds >= 1, JSON.stringify(sauce));
+      const media = await t.js(`const m = await fetch("e2k-saved://a/${whale?.entry?.key}/media.json").then((r) => r.json());
+        return m.items.filter((i) => i.type === 'audio').map((i) => ({ title: i.title, kind: i.audio_type, url: i.info?.url || '', mime: i.info?.mime || '', dur: i.info?.duration || 0 }));`);
+      const song = media.find((m) => m.kind !== 'spoken'), read = media.find((m) => m.kind === 'spoken');
+      t.check('The sound’s details are kept with it (a downloaded MP3, its length)', song && song.url.startsWith('e2k-saved:') && song.mime === 'audio/mpeg' && song.dur > 10, JSON.stringify(media));
+      t.check('The article read aloud isn’t downloaded', read && !read.url, JSON.stringify(read));
+
+      await t.js('window.e2k.net.setOffline(true); E2K.updateNet();');
+      const count = await t.countNetwork();
+      const plays = (sel) => t.js(`const a = document.querySelector(${JSON.stringify(sel)});
+        if (!a) return { found: false };
+        const src = a.currentSrc || a.querySelector('source')?.src || a.src;
+        a.preload = 'auto'; a.load();
+        const ok = await new Promise((r) => { a.addEventListener('loadedmetadata', () => r(true), { once: true }); a.addEventListener('error', () => r(false), { once: true }); setTimeout(() => r(false), 8000); });
+        return { found: true, src: (a.currentSrc || src).slice(0, 60), ok, duration: Math.round(a.duration || 0) };`);
+      await t.js('E2K.openArticle("Humpback whale");');
+      t.check('In Offline mode Humpback whale opens with its sound player', await t.waitFor('document.querySelector(".band h1")?.textContent === "Humpback whale" && document.querySelector(".content.article .aud audio")', 20000),
+        await t.js('return document.querySelector(".errbox")?.innerText || "";'));
+      const p = await plays('.content.article .aud audio');
+      t.check('…and the sound plays from this computer', p.ok && p.src.startsWith('e2k-saved:') && p.duration > 10, JSON.stringify(p));
+      t.check('The article’s Media list has the sound too (for the media viewer)', await t.waitFor('[...document.querySelectorAll("button, a")].some((b) => /^\\s*1 sound\\s*$/.test(b.textContent))', 8000),
+        await t.js('return [...document.querySelectorAll("button, a")].map((b) => b.textContent.trim()).filter((x) => /^\\d+ (picture|video|sound)/.test(x)).join(", ");'));
+      await t.shot('sound-offline');
+      await t.js('E2K.openArticle("Worcestershire sauce");');
+      t.check('Worcestershire sauce opens with its pronunciation button', await t.waitFor('document.querySelector(".band h1")?.textContent === "Worcestershire sauce" && document.querySelector(".pron audio")', 20000),
+        await t.js('return document.querySelector(".errbox")?.innerText || document.querySelector(".band h1")?.textContent || "";'));
+      const q = await plays('.pron audio');
+      t.check('…and the pronunciation plays from this computer', q.ok && q.src.startsWith('e2k-saved:'), JSON.stringify(q));
+      const net = count();
+      t.check('Nothing came from the internet', net.n === 0, net.n ? `${net.n}: ${net.urls.join(' ')}` : '');
+    },
+  },
+  {
     name: 'section-redirect-online', group: 'Reading', title: 'A title that redirects to a section of another article opens it at that section (online)',
     route: 'home',
     async run(t) {

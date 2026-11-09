@@ -7,8 +7,11 @@
 //   <data>/Downloaded/index.json            every downloaded article: { key, title, canonical, aliases, desc, thumb, size, at, pictures, textOnly }
 //   <data>/Downloaded/<key>/summary.json    Wikipedia's summary (lead picture: the downloaded copy)
 //   <data>/Downloaded/<key>/article.html    Wikipedia's page (pictures: the downloaded copies)
-//   <data>/Downloaded/<key>/media.json      the article's pictures (videos and sounds come later)
-//   <data>/Downloaded/<key>/files/<n>       the pictures; types.json says what each one is
+//   <data>/Downloaded/<key>/media.json      the article's pictures and sounds; each downloaded sound carries its file
+//                                           details from Commons (info), so it plays without asking Commons
+//   <data>/Downloaded/<key>/files/<n>       the pictures and sounds; types.json says what each one is
+// Sounds are downloaded as the MP3 Commons makes of each one. Recordings of the whole article read aloud (Spoken
+// Wikipedia) and videos aren't downloaded; they still play from Wikimedia Commons when online.
 // Downloading is polite to Wikipedia: a few requests at a time, and when Wikipedia answers "too many requests" (429)
 // or is briefly unavailable (503), it waits as long as Wikipedia asks before trying again.
 const { app, protocol, ipcMain, session, BrowserWindow } = require('electron');
@@ -28,6 +31,9 @@ const MIN_FREE = 200 * 1024 * 1024;
 // A picture bigger than this (nearly always an animation: Wikipedia keeps animated GIFs animated even as thumbnails,
 // some over 6 MB) isn't downloaded; it still shows from Wikipedia when online, like a video would.
 const MAX_PICTURE = 1.5 * 1024 * 1024;
+// A sound bigger than this (over about 20 minutes) isn't downloaded either; it still plays from Commons when online.
+const MAX_SOUND = 20 * 1024 * 1024;
+const API = 'https://en.wikipedia.org/w/api.php';
 
 let index = { articles: {} };
 let offline = () => false;
@@ -49,7 +55,7 @@ function entryFor(title) {
   if (!n) return null;
   return Object.values(index.articles).find((a) => a.aliases.some((x) => norm(x) === n)) || null;
 }
-const publicEntry = (a) => (a ? { key: a.key, title: a.title, desc: a.desc, thumb: a.thumb, size: a.size, at: a.at, pictures: a.pictures, textOnly: !!a.textOnly } : null);
+const publicEntry = (a) => (a ? { key: a.key, title: a.title, desc: a.desc, thumb: a.thumb, size: a.size, at: a.at, pictures: a.pictures, sounds: a.sounds || 0, textOnly: !!a.textOnly } : null);
 function tell() {
   const s = state();
   for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('downloads:update', s);
@@ -88,6 +94,21 @@ async function get(url, as = 'json') {
 // Wikimedia's pictures: upload.wikimedia.org, and its thumbnails, which may come from thumb.wikimedia.org.
 const isUpload = (u) => /^(https?:)?\/\/(upload|thumb)\.wikimedia\.org\//.test(u);
 const abs = (u) => (u.startsWith('//') ? 'https:' + u : u).replace(/&amp;/g, '&');
+// A file's title as the media list and the page both name it ("File:Moonlight_1st.ogg", "./File:Moonlight%201st.ogg").
+const fileKey = (t) => { let s = String(t || '').replace(/^\.\//, ''); try { s = decodeURIComponent(s); } catch {} return s.replace(/_/g, ' ').replace(/^(File|Image):/i, '').trim(); };
+// Commons' details for sounds (address, type, length, credit), the same the app asks for when it plays one online.
+async function soundInfo(titles) {
+  const out = {};
+  for (let i = 0; i < titles.length; i += 50) {
+    const batch = titles.slice(i, i + 50);
+    const r = await get(`${API}?action=query&format=json&formatversion=2&prop=imageinfo&iiprop=url|size|mime|timestamp|extmetadata`
+      + `&iiextmetadatafilter=Artist|LicenseShortName|DateTimeOriginal|ImageDescription&titles=${encodeURIComponent(batch.join('|'))}`).catch(() => null);
+    if (!r) continue;
+    const names = Object.fromEntries((r.query?.normalized || []).map((n) => [n.to, n.from]));
+    for (const p of r.query?.pages || []) if (p.imageinfo?.[0]) out[names[p.title] || p.title] = p.imageinfo[0];
+  }
+  return out;
+}
 async function freeSpace() {
   try { const s = await fs.promises.statfs(app.getPath('userData')); return s.bavail * s.bsize; } catch { return Infinity; }
 }
@@ -113,9 +134,15 @@ async function download(title, { textOnly = false } = {}) {
     const media = await get(`${REST}media-list/${enc(canonical)}?redirect=true`).catch(() => ({ items: [] }));
     job.done = 3; tell();
 
-    // The pictures: each address once, numbered in the order met.
-    const files = new Map();
-    const fileFor = (u) => { const a = abs(u); if (!files.has(a)) files.set(a, String(files.size)); return local(key, 'files/' + files.get(a)); };
+    // The pictures and sounds: each address once, numbered in the order met. (A sound may have a second address to
+    // try: the original file, if Commons has no MP3 of it.)
+    const files = new Map(), sound = new Set(), fallback = new Map();
+    const fileFor = (u, isSound) => {
+      const a = abs(u);
+      if (!files.has(a)) files.set(a, String(files.size));
+      if (isSound) sound.add(files.get(a));
+      return local(key, 'files/' + files.get(a));
+    };
     let page = html;
     if (textOnly) {
       page = page.replace(/<img\b[^>]*>/gi, (tag) => (/\ssrc="(?:https?:)?\/\/(upload|thumb)\.wikimedia\.org\//i.test(tag) ? '' : tag));
@@ -124,6 +151,40 @@ async function download(title, { textOnly = false } = {}) {
         .replace(/\s(srcset|data-src)="[^"]*"/gi, '')
         .replace(/\ssrc="([^"]+)"/i, (m, u) => (isUpload(u) ? ` src="${fileFor(u)}"` : m)));
     }
+
+    // The sounds: the media list's, except recordings of the whole article read aloud.
+    const items0 = media.items || [];
+    const spoken = new Set(items0.filter((m) => m.type === 'audio' && m.audio_type === 'spoken').map((m) => fileKey(m.title)));
+    const soundAt = new Map();   // file title → its downloaded copy
+    if (!textOnly) {
+      // The sound players in the text: one source each, the MP3 (or Ogg) Wikipedia offers.
+      page = page.replace(/<audio\b([^>]*)>([\s\S]*?)<\/audio>/gi, (whole, attrs, inner) => {
+        const file = fileKey(/\sresource="([^"]*)"/i.exec(attrs)?.[1] || '');
+        if (!file || spoken.has(file)) return whole;
+        const sources = [...inner.matchAll(/<source\b[^>]*>/gi)].map(([s]) => ({ src: /\ssrc="([^"]+)"/i.exec(s)?.[1] || '', type: /\stype="([^"]*)"/i.exec(s)?.[1] || '' }));
+        const pick = sources.find((s) => isUpload(s.src) && /mpeg|ogg|opus/.test(s.type)) || sources.find((s) => isUpload(s.src));
+        if (!pick) return whole;
+        const mine = soundAt.get(file) || fileFor(pick.src, true);
+        soundAt.set(file, mine);
+        return `<audio${attrs}><source src="${mine}" type="${pick.type}"/></audio>`;
+      });
+      // The pronunciation buttons (🔊 by a name): the recording's address is in the button's settings.
+      page = page.replace(/data-ooui='([^']*PhonosButton[^']*)'/g, (whole, json) => whole.replace(/"href":"([^"]+)"/, (m, href) => {
+        const u = href.replace(/\\\//g, '/');
+        return isUpload(u) ? `"href":"${fileFor(u, true).replace(/\//g, '\\/')}"` : m;
+      }));
+    }
+    const sounds = textOnly ? [] : items0.filter((m) => m.type === 'audio' && !spoken.has(fileKey(m.title)));
+    const info = sounds.length ? await soundInfo(sounds.map((m) => m.title)) : {};
+    for (const m of sounds) {
+      const ii = info[m.title];
+      if (!ii?.url) continue;
+      const original = abs(ii.url);
+      const mp3 = /^audio\/mpeg$/.test(ii.mime) ? original : original.replace(/\/commons\/(\w\/\w\w)\/([^/]+)$/, '/commons/transcoded/$1/$2/$2.mp3');
+      if (!soundAt.has(fileKey(m.title))) soundAt.set(fileKey(m.title), fileFor(mp3, true));
+      const n = soundAt.get(fileKey(m.title)).split('/').pop();
+      if (mp3 !== original && !/midi/.test(ii.mime)) fallback.set(n, original);
+    }
     const lead = !textOnly && sum.thumbnail?.source && isUpload(sum.thumbnail.source) ? fileFor(sum.thumbnail.source) : '';
     const summary = { ...sum, downloaded: true };
     if (lead) {
@@ -131,35 +192,52 @@ async function download(title, { textOnly = false } = {}) {
       // The original can be huge: the downloaded thumbnail stands in for it (width 0: the app then shows it as is).
       summary.originalimage = { source: lead, width: 0, height: 0 };
     } else { delete summary.thumbnail; delete summary.originalimage; }
-    const items = (media.items || []).filter((m) => m.type === 'image' && !textOnly).map((m) => {
-      const first = (m.srcset || [])[0];
-      if (!first || !isUpload(first.src)) return null;
-      const src = fileFor(first.src);
-      return { ...m, srcset: [{ src, scale: '1x' }], original: undefined };
+    // The media list: pictures and sounds point to their downloaded copies (each sound with its details from Commons);
+    // videos and spoken recordings stay as they are, to play from Commons when online.
+    const items = items0.map((m) => {
+      if (m.type === 'image') {
+        const first = (m.srcset || [])[0];
+        if (textOnly || !first || !isUpload(first.src)) return null;
+        return { ...m, srcset: [{ src: fileFor(first.src), scale: '1x' }], original: undefined };
+      }
+      const mine = m.type === 'audio' && soundAt.get(fileKey(m.title));
+      return mine && info[m.title] ? { ...m, info: { ...info[m.title], url: mine } } : m;
     }).filter(Boolean);
 
     job.total = 3 + files.size; tell();
     fs.mkdirSync(path.join(tmp, 'files'), { recursive: true });
     const types = {};
-    const tooBig = new Map();   // file number → its address on Wikipedia
-    let pictures = 0;
+    const missed = new Map();   // file number → its address on Wikipedia, for those that weren't downloaded
+    let pictures = 0, soundCount = 0;
     await Promise.all([...files].map(async ([url, n]) => {
+      const isSound = sound.has(n);
+      const fetchOne = async (u) => {
+        const r = await get(u, 'raw');
+        if (!(isSound ? /^(audio\/|application\/ogg)/ : /^image\//).test(r.type)) throw new Error('not the right kind of file');
+        if (r.data.length > (isSound ? MAX_SOUND : MAX_PICTURE)) throw Object.assign(new Error('too big'), { big: true });
+        return r;
+      };
       try {
-        const r = await get(url, 'raw');
-        if (!/^image\//.test(r.type)) throw new Error('not a picture');
-        if (r.data.length > MAX_PICTURE) { tooBig.set(n, url); throw new Error('too big'); }
+        let r;
+        try { r = await fetchOne(url); } catch (e) { if (e.big || !fallback.has(n)) throw e; r = await fetchOne(fallback.get(n)); }
         fs.writeFileSync(path.join(tmp, 'files', n), r.data);
         types[n] = r.type;
-        pictures++;
-      } catch { /* a picture that can't be downloaded is left out; the article still opens */ }
+        if (isSound) soundCount++; else pictures++;
+      } catch { missed.set(n, fallback.get(n) || url); /* left out; the article still opens */ }
       job.done++; tell();
     }));
-    // The pictures left out because they're too big point back to Wikipedia.
-    for (const [n, url] of tooBig) {
+    // What wasn't downloaded (too big, or Wikipedia didn't send it) points back to Wikipedia, to show or play online.
+    for (const [n, url] of missed) {
       const mine = local(key, 'files/' + n);
-      page = page.split(`"${mine}"`).join(`"${url.replace(/&/g, '&amp;')}"`);
-      for (const it of items) if (it.srcset[0].src === mine) it.srcset = [{ src: url, scale: '1x' }];
+      page = page.split(`"${mine}"`).join(`"${url.replace(/&/g, '&amp;')}"`).split(`"${mine.replace(/\//g, '\\/')}"`).join(`"${url.replace(/\//g, '\\/')}"`);
+      for (const it of items) {
+        if (it.srcset?.[0]?.src === mine) it.srcset = [{ src: url, scale: '1x' }];
+        if (it.info?.url === mine) delete it.info;
+      }
     }
+    // Each downloaded sound's type is the one Commons sent (an MP3, usually, not the original's).
+    for (const it of items) if (it.info) it.info.mime = types[it.info.url.split('/').pop()] || it.info.mime;
+    page = page.replace(/<source src="(e2k-saved:\/\/a\/[0-9a-f]+\/files\/(\d+))" type="[^"]*"\/>/g, (m, mine, n) => (types[n] ? `<source src="${mine}" type="${types[n]}"/>` : m));
     fs.writeFileSync(path.join(tmp, 'files', 'types.json'), JSON.stringify(types));
     fs.writeFileSync(path.join(tmp, 'summary.json'), JSON.stringify(summary));
     fs.writeFileSync(path.join(tmp, 'article.html'), page);
@@ -171,7 +249,7 @@ async function download(title, { textOnly = false } = {}) {
     fs.renameSync(tmp, final);
     const before = index.articles[key];
     const aliases = [...new Set([...(before ? before.aliases : []), title, name, canonical.replace(/_/g, ' ')])];
-    index.articles[key] = { key, title: name, canonical, aliases, desc: sum.description || '', thumb: lead, size, at: new Date().toISOString(), pictures, textOnly: !!textOnly };
+    index.articles[key] = { key, title: name, canonical, aliases, desc: sum.description || '', thumb: lead, size, at: new Date().toISOString(), pictures, sounds: soundCount, textOnly: !!textOnly };
     save();
     return publicEntry(index.articles[key]);
   } finally {

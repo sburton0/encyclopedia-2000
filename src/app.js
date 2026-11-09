@@ -1974,26 +1974,29 @@
         const src = it.srcset.map((s) => noUtm(s.src));
         items.push({ type: 'image', file: it.title, caption, thumb: src[0], large: src[src.length - 1] });
       } else if (it.type === 'video' || (it.type === 'audio' && it.audio_type !== 'spoken')) {
-        items.push({ type: it.type, file: it.title, caption, sources: it.sources || [] });
+        // A downloaded article's sounds come with their details (it.info: the downloaded copy, its length and credit).
+        items.push({ type: it.type, file: it.title, caption, sources: it.sources || [], info: it.info || null });
       }
     }
     const av = items.filter((m) => m.type !== 'image');
-    for (let i = 0; i < av.length; i += 50) {
-      const batch = av.slice(i, i + 50);
-      const info = await Wiki.fileInfo(batch.map((m) => m.file));
-      for (const m of batch) {
-        const ii = info[m.file];
-        if (!ii) continue;
-        m.duration = ii.duration || 0;
-        m.credit = creditOf(ii);
-        if (m.type === 'video') {
-          m.thumb = noUtm(ii.thumburl);
-          m.src = videoSource(m.sources);
-        } else {
-          const url = noUtm(ii.url);
-          // MIDI files can't play directly, but Commons keeps an MP3 of each one.
-          m.src = /midi/.test(ii.mime) ? url.replace(/\/commons\/(\w\/\w\w)\/([^/]+)$/, '/commons/transcoded/$1/$2/$2.mp3') : url;
-        }
+    // The others' details from Commons. Without them (offline, say) those videos and sounds are left out.
+    const ask = av.filter((m) => !m.info), info = {};
+    for (let i = 0; i < ask.length; i += 50) {
+      try { Object.assign(info, await Wiki.fileInfo(ask.slice(i, i + 50).map((m) => m.file))); } catch {}
+    }
+    for (const m of av) {
+      const ii = m.info || info[m.file];
+      delete m.info;
+      if (!ii) continue;
+      m.duration = ii.duration || 0;
+      m.credit = creditOf(ii);
+      if (m.type === 'video') {
+        m.thumb = noUtm(ii.thumburl);
+        m.src = videoSource(m.sources);
+      } else {
+        const url = noUtm(ii.url);
+        // MIDI files can't play directly, but Commons keeps an MP3 of each one.
+        m.src = /midi/.test(ii.mime) ? url.replace(/\/commons\/(\w\/\w\w)\/([^/]+)$/, '/commons/transcoded/$1/$2/$2.mp3') : url;
       }
     }
     const out = items.filter((m) => m.type === 'image' || m.src);
