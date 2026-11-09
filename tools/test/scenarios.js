@@ -1582,6 +1582,30 @@ module.exports = [
     },
   },
   {
+    name: 'viewer-portrait', group: 'Reading', title: 'In a tall window (a portrait monitor), the media viewer uses the height for pictures and sounds',
+    route: 'home', size: '980x1742',
+    async run(t) {
+      await t.js('E2K.openArticle("Florence Nightingale");');
+      t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Florence Nightingale" && [...document.querySelectorAll(".mbox .mt.audio")].length', 40000));
+      await t.js('document.querySelector(".mbox .mt.audio").click();');
+      await t.waitFor('(() => { const i = document.querySelector(".mview img.cover"); return i && i.complete && i.naturalWidth; })()', 10000);
+      const m = await t.js(`const st = document.querySelector('.mview .mstage').getBoundingClientRect(), img = document.querySelector('.mview img.cover').getBoundingClientRect(),
+        v = document.querySelector('.mview .mviewer').getBoundingClientRect();
+        return { stageW: Math.round(st.width), stageH: Math.round(st.height), picH: Math.round(img.height), viewerBottom: Math.round(v.bottom), win: innerHeight };`);
+      t.check('The sound’s stage is taller than wide, and its picture large', m.stageH > m.stageW && m.picH > 600, JSON.stringify(m));
+      t.check('…and the whole viewer still fits in the window', m.viewerBottom <= m.win, JSON.stringify(m));
+      await t.sleep(600);
+      await t.shot('viewer-portrait');
+      await t.js('document.querySelector(".mview")?.remove();');
+      // A wide window keeps the wide stage.
+      t.win.setSize(1260, 900); await t.sleep(600);
+      await t.js('document.querySelector(".mbox .mt.audio").click();');
+      await t.waitFor('document.querySelector(".mview .mstage")', 5000);
+      const w = await t.js('const r = document.querySelector(".mview .mstage").getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height) };');
+      t.check('In a wide window it stays wide (16:9)', Math.abs(w.w / w.h - 16 / 9) < 0.05, JSON.stringify(w));
+    },
+  },
+  {
     name: 'random-from-home', group: 'Reading', title: 'Random from Home: Home stays whole (no location bar squeezing it) until the article opens',
     route: 'home',
     async run(t) {

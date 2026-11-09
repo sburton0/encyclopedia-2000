@@ -719,6 +719,11 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .mstage.audio.playing .wave i { animation: wave .55s ease-in-out infinite alternate; }
 .mstage.audio.playing .wave i:nth-child(3n) { animation-duration: .4s; }
 .mstage.audio.playing .wave i:nth-child(4n + 1) { animation-duration: .75s; }
+/* In a window taller than it is wide (a portrait monitor), pictures and sounds use the height instead of a wide strip
+   across the middle. (Videos keep 16:9: they're almost always wide.) */
+@media (max-aspect-ratio: 4/5) {
+  .mviewer:not(.inline) .mstage.image, .mviewer:not(.inline) .mstage.audio { aspect-ratio: 4 / 5; max-height: 64vh; }
+}
 /* A sound with its article's picture: the picture above, the waveform and title below it. */
 .mstage.audio.art .coverbg { position: absolute; inset: -40px; background: center / cover no-repeat; filter: blur(28px) brightness(.4) saturate(1.1); }
 .mstage.audio.art img.cover { inset: 6% 0 auto; height: 64%; object-fit: contain; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .55)); }
