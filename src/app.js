@@ -808,7 +808,8 @@
       item('download', 'Download this article', 'With its pictures and sounds, so it opens without the internet.', () => startDownload(dl)),
       videoItem,
       item('book', 'Download it as text only', 'Smaller: the text without its pictures.', () => startDownload(dl, { textOnly: true })),
-    ]), item('books', 'Downloaded articles…', 'Every article you’ve downloaded, on the My Articles page.', () => go('myarticles/downloaded'))].filter(Boolean));
+    ]), item('folder', 'Download a category…', 'Articles like this one: pick one of its Wikipedia categories.', () => categoryDialog(current.title)),
+      item('books', 'Downloaded articles…', 'Every article you’ve downloaded, on the My Articles page.', () => go('myarticles/downloaded'))].filter(Boolean));
     const r = dl.el.getBoundingClientRect();
     menu.style.top = (r.bottom + 4) + 'px';
     menu.style.left = Math.max(8, Math.min(r.left, innerWidth - 310)) + 'px';
@@ -827,7 +828,7 @@
     if (current && current.dl) { if (!downloadJobs.length) current.dl.refresh(); else current.dl.draw(); }
     // The My Articles pane: its marks follow the progress; its lists reload when a download is added or removed.
     const sum = `${s.count}/${s.size}`;
-    if (sum !== dlSum) { dlSum = sum; if (dlLoaded) loadDownloaded(); }
+    if (sum !== dlSum) { dlSum = sum; if (dlLoaded || dlCats().length) loadDownloaded(); }
     refreshMarks();
   });
 
@@ -2695,6 +2696,14 @@
     dropOn(row, n.id);
     return row;
   }
+  // A downloaded category in the pane: a stack of pages, with how many of its articles are downloaded.
+  function catRow(c, n) {
+    const busy = dlQueue.filter((x) => x.label === c.name).length;
+    return h('button', { class: 'fold grp', 'data-key': 'c:' + c.name, 'aria-expanded': String(!!c.open),
+      title: `${c.name}: a Wikipedia category, ${n === 1 ? '1 article' : `${n} articles`} downloaded${busy ? `, ${busy} to go` : ''}`,
+      onclick: () => { store.set('dlCategories', dlCats().map((x) => (x.name === c.name ? { ...x, open: !x.open } : x))); drawFavPane(); } },
+    h('span', { class: 'tw', 'aria-hidden': 'true' }, c.open ? '▼' : '▶'), icon('stack'), h('span', { class: 't' }, marked(c.name)), h('span', { class: 'c' }, busy ? `${n}/${n + busy}` : String(n)));
+  }
   function favRows(list, level = 0) {
     return list.flatMap((n) => (n.items ? [folderRow(n, level), ...(n.open ? favRows(n.items, level + 1) : [])] : [artRow('a:' + n.title, n.title, { star: true, level })]));
   }
@@ -2743,9 +2752,15 @@
       else body.push(h('div', { class: 'note' }, 'Open an article and click “Add to Favorites” to keep it here.'));
       if (dlList.length) {
         const total = dlList.reduce((n, e) => n + (e.size || 0), 0);
-        const shown = dlShowAll ? dlList : dlList.slice(0, FAVS_SHOWN);
-        body.push(h('hr'), paneHead('Downloaded', h('span', { class: 'hc' }, mb(total))), ...shown.map((e) => artRow('d:' + e.title, e.title, { mark: false })),
-          dlList.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { dlShowAll = !dlShowAll; drawFavPane(); } }, dlShowAll ? 'Show fewer' : `Show all (${dlList.length})`) : null,
+        // Downloaded categories first, as groups (closed until opened), then the articles downloaded on their own.
+        const groups = dlCats().map((c) => ({ c, got: catDownloaded(c) })).filter((g) => g.got.length || dlQueue.some((x) => x.label === g.c.name));
+        const inGroup = new Set(groups.flatMap((g) => g.got.map((t) => t.toLowerCase())));
+        const loose = dlList.filter((e) => !inGroup.has(e.title.toLowerCase()));
+        const shown = dlShowAll ? loose : loose.slice(0, FAVS_SHOWN);
+        body.push(h('hr'), paneHead('Downloaded', h('span', { class: 'hc' }, mb(total))),
+          ...groups.flatMap((g) => [catRow(g.c, g.got.length), ...(g.c.open ? g.got.map((t) => artRow('d:' + t, t, { mark: false, level: 1 })) : [])]),
+          ...shown.map((e) => artRow('d:' + e.title, e.title, { mark: false })),
+          loose.length > FAVS_SHOWN ? h('button', { class: 'more', onclick: () => { dlShowAll = !dlShowAll; drawFavPane(); } }, dlShowAll ? 'Show fewer' : `Show all (${loose.length})`) : null,
           h('div', { class: 'savednote' }, markSvg(MARK_DONE), 'Downloaded articles open without the internet.'));
       }
       if (recent.length) {
@@ -2847,6 +2862,14 @@
   // The right-click menu of a row in the pane.
   function paneCtx(row, e) {
     const key = row.dataset.key, kind = key[0], v = key.slice(2);
+    if (kind === 'c') {
+      const c = dlCats().find((x) => x.name === v);
+      if (!c) return [];
+      return [[c.open ? 'Close' : 'Open', () => { store.set('dlCategories', dlCats().map((x) => (x.name === v ? { ...x, open: !x.open } : x))); drawFavPane(); }],
+        ['Show on the Downloaded page', () => go(route('myarticles', 'downloaded/cat:' + v))], '-',
+        ['Download Again', () => queueDownloads(c.titles, { label: v })],
+        ['Delete Downloads…', () => deleteCategory(v), '', null, !catDownloaded(c).length]];
+    }
     if (kind === 'f') {
       const root = favs(), f = folderAt(root, v);
       if (!f) return [];
@@ -2892,7 +2915,7 @@
   // after another in the background, with the progress in the status bar.
   async function downloadAllDialog(titles, folder) {
     if (isOffline()) { setIdle('Offline mode is on. Downloading articles needs the internet.'); return; }
-    const todo = titles.filter((t) => !dlEntry(t) && !dlJob(t) && !dlQueue.some((x) => sameTitle(x, t)));
+    const todo = titles.filter((t) => !dlEntry(t) && !dlJob(t) && !dlQueue.some((x) => sameTitle(x.t, t)));
     if (!todo.length) { setIdle(folder ? `Everything in “${folder}” is downloaded.` : 'All your favorites are downloaded.'); return; }
     const sizes = dlList.map((e) => (e.size || 0) - (e.videoSize || 0)).filter((n) => n > 0 && !isNaN(n));
     const each = sizes.length >= 3 ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 2.5e6;
@@ -2908,18 +2931,19 @@
       fits ? 'It continues in the background; the status bar shows how far along it is.' : null,
     ].filter(Boolean), fits ? [[`Download ${n === 1 ? '1 Article' : `${n} Articles`}`, () => queueDownloads(todo), true], ['Cancel']] : [['OK', null, true]], { cls: 'dlall' });
   }
+  // Articles to download one after another (Download all, a folder, a category): { t, opts, label }.
   let dlQueue = [], dlQueueBusy = false, dlQueueDone = 0, dlQueueTotal = 0, dlQueueFailed = 0;
-  function queueDownloads(titles) {
-    for (const t of titles) if (!dlQueue.some((x) => sameTitle(x, t))) { dlQueue.push(t); dlQueueTotal++; }
+  function queueDownloads(titles, { opts = {}, label = '' } = {}) {
+    for (const t of titles) if (!dlQueue.some((x) => sameTitle(x.t, t))) { dlQueue.push({ t, opts, label }); dlQueueTotal++; }
     if (!dlQueueBusy) runQueue();
   }
   async function runQueue() {
     dlQueueBusy = true;
     let stop = '';
     while (dlQueue.length) {
-      const t = dlQueue[0];
-      setStatus(`Downloading articles: ${dlQueueDone + 1} of ${dlQueueTotal} (“${t}”)…`, true);
-      const r = await saved.download(t, {}).catch(() => ({ ok: false }));
+      const { t, opts, label } = dlQueue[0];
+      setStatus(`Downloading ${label ? `“${label}”` : 'articles'}: ${dlQueueDone + 1} of ${dlQueueTotal} (“${t}”)…`, true);
+      const r = await saved.download(t, opts).catch(() => ({ ok: false }));
       dlQueue.shift();
       if (r.ok) dlQueueDone++;
       else if (r.space || r.offline) { stop = r.space ? 'there isn’t enough free space on this drive' : 'Offline mode is on'; break; }
@@ -2929,6 +2953,119 @@
       : `Downloaded ${dlQueueDone === 1 ? '1 article' : `${dlQueueDone} articles`}${dlQueueFailed ? `; ${dlQueueFailed} couldn’t be downloaded (check your connection and try again)` : ''}. They open without the internet.`);
     dlQueue = []; dlQueueBusy = false; dlQueueDone = 0; dlQueueTotal = 0; dlQueueFailed = 0;
     if (current?.dl) current.dl.refresh();
+  }
+
+  // ---------- Download a Category ----------
+  // The article's Wikipedia categories, each with how many articles and about how big; the chosen one's articles download
+  // one after another (over 200: its 200 most read; over 2,000 it's too big). Downloaded categories are kept as groups
+  // (dlCategories: { name, titles, at, open }) under Downloaded, and can also go into a Favorites folder.
+  const CAT_MAX = 200, CAT_TOO_BIG = 2000;
+  const dlCats = () => store.get('dlCategories', []);
+  const avgSize = () => {
+    const sizes = dlList.map((e) => (e.size || 0) - (e.videoSize || 0)).filter((n) => n > 0 && !Number.isNaN(n));
+    return sizes.length >= 3 ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 2.5e6;
+  };
+  async function categoryDialog(title) {
+    if (isOffline()) { setIdle('Offline mode is on. Downloading a category needs the internet.'); return; }
+    setStatus(`Finding the categories “${title}” is in…`, true);
+    let cats;
+    try { cats = await Wiki.categories(title); } catch { setIdle('Couldn’t get the article’s categories. Check your connection and try again.'); return; }
+    setIdle();
+    if (!cats.length) { setIdle(`“${title}” isn’t in any categories that can be downloaded.`); return; }
+    cats.sort((a, b) => a.count - b.count);
+    const each = avgSize();
+    const n = (c) => Math.min(c.count, CAT_MAX);
+    let pick = cats.find((c) => c.count > 1 && c.count <= CAT_TOO_BIG) || cats[0];
+    const radios = cats.map((c) => {
+      const big = c.count > CAT_TOO_BIG;
+      const input = h('input', { type: 'radio', name: 'cat', value: c.name, checked: c === pick, disabled: big, onchange: () => { pick = c; update(); } });
+      return h('label', { class: 'scr' + (big ? ' off' : '') }, input, h('b', {}, c.name),
+        h('span', { class: 'n' }, `${c.count.toLocaleString()} article${c.count === 1 ? '' : 's'}${big ? '' : ` · ${mb(n(c) * each)}`}`),
+        big ? h('small', {}, `Too big to download (over ${CAT_TOO_BIG.toLocaleString()} articles). Try a smaller category.`)
+          : c.count > CAT_MAX ? h('small', {}, `Over ${CAT_MAX} articles: downloads the ${CAT_MAX} most read.`) : null);
+    });
+    const pics = h('input', { type: 'checkbox', checked: true, onchange: () => update() });
+    const vids = h('input', { type: 'checkbox' });
+    const toFav = h('input', { type: 'checkbox', onchange: () => update() });
+    const folderSel = h('select', { 'aria-label': 'Favorites folder' });
+    const picsLabel = h('span', {});
+    const list = h('div', { class: 'scl', role: 'radiogroup', 'aria-label': 'Categories' }, radios);
+    const btn = () => $('.overlay .dialog.savecat .df .go.default');
+    function update() {
+      picsLabel.textContent = `Pictures and sounds (about ${mb(n(pick) * each)}; text only: about ${mb(n(pick) * 6e4)})`;
+      vids.disabled = !pics.checked;
+      // The folder: a new one named after the category, or one that's there.
+      const want = folderSel.value;
+      const opts = [['new', `New folder “${pick.name}”`]];
+      walkFavs(favs(), (x, path) => { if (x.items) opts.push([x.id, '\u2003'.repeat(path.length) + x.folder]); });
+      folderSel.replaceChildren(...opts.map(([v, l]) => h('option', { value: v }, l)));
+      folderSel.value = opts.some(([v]) => v === want) ? want : 'new';
+      folderSel.disabled = !toFav.checked;
+      const b = btn();
+      if (b) b.textContent = `Download ${n(pick) === 1 ? '1 Article' : `${n(pick)} Articles`}`;
+    }
+    update();
+    dialog('Download a Category', 'Download the articles in a category', [
+      `“${title}” is in these Wikipedia categories. Pick one to download its articles, so they open without the internet.`,
+      list,
+      h('div', { class: 'scopts' },
+        h('label', {}, pics, picsLabel),
+        h('label', {}, vids, h('span', {}, 'Videos too (often 20–200 MB each)')),
+        h('label', {}, toFav, h('span', {}, 'Also add them to a Favorites folder: '), folderSel)),
+      h('p', { class: 'scnote' }, 'Downloading continues in the background; the status bar shows how far along it is. They appear under Downloaded in My Articles (Ctrl+I).'),
+    ], [['Download', () => startCategory(pick, { textOnly: !pics.checked, videos: pics.checked && vids.checked }, toFav.checked ? folderSel.value : null), true], ['Cancel']], { cls: 'savecat' });
+    update();
+    $('.overlay .dialog.savecat input[name=cat]:checked')?.focus();
+  }
+  async function startCategory(cat, opts, folder) {
+    setStatus(`Getting the articles in “${cat.name}”…`, true);
+    let titles;
+    try {
+      titles = await Wiki.categoryMembers(cat.name, CAT_TOO_BIG);
+      if (titles.length > CAT_MAX) {
+        setStatus(`Finding the ${CAT_MAX} most read articles in “${cat.name}”…`, true);
+        const views = await Wiki.pageviews(titles);
+        titles = [...titles].sort((a, b) => (views[b] || 0) - (views[a] || 0)).slice(0, CAT_MAX);
+      }
+    } catch { setIdle(`Couldn’t get the articles in “${cat.name}”. Check your connection and try again.`); return; }
+    if (!titles.length) { setIdle(`“${cat.name}” has no articles to download.`); return; }
+    // Kept as a group under Downloaded (the same category again replaces it).
+    store.set('dlCategories', [{ name: cat.name, titles, at: Date.now(), open: false }, ...dlCats().filter((c) => c.name !== cat.name)]);
+    if (folder) {
+      const root = favs();
+      let f = folder !== 'new' && folderAt(root, folder);
+      if (!f) {
+        const id = Math.random().toString(36).slice(2, 10);
+        root.splice(afterFolders(root), 0, { folder: cat.name.slice(0, 80), id, open: false, items: [] });
+        f = folderAt(root, id);
+      }
+      for (const t of titles) { const old = favAt(root, t); if (old) old.list.splice(old.i, 1); }
+      f = folderAt(root, f.node.id);
+      f.node.items.push(...titles.map((t) => ({ title: t })));
+      saveFavs(root);
+    }
+    queueDownloads(titles.filter((t) => !dlEntry(t) || (opts.videos && !dlEntry(t).withVideos)), { opts, label: cat.name });
+    drawFavPane();
+    refreshMyPage();
+  }
+  // A downloaded category's articles that are downloaded now.
+  const catDownloaded = (c) => c.titles.filter((t) => dlEntry(t));
+  function deleteCategory(name) {
+    const c = dlCats().find((x) => x.name === name);
+    if (!c) return;
+    const es = catDownloaded(c).map(dlEntry);
+    const size = es.reduce((n, e) => n + (e.size || 0), 0);
+    const go4 = async () => {
+      store.set('dlCategories', dlCats().filter((x) => x.name !== name));
+      for (const e of es) await saved.remove(e.title);
+      setIdle(`Deleted the downloads of “${name}” (${es.length === 1 ? '1 article' : `${es.length} articles`}), freeing ${mb(size)}.`);
+      if (current?.dl) current.dl.refresh();
+      drawFavPane();
+      refreshMyPage();
+    };
+    dialog('Delete Downloads', `Delete the downloads of “${name}”?`, [
+      `${es.length === 1 ? '1 article' : `${es.length} articles`}, ${mb(size)}. They still open when you’re online. Favorites among them stay favorites.`],
+    [['Delete Downloads', go4, true], ['Cancel']]);
   }
 
   // ---------- My Articles page ----------
@@ -2973,7 +3110,8 @@
   }
 
   function viewMyArticles(arg, token) {
-    const [view0, sub = ''] = arg.split('/');
+    const cut = arg.indexOf('/');
+    const view0 = cut < 0 ? arg : arg.slice(0, cut), sub = cut < 0 ? '' : arg.slice(cut + 1);   // a category's name can have a slash
     const view = MY_VIEWS[view0] ? view0 : 'favorites';
     const pg = shell({ title: MY_VIEWS[view], wide: true });
     pg.root.classList.add('myart');
@@ -3094,7 +3232,13 @@
     function downloadedRail() {
       const total = dlList.reduce((n, e) => n + (e.size || 0), 0);
       const sortBtn = (k, label) => { const b = railLink(label, () => { st.sort = k; store.set('dlSort', k); draw(); }); b.classList.toggle('on', st.sort === k); return b; };
-      return [h('h4', {}, 'Sort by'), sortBtn('date', 'Date downloaded'), sortBtn('size', 'Size'), sortBtn('name', 'Name'), h('hr'),
+      const cats = dlCats().filter((c) => catDownloaded(c).length);
+      const catBtn = (k, label, n, ic) => { const b = railLink('', () => go2('downloaded', k)); b.replaceChildren(icon(ic), h('span', { class: 't' }, label), h('span', { class: 'n' }, String(n))); b.classList.add('mfold'); b.classList.toggle('on', (st.sub || 'all') === k); if (k.startsWith('cat:')) b.dataset.key = 'c:' + k.slice(4); return b; };
+      const inCat = new Set(cats.flatMap((c) => catDownloaded(c).map((t) => t.toLowerCase())));
+      const catRail = cats.length ? [h('h4', {}, 'Categories'), catBtn('all', 'All downloaded', dlList.length, 'download'),
+        ...cats.map((c) => catBtn('cat:' + c.name, c.name, catDownloaded(c).length, 'stack')),
+        catBtn('loose', 'Not in a category', dlList.filter((e) => !inCat.has(e.title.toLowerCase())).length, 'download'), h('hr')] : [];
+      return [...catRail, h('h4', {}, 'Sort by'), sortBtn('date', 'Date downloaded'), sortBtn('size', 'Size'), sortBtn('name', 'Name'), h('hr'),
         h('p', { class: 'mstat' }, h('b', {}, String(dlList.length)), ` ${dlList.length === 1 ? 'article' : 'articles'}, ${mb(total)}`),
         h('p', { class: 'mnote' }, 'Downloaded articles open without the internet. Deleting a download keeps the article in your favorites.')];
     }
@@ -3102,9 +3246,18 @@
       const total = dlList.reduce((n, e) => n + (e.size || 0), 0);
       pg.setTitle('Downloaded', `${dlList.length === 1 ? '1 article' : `${dlList.length} articles`} · ${mb(total)} · They open without the internet`);
       setCrumbs([]);
-      let list = dlList.filter((e) => !st.query || e.title.toLowerCase().includes(st.query));
+      const sub = st.sub || 'all';
+      const cat = sub.startsWith('cat:') ? dlCats().find((c) => c.name === sub.slice(4)) : null;
+      const inCat = new Set(dlCats().flatMap((c) => catDownloaded(c).map((t) => t.toLowerCase())));
+      let list = dlList.filter((e) => (!st.query || e.title.toLowerCase().includes(st.query))
+        && (cat ? cat.titles.some((t) => sameTitle(t, e.title)) : sub === 'loose' ? !inCat.has(e.title.toLowerCase()) : true));
+      if (cat) {
+        setCrumbs([cat.name]);
+        pg.setTitle(cat.name, `A Wikipedia category · ${list.length === 1 ? '1 article' : `${list.length} articles`} downloaded · ${mb(list.reduce((n, e) => n + (e.size || 0), 0))}`);
+      }
       list = [...list].sort(st.sort === 'size' ? (a, b) => (b.size || 0) - (a.size || 0) : st.sort === 'name' ? (a, b) => a.title.localeCompare(b.title) : (a, b) => (a.at < b.at ? 1 : -1));
-      const head = h('div', { class: 'mhead' }, h('b', {}, st.query ? 'Found' : 'Downloaded'), h('span', {}, `${list.length === 1 ? '1 article' : `${list.length} articles`}`));
+      const head = h('div', { class: 'mhead' }, h('b', {}, st.query ? 'Found' : cat ? cat.name : sub === 'loose' ? 'Not in a category' : 'Downloaded'), h('span', {}, `${list.length === 1 ? '1 article' : `${list.length} articles`}`),
+        cat ? h('button', { class: 'go mcatdel', onclick: () => deleteCategory(cat.name) }, 'Delete Downloads…') : null);
       const rows = list.map((e) => artPageRow('d:' + e.title, e.title, { mark: false, extra: h('span', { class: 'msize' }, `${mb(e.size || 0)} · ${new Date(e.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`),
         remove: () => deleteDownloads([e.title]), removeLabel: `Delete the download of “${e.title}”` }));
       pg.text.replaceChildren(head, selectionBar('downloaded'), ...rows,

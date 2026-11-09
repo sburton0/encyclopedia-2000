@@ -1737,6 +1737,61 @@ module.exports = [
     },
   },
   {
+    name: 'download-category', group: 'Downloaded articles', title: 'Download a Category: the article’s categories with counts and sizes; a small one downloads as a group, into a Favorites folder, and is deleted as one',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.openArticle("Europa (moon)");');
+      await t.waitFor('document.querySelector(".band h1")?.textContent === "Europa (moon)" && document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      await t.js('document.querySelector(".bsplit .darrow").click();');
+      await t.waitFor('/Download a category/.test(document.querySelector(".rmenu")?.innerText || "")', 3000);
+      await t.js('[...document.querySelectorAll(".rmenu .ri")].find((b) => /Download a category/.test(b.textContent)).click();');
+      t.check('Download a category… lists the article’s categories, with how many articles and about how big', await t.waitFor('document.querySelectorAll(".dialog.savecat .scr").length >= 3', 20000)
+        && await t.js('return [...document.querySelectorAll(".dialog.savecat .scr")].every((r) => /\\d article/.test(r.innerText));'),
+        await t.js('return document.querySelector(".dialog.savecat")?.innerText || "";'));
+      t.check('Big ones say only the 200 most read are downloaded, or that they’re too big', await t.js(`return [...document.querySelectorAll(".dialog.savecat .scr")].filter((r) => /([\\d,]+) article/.exec(r.innerText) && Number(/([\\d,]+) article/.exec(r.innerText)[1].replace(/,/g, "")) > 200)
+        .every((r) => /200 most read|Too big/.test(r.innerText));`));
+      // The smallest category with a few articles.
+      const pick = await t.js(`const rows = [...document.querySelectorAll(".dialog.savecat .scr")].map((r) => ({ r, n: Number(/([\\d,]+) article/.exec(r.innerText)[1].replace(/,/g, "")) }));
+        const c = rows.find((x) => x.n >= 2 && x.n <= 6); if (!c) return null; c.r.querySelector("input").click(); return { name: c.r.querySelector("b").textContent, n: c.n };`);
+      t.check('A small category can be picked', !!pick, JSON.stringify(pick));
+      if (!pick) return;
+      t.check('The button says how many', await t.js(`return document.querySelector(".dialog.savecat .go.default").textContent === "Download ${pick.n} Articles";`),
+        await t.js('return document.querySelector(".dialog.savecat .go.default").textContent;'));
+      await t.js('document.querySelectorAll(".dialog.savecat .scopts input[type=checkbox]")[2].click();');
+      t.check('Also add them to a Favorites folder: a new one named after the category', await t.js(`return document.querySelector(".dialog.savecat select").selectedOptions[0].textContent === "New folder “${pick.name}”";`));
+      await t.sleep(900);
+      await t.shot('category-dialog');
+      await t.js('document.querySelector(".dialog.savecat .go.default").click();');
+      t.check('The articles download one after another, the status bar telling how far along', await t.waitFor(`/Downloading “${pick.name}”: \\d+ of|^Downloaded \\d+ articles/.test(document.getElementById("status").textContent)`, 20000),
+        await t.js('return document.getElementById("status").textContent;'));
+      t.check('…until all are downloaded', await t.waitFor(`/^Downloaded \\d+ articles/.test(document.getElementById("status").textContent)`, 240000),
+        await t.js('return document.getElementById("status").textContent;'));
+      const cat = await t.js(`return JSON.parse(localStorage.getItem("e2k.dlCategories"))[0];`);
+      t.check('The category is kept, with its articles', cat?.name === pick.name && cat.titles.length === pick.n, JSON.stringify(cat));
+      t.check('…and they’re favorites in a folder named after it', await t.js(`const f = JSON.parse(localStorage.getItem("e2k.favorites")).find((n) => n.folder === ${JSON.stringify(pick.name)}); return !!f && f.items.length === ${pick.n};`));
+      // The pane: the category as a group under Downloaded.
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      t.check('The pane shows it under Downloaded as one group, with the count', await t.waitFor(`(() => { const g = [...document.querySelectorAll("#fpane .fold.grp")].find((b) => b.dataset.key === ${JSON.stringify('c:' + pick.name)}); return g && g.querySelector(".c").textContent === "${pick.n}"; })()`, 5000));
+      await t.js(`[...document.querySelectorAll("#fpane .fold.grp")].find((b) => b.dataset.key === ${JSON.stringify('c:' + pick.name)}).click();`);
+      t.check('…which opens to show its articles', await t.waitFor(`document.querySelectorAll("#fpane [data-key^='d:']").length >= ${pick.n}`, 2000));
+      await t.sleep(900);
+      await t.shot('pane-group');
+      // The page: Categories in the rail.
+      await t.js('E2K.go("myarticles/downloaded");');
+      t.check('The Downloaded page lists it under Categories', await t.waitFor(`[...document.querySelectorAll(".myart .rail .mfold")].some((b) => b.textContent.includes(${JSON.stringify(pick.name)}))`, 5000));
+      await t.js(`[...document.querySelectorAll(".myart .rail .mfold")].find((b) => b.textContent.includes(${JSON.stringify(pick.name)})).click();`);
+      t.check('…and shows its articles', await t.waitFor(`document.querySelector(".myart .band h1")?.textContent === ${JSON.stringify(pick.name)} && document.querySelectorAll(".myart .mrow").length === ${pick.n}`, 5000));
+      await t.js('document.querySelector(".myart .mcatdel").click();');
+      t.check('Delete Downloads… asks first', await t.waitFor('/Delete the downloads of/.test(document.querySelector(".overlay .dialog")?.innerText || "")', 2000));
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Delete Downloads").click();');
+      t.check('…then deletes them all; the favorites stay', await t.waitFor(`(await window.e2k.saved.list()).length === 0`, 15000)
+        && await t.js(`return JSON.parse(localStorage.getItem("e2k.favorites")).find((n) => n.folder === ${JSON.stringify(pick.name)})?.items.length === ${pick.n};`));
+      // Over 200 articles: the 200 most read, from Wikipedia's page views.
+      const views = await t.js('return await Wiki.pageviews(["Moon", "Io (moon)"]);');
+      t.check('Page views can be read (for picking the 200 most read)', views.Moon > views['Io (moon)'] && views['Io (moon)'] > 0, JSON.stringify(views));
+    },
+  },
+  {
     name: 'download-sounds', group: 'Downloaded articles', title: 'A downloaded article’s sounds and pronunciation play offline; a recording of the whole article read aloud isn’t downloaded',
     route: 'home',
     async run(t) {

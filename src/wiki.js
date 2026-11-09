@@ -262,5 +262,38 @@ window.Wiki = (() => {
     spelling: (q) => (libraryFirst() ? Promise.resolve('') : get(`${BASE}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&srinfo=suggestion&srprop=&srlimit=1&format=json&formatversion=2&origin=*`)
       .then((r) => r.query?.searchinfo?.suggestion || '', () => '')),
     pageUrl: (title) => `${BASE}/wiki/${enc(title)}`,
+    // Download a Category (online only). An article's categories (not the hidden, maintenance ones), each with how
+    // many articles it holds: [{ name, count }].
+    async categories(title) {
+      const api = `${BASE}/w/api.php?action=query&format=json&formatversion=2&origin=*`;
+      const r = await get(`${api}&prop=categories&clshow=!hidden&cllimit=50&redirects=1&titles=${encodeURIComponent(title)}`);
+      const cats = (r.query?.pages?.[0]?.categories || []).map((c) => c.title);
+      if (!cats.length) return [];
+      const info = await get(`${api}&prop=categoryinfo&titles=${encodeURIComponent(cats.join('|'))}`);
+      const n = Object.fromEntries((info.query?.pages || []).map((p) => [p.title, p.categoryinfo?.pages || 0]));
+      return cats.map((c) => ({ name: c.replace(/^Category:/, ''), count: n[c] || 0 })).filter((c) => c.count > 0);
+    },
+    // The articles in a category (not its subcategories), up to `max`.
+    async categoryMembers(name, max = 2000) {
+      const out = [];
+      let cont = '';
+      do {
+        const r = await get(`${BASE}/w/api.php?action=query&format=json&formatversion=2&origin=*&list=categorymembers&cmtype=page&cmnamespace=0&cmlimit=500`
+          + `&cmtitle=${encodeURIComponent('Category:' + name)}${cont ? `&cmcontinue=${encodeURIComponent(cont)}` : ''}`);
+        out.push(...(r.query?.categorymembers || []).map((m) => m.title));
+        cont = r.continue?.cmcontinue || '';
+      } while (cont && out.length < max);
+      return out.slice(0, max);
+    },
+    // How often each article was read over the last 30 days ({ title: views }), 50 titles a request.
+    async pageviews(titles) {
+      const views = {};
+      for (let i = 0; i < titles.length; i += 50) {
+        const r = await get(`${BASE}/w/api.php?action=query&format=json&formatversion=2&origin=*&prop=pageviews&pvipdays=30`
+          + `&titles=${encodeURIComponent(titles.slice(i, i + 50).join('|'))}`);
+        for (const p of r.query?.pages || []) views[p.title] = Object.values(p.pageviews || {}).reduce((a, b) => a + (b || 0), 0);
+      }
+      return views;
+    },
   };
 })();

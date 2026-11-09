@@ -291,6 +291,29 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .dialog.clearh .cradio { display: flex; align-items: center; gap: 8px; color: #fff; }
 .dialog.clearh .cradio input { accent-color: var(--orange); margin: 0; }
 
+/* Download a Category: the article's categories, the choices */
+.dialog.savecat { width: 580px; }
+.dialog.savecat .db { display: block; padding: 16px 20px 6px; }
+.dialog.savecat .db > img { display: none; }
+.dialog.savecat .scl { max-height: 250px; overflow: auto; margin: 4px 0 10px; background: #fff; border: 1px solid #c9d3ea; }
+.dialog.savecat .scr { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 8px; align-items: center; padding: 7px 10px; border-bottom: 1px solid #eef1f7; font: 13px "Segoe UI"; color: #14213d; cursor: pointer; }
+.dialog.savecat .scr:last-child { border-bottom: 0; }
+.dialog.savecat .scr:has(input:checked) { background: #e8f0fd; }
+.dialog.savecat .scr.off { cursor: default; color: #6b7386; }
+.dialog.savecat .scr input { margin: 0; accent-color: #1d4fb8; }
+.dialog.savecat .scr b { font-weight: 600; }
+.dialog.savecat .scr .n { color: #4a5266; font-variant-numeric: tabular-nums; text-align: right; }
+.dialog.savecat .scr small { grid-column: 2 / 4; color: #7a4f00; }
+.dialog.savecat .scopts { display: grid; gap: 7px; margin: 4px 0; }
+.dialog.savecat .scopts label { display: flex; align-items: center; gap: 8px; color: #fff; }
+.dialog.savecat .scopts input { margin: 0; accent-color: var(--orange); }
+.dialog.savecat .scopts select { max-width: 240px; font: 12.5px "Segoe UI"; }
+.dialog.savecat .scnote { margin-top: 8px; font-size: 12px; color: #b9c8e4; }
+.fpane .fold.grp .ic { fill: #9fd0ff; }
+.myart .rail .mfold .ic { fill: #f3c25a; }
+.myart .rail .mfold:has(svg use[href="#i-stack"]) .ic { fill: #9fd0ff; }
+.myart .mhead .mcatdel { margin-left: auto; min-width: 0; padding: 2px 10px; font-size: 12px; letter-spacing: 0; }
+
 /* ---------- My Articles page: Favorites (with folders), Downloaded, History ---------- */
 .myart .band .tools { align-items: center; }
 .myart .msearch { width: 300px; height: 30px; padding: 0 10px; background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .3); color: #fff; font: 13px "Segoe UI"; outline: 0; }
