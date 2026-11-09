@@ -1554,6 +1554,24 @@ module.exports = [
     },
   },
   {
+    name: 'random-from-home', group: 'Reading', title: 'Random from Home: Home stays whole (no location bar squeezing it) until the article opens',
+    route: 'home',
+    async run(t) {
+      t.check('Home is up, with no location bar', await t.waitFor('document.querySelector("#view .home") && document.getElementById("crumbs").hidden', 20000));
+      // Every frame from the click until the article is up: is Home ever shown with the location bar above it?
+      await t.js(`window.__squeezed = 0; window.__frames = 0;
+        const watch = () => { window.__frames++;
+          if (document.querySelector('#view .home') && !document.getElementById('crumbs').hidden) window.__squeezed++;
+          if (!document.querySelector('.band h1')) requestAnimationFrame(watch); };
+        requestAnimationFrame(watch);
+        document.querySelector('.tbtn[data-cmd="random"]').click();`);
+      t.check('A random article opens', await t.waitFor('document.querySelector(".band h1") && document.querySelectorAll(".content.article .text p").length > 0', 40000));
+      const r = await t.js('return { squeezed: window.__squeezed, frames: window.__frames, here: document.querySelector("#crumbs .here")?.textContent || "" };');
+      t.check('Home was never shown squeezed under the location bar', r.squeezed === 0 && r.frames > 1, JSON.stringify(r));
+      t.check('…and the location bar names the article', r.here && r.here === (await t.js('return document.querySelector(".band h1").textContent;')), JSON.stringify(r));
+    },
+  },
+  {
     name: 'section-redirect-online', group: 'Reading', title: 'A title that redirects to a section of another article opens it at that section (online)',
     route: 'home',
     async run(t) {

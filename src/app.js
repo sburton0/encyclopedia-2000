@@ -330,7 +330,9 @@
     closeFind();
     current = null;
     updateToolbar();
-    setTrail(r);
+    // Random shows nothing of its own: the screen stays as it is (the status bar says it's finding one) until the
+    // article opens. Showing its location bar early would squeeze Home in the meantime.
+    if (name !== 'random') setTrail(r);
     try {
       switch (name) {
         case 'article': await viewArticle(arg, token, restore); break;
@@ -348,7 +350,7 @@
       }
       if (y && live(token)) restoreScroll(y, token);
     } catch (err) {
-      if (live(token)) showError(err, name, arg, token);
+      if (live(token)) { if (name === 'random') setTrail(r); showError(err, name, arg, token); }
     }
   }
   // The top of a page: a quick glide, or a jump with animations off (Options).
