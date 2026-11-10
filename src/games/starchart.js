@@ -160,7 +160,7 @@
         h('div', { class: 'sc-count' }, `${starsLit(st)} of ${TOTAL} stars charted`),
         medals,
         h('div', { class: 'sc-btns' },
-          h('button', { class: 'bbtn', onclick: () => api.go('games') }, '‹ All Games'),
+          h('button', { class: 'bbtn', onclick: () => api.go('activities') }, '‹ Activities'),
           h('button', { class: 'bbtn', onclick: howTo }, 'How to Play'),
           h('button', { class: 'bbtn', onclick: resetChart }, 'New Chart')));
     }

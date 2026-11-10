@@ -372,6 +372,16 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .myart .mrow .rx { flex: none; width: 26px; height: 26px; padding: 0; background: none; border: 1px solid transparent; color: #8a93a6; font: 13px/1 "Segoe UI"; }
 .myart .mrow .rx:hover { border-color: #c9d3ea; background: #fff; color: #b3261e; }
 .myart .mrow.folder.drop { background: #fff6dc; outline: 1px dashed #e8b33d; }
+.myart .mwelcome { max-width: 640px; margin: 40px auto 0; padding: 28px 30px; text-align: center; background: #fff; border: 1px solid #d7deec; }
+.myart .mwelcome .big { width: 64px; height: 64px; margin: 0 auto 12px; display: grid; place-items: center; border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #d4fbf6, #1fa39a 55%, #08433f); box-shadow: 0 0 14px rgba(31,163,154,.45); }
+.myart .mwelcome .big .ic { width: 30px; height: 30px; fill: #fff; }
+.myart .mwelcome h2 { margin: 0 0 8px; font: 600 20px "Segoe UI"; color: var(--ink-2); }
+.myart .mwelcome p { margin: 0 0 10px; font: 14px/1.5 "Segoe UI"; color: #4a5266; }
+.myart .mwelcome .how { display: grid; grid-template-columns: auto 1fr; gap: 10px 12px; margin: 18px 0 4px; text-align: left; font: 13.5px/1.45 "Segoe UI"; color: #2a3348; }
+.myart .mwelcome .how .ic { width: 18px; height: 18px; fill: var(--orange); margin-top: 1px; }
+.myart .mwelcome .how b { font-weight: 600; }
+.myart .mwelcome .go { margin-top: 16px; }
 .myart .mempty { padding: 24px 8px; font: 14px "Segoe UI"; color: #5a6275; }
 .myart .mmore { margin: 14px 0 0 6px; }
 

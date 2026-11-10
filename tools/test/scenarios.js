@@ -412,6 +412,52 @@ module.exports = [
     },
   },
   {
+    name: 'games-in-activities', group: 'General', title: 'Games are part of Activities (first, with their own button); Home’s shelf has My Articles; someone new sees what My Articles is for',
+    route: 'home',
+    async run(t) {
+      await t.js('E2K.go("activities");');
+      await t.waitFor('document.querySelector(".act-group")', 10000);
+      const info = await t.js(`const g = [...document.querySelectorAll(".act-group")];
+        return { first: g[0]?.dataset.cat, head: g[0]?.querySelector("h3")?.innerText, cards: g[0]?.querySelectorAll(".gcard").length, play: g[0]?.querySelector(".gplay")?.textContent,
+          chips: [...document.querySelectorAll(".band .wx-chip")].map((c) => c.textContent), rail: [...document.querySelectorAll(".page .rail h4")].map((x) => x.textContent).filter((x) => x !== "Activities")[0],
+          desc: document.querySelector(".band .desc")?.textContent };`);
+      t.check('Games come first on the Activities page, with Play ›', info.first === 'Games' && info.cards >= 1 && info.play === 'Play ›' && /\d+ games?/.test(info.head), JSON.stringify(info));
+      t.check('Games has a button in the header and leads the rail', info.chips[1] === 'Games' && info.rail === 'Games', JSON.stringify(info));
+      t.check('The subtitle names games', /^Games, /.test(info.desc), info.desc);
+      await t.sleep(1500);
+      await t.shot('activities-games');
+      await t.js('[...document.querySelectorAll(".band .wx-chip")].find((c) => c.textContent === "Games").click();');
+      t.check('The Games button shows only games', await t.js('return [...document.querySelectorAll(".act-group")].filter((s) => !s.hidden).map((s) => s.dataset.cat).join() === "Games";'));
+      await t.js('[...document.querySelectorAll(".band .wx-chip")].find((c) => c.textContent === "All").click();');
+      await t.js('document.querySelector(".act-group[data-cat=Games] .gcard").click();');
+      t.check('A game opens under Activities in the location bar', await t.waitFor('/Activities/.test(document.getElementById("crumbs").innerText) && /Star Chart/.test(document.getElementById("crumbs").innerText)', 8000),
+        await t.js('return document.getElementById("crumbs").innerText;'));
+      await t.js('[...document.querySelectorAll(".sc-btns .bbtn")].find((b) => /Activities/.test(b.textContent))?.click();');
+      t.check('Star Chart’s ‹ Activities button goes back to Activities', await t.waitFor('document.querySelector(".act-group[data-cat=Games]")', 8000));
+      await t.js('E2K.go("games");');
+      t.check('The old Games page forwards to Activities', await t.waitFor('document.querySelector(".act-group[data-cat=Games]") && document.querySelector(".band h1")?.textContent === "Activities"', 8000));
+      t.check('The Activities button’s tooltip gives Ctrl+5', await t.js(`return document.querySelector('.tbtn[data-cmd=activities]').title.includes('Ctrl+5');`));
+      // Home's shelf: My Articles where Games was.
+      await t.js('E2K.go("home");');
+      await t.waitFor('document.querySelector(".home .shelf .orb")', 10000);
+      const orbs = await t.js('return [...document.querySelectorAll(".home .shelf .orb")].map((o) => o.textContent.trim());');
+      t.check('Home’s shelf has My Articles and no Games', orbs.includes('My Articles') && !orbs.includes('Games'), JSON.stringify(orbs));
+      // Someone new: nothing saved, downloaded, or read yet.
+      await t.js(`localStorage.removeItem('e2k.favorites'); localStorage.removeItem('e2k.history'); localStorage.removeItem('e2k.recent');`);
+      t.win.webContents.reload();
+      await t.waitFor('document.querySelector(".home .shelf .orb")', 15000);
+      await t.js('[...document.querySelectorAll(".home .shelf .orb")].find((o) => o.textContent.trim() === "My Articles").click();');
+      const welcome = await t.waitFor('document.querySelector(".myart .mwelcome")', 8000);
+      t.check('The My Articles orb opens My Articles, and someone new sees what gathers there', welcome && await t.js('return /Your articles will gather here/.test(document.querySelector(".myart .mwelcome").innerText);'));
+      await t.sleep(1500);
+      await t.shot('my-articles-welcome');
+      await t.js('document.querySelector(".myart .mwelcome .go").click();');
+      t.check('Find an Article goes to the Find box', await t.waitFor('document.activeElement?.id === "q"', 3000));
+      const bad = await t.axe();
+      t.check('No serious accessibility problems on the welcome', !bad.length, bad.join('; '));
+    },
+  },
+  {
     name: 'print-preview', group: 'General', title: 'Print Preview opens',
     route: 'article/Mount%20Everest',
     async run(t) {
@@ -2052,6 +2098,8 @@ module.exports = [
     name: 'toolbar-refresh', group: 'General', title: 'The toolbar: Browse, Media, Activities, then Random and History as icons; it fits the narrowest window, and the section on screen lights up',
     route: 'home', size: '980x700',
     async run(t) {
+      // On a display with other scaling the window can open wider than asked; set it again so it's 980 pixels.
+      if (t.win.getContentSize()[0] !== 980) { t.win.setContentSize(980, 700); await t.sleep(800); }
       const order = await t.js(`return [...document.querySelectorAll("#toolbar .tbtn, #toolbar .tsep")].map((b) => b.classList.contains("tsep") ? "|" : (b.textContent.trim() || b.getAttribute("aria-label")));`);
       const want = ['Browse', 'Media', 'Activities', '|', 'Random article', 'History'];
       const i = order.indexOf('Browse');
@@ -2193,7 +2241,7 @@ module.exports = [
     },
   },
   {
-    name: 'keyboard-places', group: 'Accessibility', title: 'Focus starts in the search box; Ctrl+1–6 and Ctrl+H open each section with focus on its heading; Ctrl+Shift+L, Ctrl+Shift+O, and the shortcut list',
+    name: 'keyboard-places', group: 'Accessibility', title: 'Focus starts in the search box; Ctrl+1–5 and Ctrl+H open each section with focus on its heading; Ctrl+Shift+L, Ctrl+Shift+O, and the shortcut list',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 10000);
@@ -2203,7 +2251,7 @@ module.exports = [
       t.check('At launch, focus is in the search box', await t.js('return document.activeElement?.id === "q";'), JSON.stringify(await t.focused()));
       // Each section, and the heading it opens on.
       const places = [['Browse', 'Browse the encyclopedia'], ['Media', 'Picture of the Day'], ['Timeline', 'On this day'], ['World Explorer', 'Countries of the World'],
-        ['Games', 'Games'], ['Activities', 'Activities']];
+        ['Activities', 'Activities']];
       for (const [i, [name, heading]] of places.entries()) {
         if (mac) t.menu(name); else await t.key(String(i + 1), ['control']);
         const there = await t.waitFor(`document.activeElement?.matches('h1, h2, h3') && document.querySelector('#view').contains(document.activeElement)
@@ -2382,7 +2430,7 @@ module.exports = [
     route: 'home',
     async run(t) {
       const screens = [['home', '.home .alm .ev'], ['article/Moon', '.page .text p'], ['search/apollo', '.results .res'], ['explore', '.page'], ['gallery', '.page'],
-        ['onthisday', '.tl-item'], ['games', '#view h1, #view h2'], ['activities', '.act-group'], ['world', '#view canvas, #view svg'], ['activity/periodic-table', '#view h1, #view h2']];
+        ['onthisday', '.tl-item'], ['activities', '.act-group'], ['myarticles/favorites', '.myart .mwelcome, .myart .mhead'], ['world', '#view canvas, #view svg'], ['activity/periodic-table', '#view h1, #view h2']];
       for (const [route, ready] of screens) {
         await t.js(`E2K.go(${JSON.stringify(route)});`);
         await t.waitFor(`document.querySelector(${JSON.stringify(ready)})`, 15000);

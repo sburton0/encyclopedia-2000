@@ -46,7 +46,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
 - **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (using your computer's text-to-speech voices, or a Wikipedia volunteer's recorded narration when the article has one), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
-- **Games**: a games page with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
+- **Games**: the first section of Activities, with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
 - **World Explorer**: a clickable map of 237 countries and territories, with region filters, search, and Random Country. Each country's card shows its flag, capital, population, area, languages, currency, and government, live from Wikidata. Choosing a region shows its area, population, and a clickable list of its countries.
 - **Activities**:
   - **Periodic Table**: all 118 elements, colored by family, with a details card for each.
@@ -113,7 +113,7 @@ The World Explorer map lives in `src/world/map-data.js`, generated from Natural 
 2. Add a `<script>` tag for it in `src/index.html` after `games/registry.js`.
 3. In `mount(root, api)`, draw into `root` and return a cleanup function. `api` (window.E2K) gives you DOM helpers, saved storage, sounds, dialogs, and `openArticle`. `E2KTrivia.make(topicId)` returns a ready-made multiple-choice question.
 
-The game then appears on the Games page automatically, and its route is `game/<id>`.
+The game then appears in the Games section of Activities automatically, and its route is `game/<id>`.
 
 ## License
 
