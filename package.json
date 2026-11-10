@@ -15,6 +15,7 @@
     "map": "node tools/make-map.mjs",
     "passport": "node tools/make-passport.mjs",
     "animals": "node tools/make-animals.mjs",
+    "world-facts": "node tools/make-world-facts.mjs",
     "test:app": "node tools/test/run.js",
     "lab": "node tools/lab/run.js",
     "dist": "node tools/patch-uninstaller.js && node tools/sign-nsis-plugins.js && electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",

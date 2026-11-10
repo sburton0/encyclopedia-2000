@@ -64,6 +64,7 @@
 .wx-facts td { padding: 4px 0; border-bottom: 1px solid rgba(var(--edge), .16); vertical-align: top; }
 .wx-facts td:first-child { width: 92px; padding-right: 8px; color: var(--sky); }
 .wx-facts td.wx-loading { width: auto; color: var(--sky); font-style: italic; }
+.wx-facts td.wx-saved { width: auto; padding-top: 6px; font-size: 11.5px; color: var(--sky); border-bottom: 0; }
 .wx-sum { margin: 0 0 12px; font: 12.5px/1.5 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .wx-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .wx-acts .go { margin: 0; }

@@ -1,5 +1,6 @@
 // World Explorer: a clickable map of the world's countries, with a fact card for the one you pick.
-// The map comes from map-data.js (built by tools/make-map.mjs). Facts come live from Wikidata, summaries from Wikipedia.
+// The map comes from map-data.js (built by tools/make-map.mjs). Facts come live from Wikidata, summaries from Wikipedia;
+// offline, from facts-data.js (tools/make-world-facts.mjs).
 window.E2KWorld = (() => {
   const REGIONS = ['All', 'Africa', 'Asia', 'Europe', 'North America', 'South America', 'Oceania'];
   // Each region's Wikidata item (for its area and population); the Wikipedia article has the same name.
@@ -13,8 +14,28 @@ window.E2KWorld = (() => {
   const summaries = {};
 
   // ---------- data ----------
-  async function loadFacts(id) {
-    if (facts[id]) return facts[id];
+  // Saved facts and summaries (facts-data.js, from tools/make-world-facts.mjs), shown when Wikidata or Wikipedia can't be
+  // reached; and the flags that ship with the app (Passport's, and the territories'), used online too.
+  let savedReady = null;
+  const loadSaved = () => (savedReady ||= window.E2KWorldFacts ? Promise.resolve(window.E2KWorldFacts) : new Promise((resolve) => {
+    const el = document.createElement('script');
+    el.src = 'world/facts-data.js';
+    el.onload = () => resolve(window.E2KWorldFacts || null);
+    el.onerror = () => { savedReady = null; resolve(null); };
+    document.head.append(el);
+  }));
+  // Live from Wikidata unless offline; otherwise (or if it fails) the saved facts, marked `saved` (their date) and not
+  // kept, so going online again fetches the live ones.
+  async function loadFacts(id, offline = false) {
+    const S = await loadSaved();
+    const own = S?.facts[id]?.flag ? `${S.facts[id].flag}/${id}.png` : '';
+    if (!facts[id] && !offline) { try { await liveFacts(id); } catch {} }
+    if (facts[id]) return { ...facts[id], flag: own || facts[id].flag };
+    const f = S?.facts[id];
+    if (!f) throw new Error('No saved facts for ' + id);
+    return { ...f, flag: own, saved: S.saved };
+  }
+  async function liveFacts(id) {
     // Current values only (no end date), named by their English Wikipedia article where there is one, otherwise their English label.
     const en = (v, l) => `OPTIONAL { ?c p:${v} ?${l}s. ?${l}s ps:${v} ?${l}x; a wikibase:BestRank. FILTER NOT EXISTS { ?${l}s pq:P582 [] }
       ?${l}x rdfs:label ?${l}l FILTER(LANG(?${l}l) = "en")
@@ -50,9 +71,16 @@ window.E2KWorld = (() => {
     });
   }
   async function loadSummary(title) {
-    if (!summaries[title]) summaries[title] = await Wiki.summary(title);
-    return summaries[title];
+    if (summaries[title]) return summaries[title];
+    try {
+      return (summaries[title] = await Wiki.summary(title));
+    } catch (e) {
+      const s = (await loadSaved())?.summaries[title];
+      if (!s) throw e;
+      return { description: s.d, extract: s.x, saved: true };
+    }
   }
+  const savedNote = (date) => `Offline: facts saved with the app (${new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}).`;
 
   // Article titles made readable: "French language" is "French", "Georgia (country)" is "Georgia".
   // A few names Wikipedia uses aren't the ones English speakers know.
@@ -311,7 +339,7 @@ window.E2KWorld = (() => {
         if (src) { const img = h('img', { class: 'globe', src, alt: '' }); img.onerror = () => img.remove(); pic.replaceChildren(img); }
       }).catch(() => {});
       try {
-        const f = await loadFacts(CONTINENTS[r]);
+        const f = await loadFacts(CONTINENTS[r], api.offline && api.offline());
         if (token !== cardToken || disposed) return;
         rows.querySelector('.wx-area').textContent = areaText(f.area) || '—';
         rows.querySelector('.wx-pop').textContent = people(f.population) || '—';
@@ -353,7 +381,7 @@ window.E2KWorld = (() => {
       }).catch(() => { if (token === cardToken) sum.textContent = ''; });
 
       try {
-        const f = await loadFacts(c.id);
+        const f = await loadFacts(c.id, api.offline && api.offline());
         if (token !== cardToken || disposed) return;
         if (f.flag) {
           const img = h('img', { src: f.flag, alt: `Flag of ${c.name}` });
@@ -369,11 +397,12 @@ window.E2KWorld = (() => {
           row('Currency', join(f.currency, 2)),
           row('Government', cap(join(f.government.map((g) => g.charAt(0).toLowerCase() + g.slice(1)), 2))),
         ].filter(Boolean);
-        rows.replaceChildren(...(list.length ? list : [h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, 'No facts on record for this place.'))]));
+        rows.replaceChildren(...(list.length ? list : [h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, 'No facts on record for this place.'))]),
+          ...(f.saved ? [h('tr', {}, h('td', { colspan: 2, class: 'wx-saved' }, savedNote(f.saved)))] : []));
       } catch {
         if (token !== cardToken) return;
         flag.replaceChildren(h('div', { class: 'wx-flag-ph none' }));
-        rows.replaceChildren(h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, api.offline && api.offline() ? 'The facts come from Wikidata, so they need the internet.' : 'Couldn’t reach Wikidata for the facts.')));
+        rows.replaceChildren(h('tr', {}, h('td', { colspan: 2, class: 'wx-loading' }, 'Couldn’t look up the facts for this place.')));
       }
     }
 

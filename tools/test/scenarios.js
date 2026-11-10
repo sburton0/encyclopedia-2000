@@ -550,6 +550,52 @@ module.exports = [
     },
   },
   {
+    name: 'world-offline', group: 'Reading offline', title: 'World Explorer offline: a country’s card has its flag, facts, and summary from the copies saved with the app (offline mode, or no connection), marked as saved; online it’s live again',
+    route: 'world',
+    async run(t) {
+      await t.waitFor('document.querySelector(".wx-card")', 15000);
+      const find = async (name) => {
+        await t.js(`const i = document.querySelector('input[placeholder="Find a country"]'); i.value = ${JSON.stringify(name)}; i.dispatchEvent(new Event("input")); i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));`);
+        await t.waitFor(`document.querySelector(".wx-card h2")?.textContent === ${JSON.stringify(name)} && !document.querySelector(".wx-card .wx-loading")?.textContent.startsWith("Looking")`, 20000);
+        await t.sleep(400);
+        return t.js(`const c = document.querySelector(".wx-card"); return { text: c.innerText, flag: c.querySelector(".wx-flag img")?.getAttribute("src") || "",
+          flagOk: !!c.querySelector(".wx-flag img")?.naturalWidth, saved: c.querySelector(".wx-saved")?.textContent || "", sum: c.querySelector(".wx-sum")?.textContent || "" };`);
+      };
+      const ids = await t.js('const S = window.E2KWorldMap.countries; return S.length;');
+      // Online: live facts, but the flag is the app's own.
+      let c = await find('Japan');
+      t.check('Online: the facts are live (no "saved" note), the flag ships with the app', /Tokyo/.test(c.text) && !c.saved && c.flag.startsWith('games/flags/') && c.flagOk, JSON.stringify(c));
+      // Offline mode.
+      await t.js('window.e2k.net.setOffline(true); E2K.updateNet();');
+      await t.js('E2K.go("home"); E2K.go("world");');
+      await t.waitFor('document.querySelector(".wx-card")', 15000);
+      c = await find('Kenya');
+      t.check('Offline: capital, population, area, languages, and currency', /Nairobi/.test(c.text) && /Population/.test(c.text) && /Area/.test(c.text) && /Swahili|English/.test(c.text) && /shilling/i.test(c.text), c.text);
+      t.check('…its flag', c.flag === `games/flags/${await t.js('return window.E2KWorldMap.countries.find((x) => x.name === "Kenya").id;')}.png` && c.flagOk, c.flag);
+      t.check('…its summary', /Kenya/.test(c.sum) && c.sum.length > 60, c.sum);
+      t.check('…marked as saved with the app, with the month', /^Offline: facts saved with the app \([A-Z][a-z]+ 20\d\d\)\.$/.test(c.saved), c.saved);
+      await t.shot('world-offline-kenya');
+      c = await find('Puerto Rico');
+      t.check('A territory has its flag offline too', c.flag.startsWith('world/flags/') && c.flagOk && /San Juan/.test(c.text), JSON.stringify(c));
+      const all = await t.js(`const F = window.E2KWorldFacts; const M = window.E2KWorldMap.countries;
+        return { facts: M.filter((x) => F.facts[x.id]).length, sums: M.filter((x) => F.summaries[x.title]).length, flags: M.filter((x) => F.facts[x.id]?.flag).length };`);
+      t.check('Every place on the map has saved facts and a summary; nearly all have a flag', all.facts === ids && all.sums === ids && all.flags >= ids - 3, JSON.stringify(all));
+      // A continent's card: area and population.
+      await t.js('[...document.querySelectorAll(".wx-chip")].find((b) => b.textContent === "Africa").click();');
+      t.check('Offline, a continent’s card has its area and population', await t.waitFor('/\\d/.test(document.querySelector(".wx-area")?.textContent || "") && /\\d/.test(document.querySelector(".wx-pop")?.textContent || "")', 10000));
+      // Back online.
+      await t.js('window.e2k.net.setOffline(false); E2K.updateNet();');
+      await t.js('[...document.querySelectorAll(".wx-chip")].find((b) => b.textContent === "All").click();');
+      c = await find('Brazil');
+      t.check('Online again: live facts, no saved note', /Brasília/.test(c.text) && !c.saved, JSON.stringify(c));
+      // Online, but Wikidata can't be reached: the saved facts stand in.
+      await t.js('window.__fetch = window.fetch; window.fetch = (u, ...a) => (/wikidata/.test(String(u)) ? Promise.reject(new TypeError("Failed to fetch")) : window.__fetch(u, ...a));');
+      c = await find('Peru');
+      t.check('If Wikidata can’t be reached: the saved facts, marked as saved', /Lima/.test(c.text) && /saved with the app/.test(c.saved) && c.flagOk, JSON.stringify(c));
+      await t.js('window.fetch = window.__fetch;');
+    },
+  },
+  {
     name: 'starred-activities', group: 'General', title: 'Starred activities: a star on every card and in the location bar inside a game or activity; starred ones come first in Activities, in the order starred, and stay starred after a restart',
     route: 'activities',
     async run(t) {
