@@ -2049,6 +2049,34 @@ module.exports = [
     },
   },
   {
+    name: 'toolbar-refresh', group: 'General', title: 'The toolbar: Browse, Media, Activities, then Random and History as icons; it fits the narrowest window, and the section on screen lights up',
+    route: 'home', size: '980x700',
+    async run(t) {
+      const order = await t.js(`return [...document.querySelectorAll("#toolbar .tbtn, #toolbar .tsep")].map((b) => b.classList.contains("tsep") ? "|" : (b.textContent.trim() || b.getAttribute("aria-label")));`);
+      const want = ['Browse', 'Media', 'Activities', '|', 'Random article', 'History'];
+      const i = order.indexOf('Browse');
+      t.check('Browse · Media · Activities | Random · History', i >= 0 && JSON.stringify(order.slice(i, i + 6)) === JSON.stringify(want), JSON.stringify(order));
+      t.check('Timeline isn’t on the toolbar (it’s on Home and in the Features menu)', !order.includes('Timeline'));
+      t.check('The icon buttons have tooltips with their shortcuts', await t.js('return document.querySelector(".tbtn[data-cmd=myhist]").title === "History (Ctrl+Y)";'));
+      const fit = await t.js(`const tb = document.getElementById("toolbar"), f = document.getElementById("field").getBoundingClientRect();
+        const last = [...tb.querySelectorAll(".tbtn")].filter((b) => b.offsetParent).pop().getBoundingClientRect();
+        const els = [...tb.children].filter((b) => b.offsetParent).map((b) => b.getBoundingClientRect()).filter((r) => r.width);
+        const overlaps = els.slice(1).filter((r, k) => r.left < els[k].right - 1).length;
+        const twoLines = [...tb.querySelectorAll(".tbtn.lbl")].filter((b) => b.offsetParent && b.getBoundingClientRect().height > 30).map((b) => b.textContent);
+        return { inner: innerWidth, overflow: tb.scrollWidth > tb.clientWidth, lastRight: Math.round(last.right), field: Math.round(f.width), twoLines, overlaps };`);
+      t.check('At the narrowest window (980 pixels) everything fits on one line, with room for the Find box', fit.inner <= 990 && !fit.overflow && fit.lastRight <= fit.inner && fit.field >= 150 && !fit.twoLines.length && !fit.overlaps, JSON.stringify(fit));
+      await t.shot('toolbar-980');
+      await t.js('document.querySelector(".tbtn[data-cmd=myhist]").click();');
+      t.check('History opens History, and its button lights up', await t.waitFor('document.querySelector(".myart .band h1")?.textContent === "History" && document.querySelector(".tbtn[data-cmd=myhist]").classList.contains("on")', 5000));
+      await t.js('document.querySelector(".tbtn[data-cmd=activities]").click();');
+      t.check('Activities lights up on its page', await t.waitFor('document.querySelector(".tbtn[data-cmd=activities]").classList.contains("on") && !document.querySelector(".tbtn[data-cmd=myhist]").classList.contains("on")', 5000));
+      await t.js('document.querySelector(".tbtn[data-cmd=explore]").click();');
+      t.check('Browse opens the Browse page, named so in the location bar', await t.waitFor('document.querySelector(".band h1")?.textContent === "Browse the encyclopedia" && document.querySelector("#crumbs .here")?.textContent === "Browse"', 8000));
+      await t.js('document.querySelector(".tbtn[data-cmd=random]").click();');
+      t.check('Random opens a random article, under Browse', await t.waitFor('document.querySelector(".content.article") && /Browse/.test(document.getElementById("crumbs").innerText)', 30000));
+    },
+  },
+  {
     name: 'random-from-home', group: 'Reading', title: 'Random from Home: Home stays whole (no location bar squeezing it) until the article opens',
     route: 'home',
     async run(t) {
@@ -2174,7 +2202,7 @@ module.exports = [
       // At launch focus starts in the search box, which keeps NVDA from reading the whole Home screen aloud.
       t.check('At launch, focus is in the search box', await t.js('return document.activeElement?.id === "q";'), JSON.stringify(await t.focused()));
       // Each section, and the heading it opens on.
-      const places = [['Articles', 'Explore the encyclopedia'], ['Media', 'Picture of the Day'], ['Timeline', 'On this day'], ['World Explorer', 'Countries of the World'],
+      const places = [['Browse', 'Browse the encyclopedia'], ['Media', 'Picture of the Day'], ['Timeline', 'On this day'], ['World Explorer', 'Countries of the World'],
         ['Games', 'Games'], ['Activities', 'Activities']];
       for (const [i, [name, heading]] of places.entries()) {
         if (mac) t.menu(name); else await t.key(String(i + 1), ['control']);

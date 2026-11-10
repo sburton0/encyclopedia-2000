@@ -79,7 +79,7 @@ button { font-family: inherit; cursor: default; }
 .go:active { background: #0c0e12; }
 .tbtn { height: 28px; min-width: 30px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0;
         background: transparent; border: 1px solid transparent; color: #cfd6e2; font-size: 12px; }
-.tbtn.lbl { padding: 0 9px; }
+.tbtn.lbl { padding: 0 9px; white-space: nowrap; flex: none; }
 .tbtn .ic { width: 16px; height: 16px; fill: currentColor; flex: none; }
 .tbtn:hover { background: #232731; border-color: var(--bar-edge); color: #fff; }
 .tbtn:active { background: #0c0e12; border-color: var(--bar-line); box-shadow: inset 0 1px 3px rgba(0, 0, 0, .7); }
@@ -284,6 +284,8 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .tsplit .tmain { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 8px; }
 .tsplit .tarrow { min-width: 18px; width: 18px; margin-left: -1px; font-size: 9px; color: #aab3c5; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: inset 1px 0 0 #3a404c; }
 .tsplit .tarrow:hover { color: #fff; }
+/* In a narrow window My Articles is its icon (its tooltip and spoken name stay), so the Find box keeps its room. */
+@media (max-width: 1119px) { .tsplit .tmain .tl { display: none; } .tsplit .tmain { padding-right: 6px; } }
 .menu.manage { position: fixed; z-index: 60; min-width: 250px; }
 .menu.manage .mh { padding: 5px 10px 3px; font: 600 12px "Segoe UI"; color: #9aa3b6; }
 .fpane .ff { display: flex; align-items: center; gap: 8px; }

@@ -217,7 +217,7 @@
   // A trail is a list of steps: { label, r } links to a route, { label, run } calls a function, { label } is plain text.
   const crumbsEl = $('#crumbs');
   const titleEl = $('.titlebar .tt');
-  const SECTIONS = { explore: 'Articles', gallery: 'Media', onthisday: 'Timeline', world: 'World Explorer', games: 'Games', activities: 'Activities' };
+  const SECTIONS = { explore: 'Browse', gallery: 'Media', onthisday: 'Timeline', world: 'World Explorer', games: 'Games', activities: 'Activities' };
   let crumbs = { trail: [], sub: [], onRoot: null };
 
   function baseTrail(r, from) {
@@ -227,7 +227,7 @@
     if (SECTIONS[name]) return [home, { label: SECTIONS[name], r: name }];
     if (name === 'random') return [home, { label: 'Random article' }];
     if (name === 'search') return [home, { label: 'Search' }, { label: `“${arg}”`, r }];
-    if (name === 'article') return [...(from || [home, { label: 'Articles', r: 'explore' }]), { label: splitSection(arg)[0], r }];
+    if (name === 'article') return [...(from || [home, { label: 'Browse', r: 'explore' }]), { label: splitSection(arg)[0], r }];
     if (name === 'game') return [home, { label: 'Games', r: 'games' }, { label: E2KGames.get(arg)?.name || arg, r }];
     if (name === 'activity') return [home, { label: 'Activities', r: 'activities' }, { label: E2KActivities.get(arg)?.name || arg, r }];
     if (name === 'myarticles') { const v = arg.split('/')[0]; return [home, { label: 'My Articles', r: 'myarticles/favorites' }, { label: { downloaded: 'Downloaded', history: 'History' }[v] || 'Favorites', r: 'myarticles/' + (v || 'favorites') }]; }
@@ -268,8 +268,8 @@
     });
     crumbsEl.replaceChildren(...parts);
     // Light the toolbar button for the section this page belongs to.
-    const section = steps[1]?.r;
-    $$('.tbtn[data-cmd="explore"], .tbtn[data-cmd="gallery"], .tbtn[data-cmd="onthisday"]').forEach((b) => b.classList.toggle('on', b.dataset.cmd === section));
+    const section = steps[1]?.r === 'myarticles/favorites' && steps[2]?.r === 'myarticles/history' ? 'myhist' : steps[1]?.r;
+    $$('.tbtn[data-cmd="explore"], .tbtn[data-cmd="gallery"], .tbtn[data-cmd="activities"], .tbtn[data-cmd="myhist"]').forEach((b) => b.classList.toggle('on', b.dataset.cmd === section));
   }
 
   function setTrail(r) {
@@ -391,9 +391,9 @@
   const MAX_CANVAS = 1.4;
   // The Explore shelf on the home screen, in display order.
   const ORBS = [
-    { id: 'articles', label: 'Articles', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
+    { id: 'articles', label: 'Browse', icon: 'book', bg: '#cdeeff,#2a86d6 55%,#0b3570', run: () => go('explore') },
     { id: 'media', label: 'Media', icon: 'film', bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
-    { id: 'timeline', label: 'Timeline', icon: 'clock', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
+    { id: 'timeline', label: 'Timeline', icon: 'hourglass', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
     { id: 'world', label: 'World Explorer', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => go('world') },
     { id: 'games', label: 'Games', icon: 'gamepad', bg: '#f2dcff,#9a4ad8 55%,#3c0c6a', run: () => go('games') },
     { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => go('activities') },
@@ -1151,7 +1151,7 @@
   // ---------- explore ----------
   async function viewExplore(token) {
     const pg = shell({
-      title: 'Explore the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
+      title: 'Browse the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
       railTitle: 'Browse', wide: true, tools: [bandBtn('Shuffle', () => reload(), 'shuffle')],
     });
     pg.railIn.append(
@@ -1700,7 +1700,7 @@
   const SHORTCUTS = [
     [['Finding', [['Find in this article', 'Ctrl+F'], ['Find an article', 'Ctrl+E'], ['Next match', 'Enter'], ['Previous match', 'Shift+Enter']]],
       ['Moving around', [['Home', 'Ctrl+H'], ['Back', 'Alt+Left'], ['Forward', 'Alt+Right'], ['Top of the article', MAC ? 'Home' : 'Home or Ctrl+Home'], ['Refresh', 'F5']]],
-      ['Going places', [['Articles', 'Ctrl+1'], ['Media', 'Ctrl+2'], ['Timeline', 'Ctrl+3'], ['World Explorer', 'Ctrl+4'], ['Games', 'Ctrl+5'], ['Activities', 'Ctrl+6'],
+      ['Going places', [['Browse', 'Ctrl+1'], ['Media', 'Ctrl+2'], ['Timeline', 'Ctrl+3'], ['World Explorer', 'Ctrl+4'], ['Games', 'Ctrl+5'], ['Activities', 'Ctrl+6'],
         ...(MAC ? [] : [['Menu bar', 'Alt or F10']])]],
       ['Reading', [['Larger text', 'Ctrl+='], ['Smaller text', 'Ctrl+-'], ['Normal text size', 'Ctrl+0'], ['Copy', 'Ctrl+C']]]],
     [['Printing', [['Print Preview', 'Ctrl+P'], ['Print', 'Ctrl+Shift+P']]],
@@ -3565,12 +3565,12 @@
       ['View', [['Larger Text', 'bigger', 'Ctrl+='], ['Smaller Text', 'smaller', 'Ctrl+-'], ['Normal Text Size', 'normal', 'Ctrl+0'], '-',
         ['Refresh', 'reload', 'F5'], '-', ['Mute', 'mute', 'Ctrl+M', E2KAudio.isMuted()]]],
       ['Go', [['Back', 'back', 'Alt+Left', null, nav.idx <= 0], ['Forward', 'fwd', 'Alt+Right', null, nav.idx >= nav.stack.length - 1], ['Home', 'home'], '-',
-        ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random']]],
+        ['Today’s Featured Article', 'featured'], ['On This Day', 'onthisday'], ['Picture of the Day', 'gallery'], ['Random Article', 'random'], '-', ['History', 'myhist', 'Ctrl+Y']]],
       ['Favorites', [['My Articles', 'favpane', 'Ctrl+I', !fpane.hidden], [isFav() ? 'Remove from Favorites' : 'Add to Favorites', 'fav', 'Ctrl+D', null, !current], '-',
         ['Manage', { sub: [['Favorites…', 'myfavs', 'Ctrl+B'], ['Downloaded Articles…', 'mydl'], ['History…', 'myhist', 'Ctrl+Y']] }], '-',
         ...(f.length ? favMenu(f) : [['(No favorites yet)', null, '', null, true]])]],
       // Numbered in the order of Home's Explore shelf.
-      ['Features', [['Articles', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
+      ['Features', [['Browse', 'explore', 'Ctrl+1'], ['Media', 'gallery', 'Ctrl+2'], ['Timeline', 'onthisday', 'Ctrl+3'], ['World Explorer', 'world', 'Ctrl+4'], ['Games', 'games', 'Ctrl+5'], ['Activities', 'activities', 'Ctrl+6']]],
       ['Tools', [['Offline Library…', 'library', 'Ctrl+Shift+L'], ['Offline Mode', 'offline', 'Ctrl+Shift+O', isOffline()], '-', ['Themes…', 'themes'], '-', ['Options…', 'options', 'Ctrl+,']]],
       ['Help', [['Keyboard Shortcuts', 'shortcuts', 'Ctrl+/'], '-', ['What’s New', 'whatsnew'], ['Send Feedback…', 'feedback'], ['Check for Updates…', 'updates'], ['Donate…', 'donate'], '-', ['Privacy Policy', 'privacy'], ['About Encyclopedia 2000', 'about']]],
     ];
