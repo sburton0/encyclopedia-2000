@@ -1,0 +1,149 @@
+/* Passport: flags and capitals (passport.js). A passport and ink stamps over a world map. */
+.pp { position: absolute; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 40%, #1f4f63 0%, #12303f 55%, #0a1a24 100%); }
+.pp-world { position: absolute; inset: 0; width: 100%; height: 100%; }
+.pp-world path { fill: rgba(190,230,240,.06); stroke: rgba(190,230,240,.12); stroke-width: .5; }
+.pp-holder { position: absolute; inset: 0; }
+/* Enlarged with zoom, like Star Chart's canvas. */
+.pp-canvas { position: absolute; left: 50%; top: 50%; width: 1024px; height: 610px; transform: translate(-50%, -50%); zoom: var(--s, 1); color: #fff; font-family: "Segoe UI", sans-serif; }
+.pp-loading { position: absolute; inset: 0; display: grid; place-items: center; font: 15px "Segoe UI"; color: #bcd6e0; }
+.pp .bbtn { font: 600 13px "Segoe UI"; color: #fff; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.55); padding: 6px 12px; cursor: pointer; }
+.pp .bbtn:hover { background: rgba(255,255,255,.16); }
+.pp-title { position: absolute; left: 40px; top: 18px; }
+.pp-title h1 { margin: 0; font: 300 40px/1.1 "Segoe UI"; letter-spacing: -.5px; }
+.pp-title p { margin: 4px 0 0; font: 15px "Segoe UI"; color: #bcd6e0; }
+.pp-btns { position: absolute; right: 40px; top: 30px; display: flex; gap: 8px; }
+
+/* The passport */
+.pp-book { position: absolute; left: 112px; top: 104px; width: 800px; height: 478px; border-radius: 14px; background: linear-gradient(160deg, #7a2232, #4f1320); box-shadow: 0 18px 40px rgba(0,0,0,.55); }
+.pp-page { position: absolute; top: 12px; bottom: 12px; width: 382px; color: #3a2c1c;
+  background: repeating-radial-gradient(circle at 50% 120%, rgba(150,120,70,.07) 0 1px, transparent 1px 9px), linear-gradient(#f7f0de, #efe4c8); }
+.pp-page.l { left: 14px; border-radius: 6px 2px 2px 6px; box-shadow: inset -18px 0 22px -14px rgba(90,60,20,.35); }
+.pp-page.r { right: 14px; border-radius: 2px 6px 6px 2px; box-shadow: inset 18px 0 22px -14px rgba(90,60,20,.35); }
+.pp-page h2 { position: absolute; left: 24px; top: 20px; margin: 0; font: 700 11px "Bahnschrift", "Segoe UI"; letter-spacing: 3px; color: #765a33; text-transform: uppercase; }
+.pp-page .emb { width: 66px; height: 66px; margin: 26px auto 8px; border-radius: 50%; border: 2px solid #8a6d45; display: grid; place-items: center; color: #8a6d45; }
+.pp-page .emb .pp-globe { width: 40px; height: 40px; }
+.pp-page .rank { text-align: center; font: 600 30px "Segoe UI Semibold", "Segoe UI"; color: #6b1f2a; margin: 0; }
+.pp-page .rank-l { text-align: center; font: 700 10px "Bahnschrift", "Segoe UI"; letter-spacing: 3px; color: #765a33; margin: 0 0 14px; text-transform: uppercase; }
+.pp-page .rows { margin: 0 34px; display: grid; grid-template-columns: 1fr auto; }
+.pp-page .rows dt, .pp-page .rows dd { margin: 0; padding: 9px 0 8px; border-bottom: 1px solid rgba(138,109,69,.35); font: 600 14px "Segoe UI"; }
+.pp-page .rows dt { font: 700 10.5px "Bahnschrift", "Segoe UI"; letter-spacing: 2px; color: #765a33; padding-top: 12px; text-transform: uppercase; }
+.pp-page .rows dd { text-align: right; }
+.pp-page .mrz { position: absolute; left: 34px; right: 34px; bottom: 22px; font: 12px Consolas, monospace; letter-spacing: 2.4px; color: rgba(58,44,28,.42); line-height: 1.5; white-space: nowrap; overflow: hidden; }
+.pp-page .slots { position: absolute; left: 22px; right: 22px; top: 46px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pp-slot { position: relative; height: 98px; padding: 0; border: 1.5px dashed rgba(138,109,69,.5); border-radius: 6px; background: transparent; text-align: center; cursor: pointer; color: inherit; font: inherit; }
+.pp-slot:hover, .pp-slot:focus-visible { background: rgba(138,109,69,.1); }
+.pp-slot.done { border-color: transparent; }
+.pp-slot .ghost { position: absolute; inset: 10px 30px 42px; opacity: .16; }
+.pp-slot .ghost svg { width: 100%; height: 100%; }
+.pp-slot .lbl { position: relative; margin-top: 40px; }
+.pp-slot .nm { font: 700 11px "Bahnschrift", "Segoe UI"; letter-spacing: 2px; color: #765a33; text-transform: uppercase; }
+.pp-slot .pr { font: 12.5px "Segoe UI"; color: #5e4c34; margin-top: 2px; }
+.pp-slot .go2 { font-weight: 600; color: #6b1f2a; }
+.pp-slot .bar { width: 90px; height: 5px; margin: 5px auto 0; background: rgba(138,109,69,.25); border-radius: 3px; overflow: hidden; }
+.pp-slot .bar i { display: block; height: 100%; background: #6b1f2a; }
+
+/* An ink stamp */
+.pp-stamp { position: absolute; inset: 6px 8px; border: 3px solid var(--ink); border-radius: 10px; color: var(--ink); transform: rotate(var(--rot, -4deg)); opacity: .88;
+  display: grid; grid-template-columns: 58px 1fr; gap: 6px; align-items: center; padding: 6px 8px; mix-blend-mode: multiply; text-align: left; }
+.pp-stamp::after { content: ''; position: absolute; inset: 3px; border: 1px solid var(--ink); border-radius: 7px; }
+.pp-stamp svg { width: 58px; height: 52px; }
+.pp-stamp b { display: block; font: 800 11.5px "Bahnschrift", "Segoe UI"; letter-spacing: 1.5px; line-height: 1.05; text-transform: uppercase; }
+.pp-stamp small { display: block; font: 700 9px "Bahnschrift", "Segoe UI"; letter-spacing: 1.5px; margin-top: 4px; }
+.pp-slot:nth-child(1) .pp-stamp { --rot: -6deg; } .pp-slot:nth-child(2) .pp-stamp { --rot: 4deg; } .pp-slot:nth-child(3) .pp-stamp { --rot: -3deg; }
+.pp-slot:nth-child(4) .pp-stamp { --rot: 5deg; } .pp-slot:nth-child(5) .pp-stamp { --rot: -5deg; } .pp-slot:nth-child(6) .pp-stamp { --rot: 3deg; }
+
+.pp-tour { position: absolute; left: 22px; right: 22px; bottom: 18px; height: 56px; border-radius: 6px; background: rgba(107,31,42,.07); border: 1px solid rgba(107,31,42,.25);
+  display: flex; align-items: center; gap: 12px; padding: 0 14px; font: 13px/1.35 "Segoe UI"; color: #54422e; text-align: left; cursor: pointer; }
+.pp-tour:hover, .pp-tour:focus-visible { background: rgba(107,31,42,.13); }
+.pp-tour .ic { width: 30px; height: 30px; flex: none; color: #6b1f2a; opacity: .55; }
+.pp-tour.open { background: #6b1f2a; color: #f7f0de; border-color: #6b1f2a; }
+.pp-tour.open .ic { color: #ffc65c; opacity: 1; }
+.pp-tour.open b { color: #ffc65c; }
+.pp-tour b { color: #6b1f2a; font-weight: 600; display: block; font-size: 14px; }
+.pp-tour.done { padding-left: 116px; }
+.pp-tour.done .pp-stamp { inset: 4px auto 4px 8px; width: 96px; grid-template-columns: 30px 1fr; padding: 2px 6px; gap: 4px; --rot: -4deg; }
+.pp-tour.done .pp-stamp svg { width: 28px; height: 28px; }
+.pp-tour.done .pp-stamp b { font-size: 9px; }
+.pp-tour.done .pp-stamp small { font-size: 7px; margin-top: 1px; }
+.pp-globe { color: currentColor; }
+
+/* A question */
+.pp-qhead { position: absolute; left: 40px; right: 40px; top: 20px; display: flex; align-items: center; gap: 14px; }
+.pp-qhead .reg { width: 54px; height: 44px; flex: none; color: #fff; }
+.pp-qhead .reg svg { width: 100%; height: 100%; }
+.pp-qhead small { display: block; font: 700 11px "Bahnschrift", "Segoe UI"; letter-spacing: 3px; color: #ffc65c; }
+.pp-qhead h1 { margin: 0; font: 300 30px/1.2 "Segoe UI"; }
+.pp-qhead .sc { margin-left: auto; text-align: right; white-space: nowrap; }
+.pp-qhead .sc b { font: 300 30px "Segoe UI"; }
+.pp-qhead .sc span { font: 13px "Segoe UI"; color: #bcd6e0; }
+.pp-qhead .sc .streak { display: inline-block; margin-left: 10px; padding: 2px 9px; border-radius: 10px; background: #f0a830; color: #2a1a00; font: 700 12px "Segoe UI"; vertical-align: 6px; }
+.pp-qhead .streak.none { visibility: hidden; }
+.pp-routebox { position: absolute; left: 40px; right: 40px; top: 90px; height: 30px; }
+.pp-route { width: 100%; height: 100%; overflow: visible; }
+.pp-card { position: absolute; left: 70px; top: 150px; width: 430px; padding: 18px; background: #fbf7ee; box-shadow: 0 16px 34px rgba(0,0,0,.5); transform: rotate(-1.5deg); color: #3a2c1c; }
+.pp-card img { display: block; width: 100%; height: 262px; object-fit: contain; background: #e9e3d4; }
+.pp-card .cap { margin-top: 12px; font: 700 11px "Bahnschrift", "Segoe UI"; letter-spacing: 3px; color: #765a33; text-align: center; text-transform: uppercase; }
+.pp-card.map { padding: 14px 18px 18px; }
+.pp-card .mapbox { height: 270px; background: #dfe9ec; display: grid; place-items: center; }
+.pp-card .mapbox svg { width: 92%; height: 92%; }
+.pp-back { position: absolute; left: 70px; bottom: 22px; }
+.pp-ask { position: absolute; left: 548px; right: 40px; top: 150px; }
+.pp-ask .prompt { margin: 0 0 14px; font: 300 25px/1.25 "Segoe UI"; outline: none; }
+.pp-ch { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 9px; padding: 11px 16px; text-align: left; font: 600 17px "Segoe UI"; color: #2c2216;
+  background: #f4ecd8; border: 0; border-left: 6px solid #c9b48a; box-shadow: 0 3px 8px rgba(0,0,0,.35); cursor: pointer; }
+.pp-ch:hover:not(:disabled), .pp-ch:focus-visible { background: #fff8e6; border-left-color: #f0a830; }
+.pp kbd { font: 700 12px "Segoe UI"; color: #765a33; border: 1px solid #c9b48a; border-radius: 3px; padding: 0 6px; background: rgba(255,255,255,.5); }
+.pp-ch .mk { margin-left: auto; font: 700 18px "Segoe UI"; }
+.pp-ch.right { background: #e3f4e4; border-left-color: #2f9e55; color: #1d5a31; }
+.pp-ch.wrong { background: #f8e1df; border-left-color: #c0392b; color: #7a1f16; }
+.pp-ch.dim, .pp-flagch.dim { opacity: .55; }
+.pp-ch:disabled { cursor: default; }
+.pp-ask.flags .chs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pp-flagch { position: relative; height: 112px; padding: 8px; background: #fbf7ee; border: 3px solid transparent; box-shadow: 0 3px 8px rgba(0,0,0,.35); cursor: pointer; }
+.pp-flagch img { width: 100%; height: 100%; object-fit: contain; }
+.pp-flagch kbd { position: absolute; left: 6px; top: 6px; }
+.pp-flagch:hover:not(:disabled), .pp-flagch:focus-visible { border-color: #f0a830; }
+.pp-flagch .mk { position: absolute; right: 6px; top: 4px; font: 700 20px "Segoe UI"; }
+.pp-flagch.right { border-color: #2f9e55; } .pp-flagch.right .mk { color: #2f7d47; }
+.pp-flagch.wrong { border-color: #c0392b; } .pp-flagch.wrong .mk { color: #c0392b; }
+.pp-flagch .fn { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 4px; background: rgba(20,20,20,.72); color: #fff; font: 600 11.5px "Segoe UI"; }
+.pp-feedback { margin-top: 6px; }
+.pp-feedback:empty { display: none; }
+.pp-feedback b { display: block; font: 600 16px "Segoe UI"; margin-bottom: 4px; }
+.pp-feedback b.ok { color: #8fe0a8; }
+.pp-feedback b.no { color: #ffb3a8; }
+.pp-feedback p { margin: 0 0 10px; padding: 9px 12px; background: rgba(255,255,255,.08); border-left: 3px solid #f0a830; font: 14px/1.45 "Segoe UI"; color: #e6f0f3; }
+.pp-feedback .pp-lnk { padding: 0; border: 0; background: none; color: #ffc65c; font: 600 14px "Segoe UI"; cursor: pointer; text-decoration: none; }
+.pp-feedback .pp-lnk:hover { text-decoration: underline; }
+.pp-feedback .go { float: right; }
+.pp-ask.flags .pp-feedback p { margin-top: 10px; }
+
+/* A stamp earned, or a trip over */
+.pp-scrim { position: absolute; inset: -400px; background: rgba(5,14,20,.72); }
+.pp-award { position: absolute; left: 262px; top: 60px; width: 500px; min-height: 470px; padding-bottom: 22px; background: linear-gradient(#f7f0de, #efe4c8); border-radius: 6px;
+  box-shadow: 0 24px 60px rgba(0,0,0,.6); text-align: center; color: #3a2c1c; }
+.pp-award .big { position: relative; width: 300px; height: 190px; margin: 34px auto 18px; }
+.pp-award .big .pp-stamp { inset: 0; grid-template-columns: 130px 1fr; gap: 10px; padding: 10px 16px; --rot: -7deg; border-width: 4px; animation: ppstamp .55s cubic-bezier(.3, 1.6, .5, 1) both; }
+.pp-award .big .pp-stamp svg { width: 124px; height: 110px; }
+.pp-award .big .pp-stamp b { font-size: 24px; }
+.pp-award .big .pp-stamp small { font-size: 12px; color: var(--ink); letter-spacing: 1.5px; }
+.pp-award .big.none { display: grid; place-items: center; color: #8a6d45; }
+.pp-award .big.none .pl { width: 110px; height: 110px; opacity: .5; transform: rotate(60deg); }
+@keyframes ppstamp { from { transform: scale(2.2) rotate(-16deg); opacity: 0; } 60% { opacity: .9; } to { transform: scale(1) rotate(-7deg); } }
+.pp-award small { font: 700 12px "Bahnschrift", "Segoe UI"; letter-spacing: 3px; color: #765a33; }
+.pp-award h2 { margin: 4px 0 10px; font: 600 26px "Segoe UI Semibold", "Segoe UI"; color: #6b1f2a; }
+.pp-award p { margin: 0 40px 8px; font: 15px/1.45 "Segoe UI"; color: #54422e; }
+.pp-award .pts { font: 600 15px "Segoe UI"; color: #2f7d47; }
+.pp-award .ab { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.pp-award .ab button { font: 600 14px "Segoe UI"; padding: 8px 18px; border: 0; cursor: pointer; }
+.pp-award .ab .p { background: #6b1f2a; color: #fff; }
+.pp-award .ab .s { background: transparent; color: #6b1f2a; border: 1px solid #6b1f2a; }
+@media (prefers-reduced-motion: reduce) { .pp-award .big .pp-stamp { animation: none; } }
+.no-anim .pp-award .big .pp-stamp { animation: none; }
+
+/* The card in Activities */
+.pp-art { width: 100%; height: 100%; display: grid; place-items: center; background: radial-gradient(ellipse at 50% 40%, #1f4f63, #0a1a24); }
+.pp-art .pg { position: relative; width: 62%; height: 74%; border-radius: 4px; background: linear-gradient(#f7f0de, #efe4c8); box-shadow: 0 0 0 6px #6b1f2a, 0 10px 24px rgba(0,0,0,.5); }
+.pp-art .st { position: absolute; padding: 6px 9px; border: 2.5px solid var(--ink); border-radius: 6px; color: var(--ink); font: 800 12px "Bahnschrift", "Segoe UI"; letter-spacing: 1.5px;
+  font-style: normal; transform: rotate(var(--rot)); opacity: .85; white-space: nowrap; }
+.pp-art .st.round { border-radius: 50%; padding: 14px 8px; font-size: 10px; }

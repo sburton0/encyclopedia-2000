@@ -46,7 +46,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
 - **Volume** button at the right end of the toolbar: one setting for the startup sound, clicks, game sounds, and Read Aloud, with a mute button (also **View → Mute** or Ctrl+M). Scroll over the button to adjust it.
 - **Print Preview** (the toolbar's Print button, File → Print Preview, or Ctrl+P): see the printed pages, choose paper size, orientation, and whether to include pictures, then print or save as PDF. File → Print… (Ctrl+Shift+P) goes straight to the print dialog.
 - **Favorites** in a pane that opens over any screen (Ctrl+I), a **location bar** showing where you are, **Read Aloud** (using your computer's text-to-speech voices, or a Wikipedia volunteer's recorded narration when the article has one), text size, Back and Forward (also Alt+Left and Alt+Right, or mouse side buttons).
-- **Games**: the first section of Activities, with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved.
+- **Games**: the first section of Activities, with **Star Chart**, a trivia game. Light the stars of six topic constellations (History, Science, Geography, Nature, Arts, People) by answering questions generated live from Wikipedia, earn a medallion for each, then take on the Pole Star. Progress is saved. And **Passport**, flags and capitals of the world: a trip to each continent is eight questions (whose flag, which flag, which capital, whose capital), six right earns its stamp, and all six stamps open the World Tour. Works offline.
 - **World Explorer**: a clickable map of 237 countries and territories, with region filters, search, and Random Country. Each country's card shows its flag, capital, population, area, languages, currency, and government, live from Wikidata. Choosing a region shows its area, population, and a clickable list of its countries.
 - **Activities**:
   - **Periodic Table**: all 118 elements, colored by family, with a details card for each.
@@ -85,6 +85,8 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 
 The World Explorer map lives in `src/world/map-data.js`, generated from Natural Earth country shapes (public domain) and Wikidata (CC0). Run `npm run map` to rebuild it; it needs an internet connection.
 
+Passport's capitals (`src/games/passport-data.js`, from Wikidata, CC0) and flag pictures (`src/games/flags/`, 320-pixel PNGs from Wikimedia Commons, public domain or freely licensed) ship with the app so it works offline. Run `npm run passport` to rebuild them; it needs an internet connection and keeps pictures already downloaded.
+
 ## Project layout
 
 | Path | Purpose |
@@ -106,6 +108,7 @@ The World Explorer map lives in `src/world/map-data.js`, generated from Natural 
 | `src/trivia.js` | Question engine shared by all games: topics, subject lists, question types |
 | `src/games/registry.js` | Where games register themselves |
 | `src/games/starchart.js`, `src/games/games.css` | The Star Chart game and the games styles |
+| `src/games/passport.js`, `src/games/passport.css`, `src/games/passport-data.js`, `src/games/flags/` | Passport, the flag and capitals game, and its data |
 
 ## Adding a game
 

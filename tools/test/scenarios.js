@@ -458,6 +458,71 @@ module.exports = [
     },
   },
   {
+    name: 'passport', group: 'General', title: 'Passport (flags and capitals): a trip of 8 answered from the keyboard earns a stamp; a bad trip doesn’t; progress is kept; it’s in Activities; its pictures are on this computer',
+    route: 'activities',
+    async run(t) {
+      await t.waitFor('document.querySelector(".act-group[data-cat=Games]")', 10000);
+      t.check('Passport is in Activities’ Games, beside Star Chart', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Games] .gcard b")].map((b) => b.textContent).join() === "Star Chart,Passport";'));
+      await t.js('[...document.querySelectorAll(".act-group[data-cat=Games] .gcard")].find((c) => /Passport/.test(c.textContent)).click();');
+      t.check('It opens on the passport: rank, six stamp spaces, the World Tour closed', await t.waitFor('document.querySelectorAll(".pp-slot").length === 6 && document.querySelector(".pp-page .rank")?.textContent === "Tourist" && !document.querySelector(".pp-tour.open")', 15000));
+      t.check('The location bar says Passport', /Passport/.test(await t.js('return document.getElementById("crumbs").innerText;')));
+      let bad = await t.axe();
+      t.check('The passport: no serious accessibility problems', !bad.length, bad.join('; '));
+      // Europe, all right, by the number keys.
+      const answer = (region) => `const t = JSON.parse(localStorage.getItem("e2k.passport")).trips[${JSON.stringify(region)}]; return t ? t.qs[t.i].answer : -1;`;
+      await t.js('[...document.querySelectorAll(".pp-slot")].find((b) => /Europe/.test(b.getAttribute("aria-label"))).click();');
+      await t.waitFor('document.querySelector(".pp-ask .prompt")', 5000);
+      t.check('A trip starts with focus on the question', await t.js('return document.activeElement?.classList.contains("prompt");'));
+      const kinds = new Set();
+      for (let i = 0; i < 8; i++) {
+        await t.waitFor('document.querySelector(".pp-ask .prompt") && !document.querySelector(".pp-ch:disabled, .pp-flagch:disabled")', 5000);
+        kinds.add(await t.js('return document.querySelector(".pp-flagch") ? "flags" : document.querySelector(".pp-card img") ? "flag" : "map";'));
+        if (i === 2) { bad = await t.axe(); t.check('A question: no serious accessibility problems', !bad.length, bad.join('; ')); }
+        const a = await t.js(answer('Europe'));
+        await t.js(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "${a + 1}", bubbles: true }));`);
+        await t.waitFor('document.querySelector(".pp-feedback .go")', 3000);
+        if (i === 3) await t.shot('passport-answered');
+        await t.js('document.querySelector(".pp-feedback .go").click();');
+      }
+      t.check('The trip mixes kinds of question', kinds.size >= 2, [...kinds].join());
+      t.check('8 of 8 earns Europe’s stamp', await t.waitFor('document.querySelector(".pp-award") && /Stamped!/.test(document.querySelector(".pp-award").innerText) && /8 of 8 right/.test(document.querySelector(".pp-award").innerText)', 5000),
+        await t.js('return document.querySelector(".pp-award")?.innerText || "";'));
+      await t.sleep(800);
+      await t.shot('passport-stamped');
+      await t.js('document.querySelector(".pp-award .ab .p").click();');
+      t.check('The stamp is in the passport, and the rank is Traveler', await t.waitFor('document.querySelector(".pp-slot.done .pp-stamp") && document.querySelector(".pp-page .rank")?.textContent === "Traveler"', 3000));
+      // Asia, all wrong.
+      await t.js('[...document.querySelectorAll(".pp-slot")].find((b) => /Asia/.test(b.getAttribute("aria-label"))).click();');
+      for (let i = 0; i < 8; i++) {
+        await t.waitFor('document.querySelector(".pp-ask .prompt") && !document.querySelector(".pp-ch:disabled, .pp-flagch:disabled")', 5000);
+        const a = await t.js(answer('Asia'));
+        await t.js(`document.querySelectorAll(".pp-ch, .pp-flagch")[${(a + 1) % 4}].click();`);
+        await t.waitFor('document.querySelector(".pp-feedback .go")', 3000);
+        if (i === 0) t.check('A wrong answer is marked, with the right one shown', await t.js('return !!document.querySelector(".pp-ch.wrong, .pp-flagch.wrong") && !!document.querySelector(".pp-ch.right, .pp-flagch.right") && /Not quite/.test(document.querySelector(".pp-feedback").innerText);'));
+        await t.js('document.querySelector(".pp-feedback .go").click();');
+      }
+      t.check('0 of 8: the trip is over without a stamp', await t.waitFor('/Trip over/.test(document.querySelector(".pp-award")?.innerText || "")', 5000));
+      await t.js('document.querySelector(".pp-award .ab .p").click();');
+      // Halfway through a trip, then away and back: it continues.
+      await t.js('[...document.querySelectorAll(".pp-slot")].find((b) => /Africa/.test(b.getAttribute("aria-label"))).click();');
+      for (let i = 0; i < 3; i++) {
+        await t.waitFor('document.querySelector(".pp-ask .prompt") && !document.querySelector(".pp-ch:disabled, .pp-flagch:disabled")', 5000);
+        await t.js(`document.querySelectorAll(".pp-ch, .pp-flagch")[0].click();`);
+        await t.waitFor('document.querySelector(".pp-feedback .go")', 3000);
+        await t.js('document.querySelector(".pp-feedback .go").click();');
+      }
+      t.check('Every picture comes from the app itself, not the internet', await t.js('return [...document.querySelectorAll(".pp-canvas img")].every((i) => i.src.startsWith("file:") || !/^https?:/.test(i.src));'));
+      t.win.webContents.reload();
+      await t.waitFor('window.E2K && document.querySelector("#view")', 15000);
+      await t.js('E2K.go("game/passport");');
+      await t.waitFor('document.querySelector(".pp-book")', 15000);
+      const after = await t.js('return { africa: [...document.querySelectorAll(".pp-slot")].find((b) => /Africa/.test(b.getAttribute("aria-label")))?.getAttribute("aria-label"), stamps: document.querySelectorAll(".pp-slot.done").length };');
+      t.check('After a restart the stamp is kept, and Africa continues at question 4', after.stamps === 1 && /3 of 8 questions, continue/.test(after.africa || ''), JSON.stringify(after));
+      await t.js('E2K.go("activities");');
+      t.check('Its card in Activities shows the progress', await t.waitFor('[...document.querySelectorAll(".gcard")].some((c) => /Passport/.test(c.textContent) && /1 of 6 stamps/.test(c.textContent))', 5000));
+    },
+  },
+  {
     name: 'print-preview', group: 'General', title: 'Print Preview opens',
     route: 'article/Mount%20Everest',
     async run(t) {
