@@ -300,7 +300,7 @@
   E2KActivities.register({
     id: 'animal-sounds',
     name: 'Animal Sounds',
-    category: 'Nature',
+    category: 'Science',
     blurb: 'Hear the calls of the wild, from whale songs to crickets, then guess who’s calling in a 10-sound round. Works offline.',
     art, mount,
   });

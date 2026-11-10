@@ -419,7 +419,7 @@ module.exports = [
       await t.waitFor('document.querySelector(".act-group")', 10000);
       const info = await t.js(`const g = [...document.querySelectorAll(".act-group")];
         return { first: g[0]?.dataset.cat, head: g[0]?.querySelector("h3")?.innerText, cards: g[0]?.querySelectorAll(".gcard").length, play: g[0]?.querySelector(".gplay")?.textContent,
-          chips: [...document.querySelectorAll(".band .wx-chip")].map((c) => c.textContent), rail: [...document.querySelectorAll(".page .rail h4")].map((x) => x.textContent).filter((x) => x !== "Activities")[0],
+          chips: [...document.querySelectorAll(".band .wx-chip")].map((c) => c.textContent), rail: document.querySelector(".page .rail h4")?.textContent,
           desc: document.querySelector(".band .desc")?.textContent };`);
       t.check('Games come first on the Activities page, with Play ›', info.first === 'Games' && info.cards >= 1 && info.play === 'Play ›' && /\d+ games?/.test(info.head), JSON.stringify(info));
       t.check('Games has a button in the header and leads the rail', info.chips[1] === 'Games' && info.rail === 'Games', JSON.stringify(info));
@@ -550,12 +550,81 @@ module.exports = [
     },
   },
   {
-    name: 'animal-sounds', group: 'General', title: 'Animal Sounds: it’s in Activities’ Nature; habitats switch; a sound plays with its waveform, line, and credits; a round of Who’s Calling? from the keyboard; every sound and picture is on this computer',
+    name: 'starred-activities', group: 'General', title: 'Starred activities: a star on every card and in the location bar inside a game or activity; starred ones come first in Activities, in the order starred, and stay starred after a restart',
     route: 'activities',
     async run(t) {
-      await t.waitFor('document.querySelector(".act-group[data-cat=Nature]")', 10000);
-      t.check('Animal Sounds is in Activities under Nature', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Nature] .gcard b")].some((b) => b.textContent === "Animal Sounds");'));
-      await t.js('[...document.querySelectorAll(".act-group[data-cat=Nature] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
+      await t.waitFor('document.querySelector(".act-group")', 10000);
+      const page = () => t.js(`return { groups: [...document.querySelectorAll(".act-group")].map((s) => s.dataset.cat),
+        starred: [...document.querySelectorAll(".act-group[data-cat=Starred] .gcard b")].map((b) => b.textContent),
+        chips: [...document.querySelectorAll(".band .wx-chip")].map((c) => c.textContent),
+        rail: [...document.querySelectorAll(".page .rail h4")].map((x) => x.textContent) };`);
+      let p = await page();
+      t.check('Nothing starred: no Starred row, button, or rail heading', !p.groups.includes('Starred') && !p.chips.some((c) => /Starred/.test(c)) && !p.rail.some((r) => /Starred/.test(r)), JSON.stringify(p));
+      t.check('The rail has no title of its own, just the sections (Games first)', p.rail[0] === 'Games', JSON.stringify(p.rail));
+      t.check('Every card has a star, unstarred', await t.js('const w = document.querySelectorAll(".gwrap"); return w.length >= 9 && [...w].every((x) => x.querySelector(".gstar")?.textContent === "☆" && x.querySelector(".gstar").getAttribute("aria-pressed") === "false");'));
+      t.check('Animal Sounds is under Science', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Science] .gcard b")].some((b) => b.textContent === "Animal Sounds") && !document.querySelector(".act-group[data-cat=Nature]");'));
+      // Star Animal Sounds, then Passport, from their cards.
+      const star = (name) => t.js(`[...document.querySelectorAll(".act-group:not(.starred) .gwrap")].find((w) => w.querySelector(".gcard b").textContent === ${JSON.stringify(name)}).querySelector(".gstar").click();`);
+      await star('Animal Sounds');
+      await star('Passport');
+      p = await page();
+      t.check('Starred comes first, in the order starred', p.groups[0] === 'Starred' && p.starred.join() === 'Animal Sounds,Passport', JSON.stringify(p));
+      t.check('…with a ★ Starred button and rail heading', p.chips[1] === '★ Starred' && p.rail[0] === '★ Starred', JSON.stringify(p));
+      t.check('The star stays focused after a click, and is marked', await t.js('const b = document.activeElement; return b?.classList.contains("gstar") && b.textContent === "★" && b.getAttribute("aria-pressed") === "true" && !b.closest(".starred") && /Passport/.test(b.getAttribute("aria-label"));'));
+      t.check('Clicking a star doesn’t open the activity', await t.js('return !!document.querySelector(".act-group");'));
+      await t.js('[...document.querySelectorAll(".band .wx-chip")].find((c) => c.textContent === "★ Starred").click();');
+      t.check('The Starred button shows only the starred', await t.js('return [...document.querySelectorAll(".act-group")].filter((s) => !s.hidden).map((s) => s.dataset.cat).join() === "Starred";'));
+      await t.js('[...document.querySelectorAll(".band .wx-chip")].find((c) => c.textContent === "All").click();');
+      let bad = await t.axe();
+      t.check('Activities with stars: no serious accessibility problems', !bad.length, bad.join('; '));
+      await t.sleep(800);
+      await t.shot('activities-starred');
+      // Inside The Solar System: star it from the location bar.
+      await t.js('E2K.go("activity/solar-system");');
+      await t.waitFor('document.querySelector("#crumbs .cstar")', 10000);
+      t.check('Inside an activity, the location bar has ☆ Star', await t.js('const b = document.querySelector("#crumbs .cstar"); return b.textContent === "☆Star" && b.getAttribute("aria-pressed") === "false";'));
+      await t.js('document.querySelector("#crumbs .cstar").click();');
+      t.check('Clicking it stars the activity: ★ Starred', await t.js('const b = document.querySelector("#crumbs .cstar"); return b.textContent === "★Starred" && b.getAttribute("aria-pressed") === "true";'));
+      bad = await t.axe();
+      t.check('The location bar’s star: no serious accessibility problems', !bad.length, bad.join('; '));
+      await t.waitFor('document.querySelector(".ss-svg .ss-body")', 5000);
+      await t.sleep(1200);
+      await t.shot('location-bar-starred');
+      // Inside Passport (a game), it's starred already; unstar it there.
+      await t.js('E2K.go("game/passport");');
+      await t.waitFor('document.querySelector("#crumbs .cstar")', 10000);
+      t.check('A starred game shows ★ Starred', await t.js('return document.querySelector("#crumbs .cstar").textContent === "★Starred";'));
+      await t.js('document.querySelector("#crumbs .cstar").click();');
+      // World Explorer has a card, so it gets a star too; pages that aren't games or activities don't.
+      await t.js('E2K.go("world");');
+      t.check('World Explorer has the star', await t.waitFor('document.querySelector("#crumbs .cstar")', 10000));
+      await t.js('E2K.go("article/Moon");');
+      await t.waitFor('document.querySelector(".content.article")', 15000);
+      t.check('An article has no star in the location bar', await t.js('return !document.querySelector("#crumbs .cstar");'));
+      // Restart: the stars are kept.
+      t.win.webContents.reload();
+      await t.waitFor('window.E2K && document.querySelector("#view")', 15000);
+      await t.js('E2K.go("activities");');
+      await t.waitFor('document.querySelector(".act-group")', 10000);
+      p = await page();
+      t.check('After a restart: Animal Sounds, then The Solar System (Passport unstarred)', p.starred.join() === 'Animal Sounds,The Solar System', JSON.stringify(p.starred));
+      // Unstar both from the Starred row: the row goes away.
+      for (let i = 0; i < 2; i++) await t.js('document.querySelector(".act-group.starred .gstar").click();');
+      p = await page();
+      t.check('Unstarring everything removes the Starred row', !p.groups.includes('Starred') && !p.chips.some((c) => /Starred/.test(c)), JSON.stringify(p));
+      // Browse has no rail title either.
+      await t.js('E2K.go("explore");');
+      await t.waitFor('document.querySelector(".page .rail .lnk")', 10000);
+      t.check('Browse’s rail starts with its links, no title', await t.js('return document.querySelector(".page .rail .in").firstElementChild.classList.contains("lnk");'));
+    },
+  },
+  {
+    name: 'animal-sounds', group: 'General', title: 'Animal Sounds: it’s in Activities’ Science; habitats switch; a sound plays with its waveform, line, and credits; a round of Who’s Calling? from the keyboard; every sound and picture is on this computer',
+    route: 'activities',
+    async run(t) {
+      await t.waitFor('document.querySelector(".act-group[data-cat=Science]")', 10000);
+      t.check('Animal Sounds is in Activities under Science', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Science] .gcard b")].some((b) => b.textContent === "Animal Sounds");'));
+      await t.js('[...document.querySelectorAll(".act-group[data-cat=Science] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
       t.check('It opens on Listen: seven habitats, Oceans first, with its animals', await t.waitFor('document.querySelectorAll(".as-hab button").length === 7 && document.querySelector(".as-hab button.on")?.textContent.startsWith("Oceans") && document.querySelectorAll(".as-grid .as-card").length === 5', 15000));
       t.check('The location bar says Animal Sounds', /Animal Sounds/.test(await t.js('return document.getElementById("crumbs").innerText;')));
       const D = await t.js('const D = window.E2KAnimalData; return { n: D.animals.length, credited: D.animals.every((a) => a.credit.artist && a.credit.license && a.line && a.article), licenses: [...new Set(D.animals.flatMap((a) => [a.credit.license, a.credit.picLicense]).filter(Boolean))] };');
@@ -623,8 +692,8 @@ module.exports = [
       await t.js('document.querySelector(".as-btns .hot").click();');
       await t.waitFor('document.querySelector(".as-ch")', 3000);
       await t.js('E2K.go("activities");');
-      await t.waitFor('document.querySelector(".act-group[data-cat=Nature]")', 5000);
-      await t.js('[...document.querySelectorAll(".act-group[data-cat=Nature] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
+      await t.waitFor('document.querySelector(".act-group[data-cat=Science]")', 5000);
+      await t.js('[...document.querySelectorAll(".act-group[data-cat=Science] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
       t.check('Opened again from Activities, it starts on Listen', await t.waitFor('document.querySelector(".as-hab") && !document.querySelector(".as-ch")', 5000));
       // Leaving stops the sound.
       await t.js('document.querySelectorAll(".as-grid .as-card")[0].click();');

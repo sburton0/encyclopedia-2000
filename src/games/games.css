@@ -1,5 +1,13 @@
 /* ---------- Games page ---------- */
 .gcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 18px; max-width: 1000px; }
+/* A card and its star: the star sits over the card's picture (a button can't hold another button). */
+.gwrap { position: relative; display: flex; }
+.gwrap > .gcard { flex: 1; min-width: 0; }
+.gstar { position: absolute; right: 8px; top: 8px; width: 32px; height: 32px; display: grid; place-items: center; padding: 0 0 2px; border-radius: 50%;
+         font: 19px/1 "Segoe UI Symbol", "Segoe UI", sans-serif; color: #fff; background: rgba(10, 16, 30, .55); border: 1px solid rgba(255, 255, 255, .45); }
+.gstar:hover { background: rgba(10, 16, 30, .8); border-color: #ffc23d; color: #ffc23d; }
+.gstar.on { color: #ffc23d; border-color: #ffc23d; background: rgba(10, 16, 30, .7); text-shadow: 0 0 6px rgba(255, 194, 61, .6); }
+.gstar:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 .gcard { display: flex; flex-direction: column; padding: 0; text-align: left; background: #fff; border: 1px solid #c9d3ea;
          box-shadow: 0 1px 3px rgba(0, 0, 0, .08); transition: transform .12s, border-color .12s; }
 .gcard:hover { transform: translateY(-2px); border-color: var(--orange); }

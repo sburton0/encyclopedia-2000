@@ -194,6 +194,12 @@ button { font-family: inherit; cursor: default; }
 .crumbs .lbl { flex: none; margin-right: 10px; font: 600 10px "Segoe UI"; letter-spacing: 2px; color: #5d6474; }
 .crumbs img { flex: none; width: 14px; height: 14px; margin-right: 6px; }
 .crumbs a, .crumbs .step, .crumbs .here { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding: 2px 4px; border: 1px solid transparent; }
+/* Inside a game or activity: its Star button, at the right end. */
+.crumbs .cstar { margin-left: auto; flex: none; display: flex; align-items: center; gap: 5px; height: 19px; padding: 0 8px; font: 12px "Segoe UI"; color: #cfd6e2;
+                 background: transparent; border: 1px solid #3a4050; }
+.crumbs .cstar i { font-style: normal; font-size: 13px; color: #ffc23d; }
+.crumbs .cstar:hover { color: #ffd27a; border-color: #8a6a20; background: #1b1f28; }
+.crumbs .cstar.on { color: #ffd27a; border-color: #8a6a20; background: #2a2414; }
 .crumbs a { flex: 0 1 auto; color: #cfd6e2; text-decoration: none; }
 .crumbs a:hover { color: #ffd27a; border-color: #3a4050; background: #1b1f28; }
 .crumbs .step { flex: 0 1 auto; color: #cfd6e2; }

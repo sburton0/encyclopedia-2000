@@ -266,6 +266,15 @@
       parts.push(act ? h('a', { href: '#', title: s.label, onclick: (e) => { e.preventDefault(); act(); } }, s.label) : h('span', { class: 'step' }, s.label),
         h('span', { class: 'sep' }, '›'));
     });
+    // Inside a game or activity: its Star button at the right end.
+    const r = nav.stack[nav.idx] || '';
+    const target = r !== 'activities' && starTarget(r);
+    if (target) {
+      const on = isStarred(r);
+      parts.push(h('button', { class: 'cstar' + (on ? ' on' : ''), 'aria-pressed': String(on), 'aria-label': `Star ${target.name}`,
+        title: on ? `Unstar ${target.name} (it’s listed first in Activities)` : `Star ${target.name}, to list it first in Activities`,
+        onclick: () => setStar(r, !on) }, h('i', { 'aria-hidden': 'true' }, on ? '★' : '☆'), on ? 'Starred' : 'Star'));
+    }
     crumbsEl.replaceChildren(...parts);
     // Light the toolbar button for the section this page belongs to.
     const section = steps[1]?.r === 'myarticles/favorites' && steps[2]?.r === 'myarticles/history' ? 'myhist' : steps[1]?.r;
@@ -1154,7 +1163,7 @@
   async function viewExplore(token) {
     const pg = shell({
       title: 'Browse the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
-      railTitle: 'Browse', wide: true, tools: [bandBtn('Shuffle', () => reload(), 'shuffle')],
+      wide: true, tools: [bandBtn('Shuffle', () => reload(), 'shuffle')],
     });
     pg.railIn.append(
       railLink('Today’s featured article', () => runCmd('featured')),
@@ -1441,37 +1450,89 @@
     setIdle(game.name);
   }
 
+  // ---------- starred activities ----------
+  // Games and activities can be starred (on their cards, or with the location bar's Star button inside them); starred
+  // ones are listed first on the Activities page, in the order they were starred. Kept by route ("game/passport",
+  // "activity/animal-sounds", "world").
+  const starred = () => store.get('starred', []).filter((r) => starTarget(r));
+  function starTarget(r) {
+    const [kind, id] = r.split('/');
+    if (kind === 'game') return E2KGames.get(id) || null;
+    if (kind === 'activity') return E2KActivities.get(id) || null;
+    return E2KActivities.list.find((a) => a.route === r) || null;
+  }
+  const routeOf = (a) => (a.game ? route('game', a.id) : a.route || route('activity', a.id));
+  const isStarred = (r) => store.get('starred', []).includes(r);
+  function setStar(r, on) {
+    const list = store.get('starred', []).filter((x) => x !== r);
+    if (on) list.push(r);
+    store.set('starred', list);
+    const name = starTarget(r)?.name || '';
+    setIdle(on ? `Starred ${name}` : `Unstarred ${name}`);
+    announce(on ? `${name} starred` : `${name} unstarred`);
+    drawCrumbs();
+  }
+
   // ---------- activities ----------
   let activityFilter = 'All';
   function viewActivities(token) {
-    const pg = shell({ title: 'Activities', desc: 'Games, interactive tools, and explorations', railTitle: 'Activities', wide: true });
-    // Games first, then the activities grouped by subject (see E2KActivities.categories); activities without a
-    // category go in "More".
-    const groups = [['Games', E2KGames.list.map((g) => ({ ...g, game: true }))], ...[...E2KActivities.categories, 'More']
-      .map((cat) => [cat, E2KActivities.list.filter((a) => (E2KActivities.categories.includes(a.category) ? a.category : 'More') === cat)])]
-      .filter(([, items]) => items.length);
-    const open = (a) => go(a.game ? route('game', a.id) : a.route || route('activity', a.id));
-    const card = (a) => h('button', { class: 'gcard', onclick: () => open(a) },
-      h('div', { class: 'gart' }, a.art ? a.art(E2K) : null),
-      h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' },
-        h('span', { class: 'gprog' }, a.game && a.progress ? a.progress(E2K) : ''), h('span', { class: 'gplay' }, a.game ? 'Play ›' : 'Open ›'))));
+    const pg = shell({ title: 'Activities', desc: 'Games, interactive tools, and explorations', wide: true });
+    const open = (a) => go(routeOf(a));
+    const card = (a) => {
+      const r = routeOf(a);
+      const on = isStarred(r);
+      return h('div', { class: 'gwrap' },
+        h('button', { class: 'gcard', onclick: () => open(a) },
+          h('div', { class: 'gart' }, a.art ? a.art(E2K) : null),
+          h('div', { class: 'gb' }, h('b', {}, a.name), h('p', {}, a.blurb), h('div', { class: 'gfoot' },
+            h('span', { class: 'gprog' }, a.game && a.progress ? a.progress(E2K) : ''), h('span', { class: 'gplay' }, a.game ? 'Play ›' : 'Open ›')))),
+        h('button', { class: 'gstar' + (on ? ' on' : ''), 'data-r': r, 'aria-pressed': String(on), 'aria-label': `Star ${a.name}`, title: on ? 'Unstar' : 'Star',
+          onclick: (e) => { const y = e.currentTarget.getBoundingClientRect().top; setStar(r, !on); draw(r, y); } }, on ? '★' : '☆'));
+    };
     const count = (cat, n) => (cat === 'Games' ? `${n} ${n === 1 ? 'game' : 'games'}` : `${n} ${n === 1 ? 'activity' : 'activities'}`);
-    const sections = groups.map(([cat, items], i) => {
-      pg.railIn.append(...(i ? [h('hr')] : []), h('h4', {}, cat), ...items.map((a) => railLink(a.name, () => open(a), 'sub')));
-      const sec = h('section', { class: 'act-group', 'data-cat': cat }, h('h3', { 'aria-level': 2 }, cat, h('span', {}, count(cat, items.length))),
-        h('div', { class: 'gcards' }, items.map(card)));
-      pg.text.append(sec);
-      return sec;
-    });
-    // Subject buttons in the header, styled like World Explorer's region buttons. The choice is kept for the session.
-    const chips = ['All', ...groups.map(([cat]) => cat)].map((cat) => h('button', { class: 'wx-chip', onclick: () => filter(cat) }, cat));
+    let sections = [], chips = [];
     function filter(cat) {
       activityFilter = cat;
-      chips.forEach((c) => c.classList.toggle('on', c.textContent === cat));
+      chips.forEach((c) => c.classList.toggle('on', c.dataset.cat === cat));
       sections.forEach((sec) => { sec.hidden = cat !== 'All' && sec.dataset.cat !== cat; });
     }
-    pg.toolsEl.append(...chips);
-    filter(groups.some(([cat]) => cat === activityFilter) ? activityFilter : 'All');
+    // Starred first, then Games, then the activities grouped by subject (see E2KActivities.categories); activities
+    // without a category go in "More". Drawn again when a star changes (focus goes back to that star).
+    function draw(focusStar, keepY) {
+      const games = E2KGames.list.map((g) => ({ ...g, game: true }));
+      const all = [...games, ...E2KActivities.list];
+      const stars = starred().map((r) => all.find((a) => routeOf(a) === r)).filter(Boolean);
+      const groups = [['Starred', stars], ['Games', games], ...[...E2KActivities.categories, 'More']
+        .map((cat) => [cat, E2KActivities.list.filter((a) => (E2KActivities.categories.includes(a.category) ? a.category : 'More') === cat)])]
+        .filter(([, items]) => items.length);
+      const label = (cat) => (cat === 'Starred' ? '★ Starred' : cat);
+      pg.railIn.replaceChildren();
+      pg.text.replaceChildren();
+      sections = groups.map(([cat, items], i) => {
+        pg.railIn.append(...(i ? [h('hr')] : []), h('h4', {}, label(cat)), ...items.map((a) => railLink(a.name, () => open(a), 'sub')));
+        const sec = h('section', { class: 'act-group' + (cat === 'Starred' ? ' starred' : ''), 'data-cat': cat },
+          h('h3', { 'aria-level': 2 }, label(cat), h('span', {}, count(cat, items.length))),
+          h('div', { class: 'gcards' }, items.map(card)));
+        pg.text.append(sec);
+        return sec;
+      });
+      // Subject buttons in the header, styled like World Explorer's region buttons. The choice is kept for the session.
+      chips = ['All', ...groups.map(([cat]) => cat)].map((cat) => h('button', { class: 'wx-chip', 'data-cat': cat, onclick: () => filter(cat) }, label(cat)));
+      pg.toolsEl.replaceChildren(...chips);
+      filter(groups.some(([cat]) => cat === activityFilter) ? activityFilter : 'All');
+      if (focusStar) {
+        // The same card's star (in its subject's section, not the Starred row, which may have just changed).
+        const btns = [...pg.text.querySelectorAll(`.gstar[data-r="${CSS.escape(focusStar)}"]`)];
+        const b = btns.find((x) => !x.closest('.starred')) || btns[0];
+        if (b && keepY != null) {
+          let sc = b.parentElement;
+          while (sc && !(sc.scrollHeight > sc.clientHeight && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+          if (sc) sc.scrollTop += b.getBoundingClientRect().top - keepY;
+        }
+        b?.focus({ preventScroll: true });
+      }
+    }
+    draw();
     mount(pg.root, token);
     setIdle();
   }
