@@ -85,7 +85,7 @@ The app icon lives in `src/icon.svg` (detailed) and `src/icon-small.svg` (simpli
 
 The World Explorer map lives in `src/world/map-data.js`, generated from Natural Earth country shapes (public domain) and Wikidata (CC0). Run `npm run map` to rebuild it; it needs an internet connection.
 
-Passport's capitals (`src/games/passport-data.js`, from Wikidata, CC0) and flag pictures (`src/games/flags/`, 320-pixel PNGs from Wikimedia Commons, public domain or freely licensed) ship with the app so it works offline. Run `npm run passport` to rebuild them; it needs an internet connection and keeps pictures already downloaded.
+Passport's countries (sovereign states only, no territories) and capitals (`src/games/passport-data.js`, from Wikidata, CC0) and flag pictures (`src/games/flags/`, 320-pixel PNGs from Wikimedia Commons, public domain or freely licensed) ship with the app so it works offline. Run `npm run passport` to rebuild them; it needs an internet connection and keeps pictures already downloaded.
 
 ## Project layout
 

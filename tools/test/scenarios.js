@@ -465,6 +465,9 @@ module.exports = [
       t.check('Passport is in Activities’ Games, beside Star Chart', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Games] .gcard b")].map((b) => b.textContent).join() === "Star Chart,Passport";'));
       await t.js('[...document.querySelectorAll(".act-group[data-cat=Games] .gcard")].find((c) => /Passport/.test(c.textContent)).click();');
       t.check('It opens on the passport: rank, six stamp spaces, the World Tour closed', await t.waitFor('document.querySelectorAll(".pp-slot").length === 6 && document.querySelector(".pp-page .rank")?.textContent === "Tourist" && !document.querySelector(".pp-tour.open")', 15000));
+      const places = await t.js('const D = window.E2KPassportData; return window.E2KWorldMap.countries.filter((c) => D[c.id]).map((c) => c.name);');
+      t.check('Only countries: no territories (Puerto Rico, Bermuda, Greenland), but Denmark, Kosovo, and Vatican City', places.length >= 193 && places.length <= 200
+        && !['Puerto Rico', 'Bermuda', 'Greenland', 'Åland'].some((n) => places.includes(n)) && ['Denmark', 'Kosovo', 'Vatican City'].every((n) => places.includes(n)), `${places.length} places`);
       t.check('The location bar says Passport', /Passport/.test(await t.js('return document.getElementById("crumbs").innerText;')));
       let bad = await t.axe();
       t.check('The passport: no serious accessibility problems', !bad.length, bad.join('; '));

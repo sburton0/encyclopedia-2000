@@ -36,7 +36,8 @@
     window.E2KPassportData ? null : script('games/passport-data.js'),
   ]).then(() => {
     const M = window.E2KWorldMap, D = window.E2KPassportData;
-    const all = M.countries.map((c) => ({ ...c, region: (c.regions || [])[0], flag: !!D[c.id]?.f, caps: D[c.id]?.cap || [] }))
+    // Sovereign states only (the data leaves territories out).
+    const all = M.countries.filter((c) => D[c.id]).map((c) => ({ ...c, name: D[c.id].n || c.name, region: (c.regions || [])[0], flag: !!D[c.id].f, caps: D[c.id].cap }))
       .filter((c) => REGIONS.includes(c.region));
     return { M, all, byId: new Map(all.map((c) => [c.id, c])) };
   }));
@@ -81,8 +82,9 @@
     const view = region === 'World' ? [0, 20, 1000, 460] : M.views[region];
     const p = 6;
     const s = svg('svg', { viewBox: `${view[0] - p} ${view[1] - p} ${view[2] + 2 * p} ${view[3] + 2 * p}`, class: cls, 'aria-hidden': 'true' });
-    for (const c of data.all) {
-      if (region !== 'World' && c.region !== region) continue;
+    // Every place on the map, territories included, so the continent's outline is whole.
+    for (const c of M.countries) {
+      if (region !== 'World' && !(c.regions || []).includes(region)) continue;
       s.append(svg('path', { d: c.d, fill: c.id === mark ? markFill : fill, ...(c.id === mark ? { stroke: '#fff', 'stroke-width': view[2] / 300 } : {}) }));
     }
     const m = mark && data.byId.get(mark);
