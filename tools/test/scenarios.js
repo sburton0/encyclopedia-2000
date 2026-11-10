@@ -522,6 +522,20 @@ module.exports = [
       const after = await t.js('return { africa: [...document.querySelectorAll(".pp-slot")].find((b) => /Africa/.test(b.getAttribute("aria-label")))?.getAttribute("aria-label"), stamps: document.querySelectorAll(".pp-slot.done").length };');
       t.check('After a restart the stamp is kept, and Africa continues at question 4', after.stamps === 1 && /3 of 8 questions, continue/.test(after.africa || ''), JSON.stringify(after));
       await t.js('E2K.go("activities");');
+      // A trip saved before territories were left out (Puerto Rico Q1183, Bermuda Q23635) is repaired on opening.
+      await t.js(`const st = JSON.parse(localStorage.getItem("e2k.passport"));
+        st.trips["North America"] = { i: 0, right: 0, given: [], qs: [{ kind: "flagof", id: "Q1183", choices: ["Q1183", "Q23635", "Q30", "Q16"], answer: 0 },
+          { kind: "whose", id: "Q16", choices: ["Q16", "Q1183", "Q30", "Q96"], answer: 0 }] };
+        localStorage.setItem("e2k.passport", JSON.stringify(st));`);
+      await t.js('E2K.go("game/passport");');
+      await t.waitFor('document.querySelector(".pp-book")', 15000);
+      await t.js('[...document.querySelectorAll(".pp-slot")].find((b) => /North America/.test(b.getAttribute("aria-label"))).click();');
+      await t.waitFor('document.querySelector(".pp-ask .prompt")', 5000);
+      await t.waitFor('[...document.querySelectorAll(".pp-canvas img")].every((i) => i.complete)', 5000);
+      const fixed = await t.js(`const t = JSON.parse(localStorage.getItem("e2k.passport")).trips["North America"]; const D = window.E2KPassportData;
+        return { all: t.qs.every((q) => D[q.id] && (q.kind === "cap" || q.choices.every((c) => D[c]))), imgs: [...document.querySelectorAll(".pp-canvas img")].every((i) => i.complete && i.naturalWidth > 0), n: t.qs.length };`);
+      t.check('An old trip naming territories gets new questions, every flag showing', fixed.all && fixed.imgs && fixed.n === 2, JSON.stringify(fixed));
+      await t.js('E2K.go("activities");');
       t.check('Its card in Activities shows the progress', await t.waitFor('[...document.querySelectorAll(".gcard")].some((c) => /Passport/.test(c.textContent) && /1 of 6 stamps/.test(c.textContent))', 5000));
     },
   },

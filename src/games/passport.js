@@ -382,9 +382,28 @@
     }
 
     show(h('div', { class: 'pp-loading' }, 'Unpacking your passport…'));
+    // Trips saved before a data update can name places no longer in the game (territories, left out since 0.6's
+    // first builds): the questions not yet answered that do are replaced with new ones.
+    function repair() {
+      let changed = false;
+      for (const [region, trip] of Object.entries(st.trips)) {
+        const ok = (q) => data.byId.has(q.id) && (q.kind === 'cap' || q.choices.every((id) => data.byId.has(id)));
+        for (let i = trip.i; i < trip.qs.length; i++) {
+          if (ok(trip.qs[i])) continue;
+          const used = new Set(trip.qs.map((q) => q.id));
+          const fresh = makeTrip(data, region, 12).qs.find((q) => !used.has(q.id) && q.kind === trip.qs[i].kind)
+            || makeTrip(data, region, 12).qs.find((q) => !used.has(q.id));
+          if (fresh) trip.qs[i] = fresh; else trip.qs.splice(i--, 1);
+          changed = true;
+        }
+      }
+      if (changed) save();
+    }
+
     loadData().then((d) => {
       data = d;
       if (!root.isConnected) return;
+      repair();
       // The world, faintly, behind everything.
       const world = svg('svg', { class: 'pp-world', viewBox: '0 0 1000 500', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': 'true' });
       for (const c of d.M.countries) world.append(svg('path', { d: c.d }));
