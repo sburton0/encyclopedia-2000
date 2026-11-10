@@ -349,6 +349,9 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .myart .msel .clr { margin-left: auto; }
 .myart .mrow { display: flex; align-items: center; gap: 14px; padding: 8px 8px; border-bottom: 1px solid #e3e8f2; }
 .myart .mrow.sel { background: #eef4fe; }
+.myart .mrow.shown { animation: mshown 2s ease-out; }
+@keyframes mshown { from, 40% { background: #ffe9c2; box-shadow: inset 3px 0 0 var(--orange); } }
+.dragn { position: fixed; top: -100px; left: 0; padding: 5px 10px; font: 600 13px "Segoe UI"; color: #fff; background: #2a5bb8; border-radius: 3px; }
 .myart .mrow:hover { background: #f2f5fb; }
 .myart .mrow .chk { flex: none; display: grid; place-items: center; width: 20px; }
 .myart .mrow .chk input { width: 15px; height: 15px; margin: 0; accent-color: #1d4fb8; }

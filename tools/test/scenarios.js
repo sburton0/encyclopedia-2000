@@ -1680,6 +1680,54 @@ module.exports = [
     },
   },
   {
+    name: 'my-articles-show-drag', group: 'My Articles', title: 'Show in My Articles (the pane’s right-click menu) opens the page at the row, lit; dragging ticked rows moves them all',
+    route: 'home',
+    async run(t) {
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([{ folder: 'Space', id: 'sp', open: true, items: [{ title: 'Saturn' }, { title: 'Mars' }] },
+        { folder: 'Moons', id: 'mo', open: true, items: [] }, { title: 'Moon' }, { title: 'Io (moon)' }, { title: 'Europa (moon)' }]));`);
+      t.win.webContents.reload();
+      await t.waitFor('document.querySelector(".home")', 15000);
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      await t.waitFor('document.querySelector("#fpane [data-key=\'a:Mars\']")', 5000);
+      const ctx = (key) => `const r = document.querySelector("#fpane [data-key='${key}']"); const b = r.getBoundingClientRect();
+        r.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: b.left + 20, clientY: b.top + 5, button: 2 }));
+        return [...document.querySelectorAll(".menu.ctx .mi")].map((m) => m.textContent.trim());`;
+      const items = await t.js(ctx('a:Mars'));
+      t.check('A favorite’s right-click menu has Show in My Articles', items.some((x) => x.startsWith('Show in My Articles')), JSON.stringify(items));
+      await t.js('[...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.startsWith("Show in My Articles")).click();');
+      t.check('…which opens its folder on the page, with the row lit and focused, and the pane closed', await t.waitFor(`document.querySelector(".myart .mhead b")?.textContent === "Space" && document.querySelector(".myart .mrow.shown[data-key='a:Mars']")
+        && document.activeElement?.closest(".mrow")?.dataset.key === "a:Mars" && document.getElementById("fpane").hidden`, 6000),
+        await t.js('return JSON.stringify({ h1: document.querySelector(".myart .band h1")?.textContent, head: document.querySelector(".myart .mhead b")?.textContent, shown: !!document.querySelector(".myart .mrow.shown"), focus: document.activeElement?.outerHTML.slice(0, 80), pane: document.getElementById("fpane").hidden });'));
+      await t.sleep(300);
+      await t.shot('show-in-my-articles');
+      // A folder goes to the folder itself.
+      await t.js('document.querySelector(".tbtn[data-cmd=favpane]").click();');
+      await t.waitFor('document.querySelector("#fpane [data-key=\'f:mo\']")', 5000);
+      await t.js(ctx('f:mo'));
+      await t.js('[...document.querySelectorAll(".menu.ctx .mi")].find((m) => m.textContent.startsWith("Show in My Articles")).click();');
+      t.check('A folder’s Show in My Articles opens that folder', await t.waitFor('document.querySelector(".myart .mhead b")?.textContent === "Moons"', 6000));
+      // Dragging several ticked rows onto a folder moves them all.
+      await t.js('E2K.go("myarticles/favorites/loose");');
+      await t.waitFor('document.querySelector(".myart .mrow[data-key=\'a:Io (moon)\']")', 6000);
+      await t.js(`for (const k of ['a:Io (moon)', 'a:Europa (moon)']) document.querySelector('.myart .mrow[data-key="' + k + '"] input[type=checkbox]').click();`);
+      const moved = await t.js(`const dt = new DataTransfer();
+        const from = document.querySelector('.myart .mrow[data-key="a:Io (moon)"]');
+        const to = [...document.querySelectorAll('.myart .rail .mfold')].find((x) => x.textContent.includes('Moons'));
+        from.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: dt }));
+        const text = dt.getData('text/plain');
+        to.dispatchEvent(new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        to.dispatchEvent(new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
+        from.dispatchEvent(new DragEvent('dragend', { bubbles: true, dataTransfer: dt }));
+        return text;`);
+      t.check('Dragging a ticked row carries all the ticked rows', moved === 'Io (moon)\nEuropa (moon)', JSON.stringify(moved));
+      t.check('…and dropping them on a folder moves them all there', await t.waitFor(`JSON.parse(localStorage.getItem("e2k.favorites")).find((n) => n.id === "mo").items.map((n) => n.title).join() === "Io (moon),Europa (moon)"`, 3000),
+        await t.js('return localStorage.getItem("e2k.favorites");'));
+      t.check('…saying so in the status bar, with the selection cleared', await t.waitFor('/Moved 2 articles to the folder “Moons”/.test(document.getElementById("status").textContent) && !document.querySelector(".myart .msel")', 3000),
+        await t.js('return document.getElementById("status").textContent;'));
+      t.check('Moon is the only favorite left outside a folder', await t.js('return JSON.parse(localStorage.getItem("e2k.favorites")).filter((n) => n.title).map((n) => n.title).join() === "Moon";'));
+    },
+  },
+  {
     name: 'my-articles-page', group: 'My Articles', title: 'My Articles page: Favorites with its folders, the selection bar (Move to…, Remove), and the toolbar’s Manage menu',
     route: 'home',
     async run(t) {

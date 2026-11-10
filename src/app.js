@@ -2635,7 +2635,7 @@
   const fpane = $('#fpane');
   const stage = $('.stage');
   const FAVS_SHOWN = 8;
-  let dlShowAll = false, paneQuery = '', renaming = null, paneReturn = null, dragKey = null;
+  let dlShowAll = false, paneQuery = '', renaming = null, paneReturn = null, dragKey = null, dragKeys = null, showKey = null;
   let dlList = [], dlIndex = new Map(), dlLoaded = false;
   const paneWidth = () => Math.min(480, Math.max(220, store.get('paneWidth', 250)));
   const pinned = () => !!store.get('panePinned', false);
@@ -2691,23 +2691,47 @@
     dragFrom(row, key);
     return row;
   }
-  function dragFrom(row, key) {
-    row.addEventListener('dragstart', (e) => { dragKey = key; e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', key.slice(2)); });
-    row.addEventListener('dragend', () => { dragKey = null; $$('.drop').forEach((x) => x.classList.remove('drop')); });
+  // group(), on the My Articles page, gives the keys of the ticked rows: dragging one of them takes them all.
+  function dragFrom(row, key, group) {
+    row.addEventListener('dragstart', (e) => {
+      const g = group?.() || [];
+      dragKey = key;
+      dragKeys = g.length > 1 && g.includes(key) ? g : [key];
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', dragKeys.map((k) => k.slice(2)).join('\n'));
+      if (dragKeys.length > 1) {
+        // The picture under the pointer says how many are going.
+        const tag = h('div', { class: 'dragn' }, `${dragKeys.length} articles`);
+        document.body.append(tag);
+        e.dataTransfer.setDragImage(tag, 12, 12);
+        setTimeout(() => tag.remove(), 0);
+      }
+    });
+    row.addEventListener('dragend', () => { dragKey = null; dragKeys = null; $$('.drop').forEach((x) => x.classList.remove('drop')); });
   }
   // Dropping on a folder (or the Favorites heading, for the top level) moves a favorite or folder there; an article
   // from Downloaded or Recently viewed becomes a favorite in it.
   function dropOn(el, folderId) {
-    const ok = () => dragKey && (/^[dr]:/.test(dragKey) || (dragKey !== 'f:' + folderId && canMove(dragKey, folderId)));
+    const fits = (k) => /^[dr]:/.test(k) || (k !== 'f:' + folderId && canMove(k, folderId));
+    const ok = () => dragKey && (dragKeys || [dragKey]).some(fits);
     el.addEventListener('dragover', (e) => { if (!ok()) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; el.classList.add('drop'); });
     el.addEventListener('dragleave', (e) => { if (!el.contains(e.relatedTarget)) el.classList.remove('drop'); });
     el.addEventListener('drop', (e) => {
       e.preventDefault();
       el.classList.remove('drop');
-      const key = dragKey;
+      const key = dragKey, keys = (dragKeys || [key]).filter(fits);
       if (!key || !ok()) return;
       const to = folderAt(favs(), folderId)?.node.folder;
-      if (/^[dr]:/.test(key)) { addFav(key.slice(2), dlEntry(key.slice(2))?.desc || '', folderId); setIdle(`Added “${key.slice(2)}” to ${to ? `the folder “${to}”` : 'Favorites'}`); }
+      if (keys.length > 1) {
+        let n = 0;
+        for (const k of keys) {
+          if (/^[dr]:/.test(k)) { if (!isFavTitle(k.slice(2))) { addFav(k.slice(2), dlEntry(k.slice(2))?.desc || infoOf(k.slice(2))?.desc || '', folderId); n++; } else if (moveFav('a:' + k.slice(2), folderId)) n++; }
+          else if (moveFav(k, folderId)) n++;
+        }
+        myPage?.st.sel.clear();
+        refreshMyPage();
+        setIdle(`${/^[dr]:/.test(key) ? 'Added' : 'Moved'} ${n === 1 ? '1 article' : `${n} articles`} to ${to ? `the folder “${to}”` : 'Favorites'}`);
+      } else if (/^[dr]:/.test(key)) { addFav(key.slice(2), dlEntry(key.slice(2))?.desc || '', folderId); setIdle(`Added “${key.slice(2)}” to ${to ? `the folder “${to}”` : 'Favorites'}`); }
       else if (moveFav(key, folderId)) setIdle(`Moved to ${to ? `the folder “${to}”` : 'Favorites (no folder)'}`);
     });
   }
@@ -2909,7 +2933,8 @@
       return [[f.node.open ? 'Close' : 'Open', () => { setFolderOpen(v, !f.node.open); drawFavPane(); }], '-',
         ['Rename', () => { renaming = v; drawFavPane(); }],
         ['New Folder Inside', () => { renaming = newFolder(v); drawFavPane(); }, '', null, f.path.length + 2 > FOLDER_DEPTH],
-        ['Move To…', () => folderPickerFor(row, key)], '-',
+        ['Move To…', () => folderPickerFor(row, key)],
+        ...(row.closest('.myart') ? [] : [['Show in My Articles', () => showInMyArticles(key)]]), '-',
         ['Download Folder…', () => downloadAllDialog(titles, f.node.folder), '', null, !titles.length || titles.every((t) => dlEntry(t))], '-',
         ['Delete Folder', () => deleteFolder(v)]];
     }
@@ -2919,7 +2944,21 @@
       '-',
       fav ? ['Move To…', () => folderPickerFor(row, 'a:' + v)] : ['Add to Favorites', () => { addFav(v, e2?.desc || ''); setIdle(`Added “${v}” to Favorites`); }],
       ...(fav ? [['Remove from Favorites', () => { removeFav(v); setIdle(`Removed “${v}” from Favorites`); }]] : []),
-      ...(kind === 'r' ? [[row.closest('.myart') ? 'Remove from History' : 'Remove from Recently Viewed', () => removeRecent(v)]] : [])];
+      ...(kind === 'r' ? [[row.closest('.myart') ? 'Remove from History' : 'Remove from Recently Viewed', () => removeRecent(v)]] : []),
+      ...(row.closest('.myart') ? [] : ['-', ['Show in My Articles', () => showInMyArticles(key)]])];
+  }
+  // Opens the My Articles page where a row of the pane lives (a favorite in its folder, a folder in the one around it,
+  // a download in Downloaded, a recent article in History), with it in view, focused, and lit for a moment.
+  function showInMyArticles(key) {
+    const kind = key[0], v = key.slice(2);
+    let r = 'myarticles/favorites/all';
+    if (kind === 'a') { const at = favAt(favs(), v); r = 'myarticles/favorites/' + (at?.path.length ? at.path[at.path.length - 1].id : 'loose'); }
+    else if (kind === 'f') r = 'myarticles/favorites/' + v;   // the folder itself (it's lit in the rail)
+    else if (kind === 'd') r = 'myarticles/downloaded';
+    else if (kind === 'r') r = 'myarticles/history';
+    showKey = kind === 'f' ? null : key;
+    if (!pinned()) toggleFavPane(false);
+    go(r);
   }
   function folderPickerFor(row, key) {
     if (key.startsWith('a:')) return folderPicker(row, key.slice(2), (id) => { if (moveFav(key, id)) setIdle(`Moved “${key.slice(2)}”`); });
@@ -3182,6 +3221,20 @@
     if (!mount(pg.root, token)) return;
     if (!dlLoaded) loadDownloaded();
     draw();
+    if (showKey) {
+      const k = showKey;
+      showKey = null;
+      // Downloads may still be loading: wait for the row a moment.
+      const find = (n) => {
+        const el = $$('[data-key]', pg.root).find((x) => x.dataset.key === k && !x.closest('.rail'));
+        if (!el) { if (n < 20 && pg.root.isConnected) setTimeout(() => find(n + 1), 100); return; }
+        el.scrollIntoView({ block: 'center' });
+        (el.matches('button') ? el : el.querySelector('.mlink'))?.focus({ preventScroll: true });
+        el.classList.add('shown');
+        setTimeout(() => el.classList.remove('shown'), 2000);
+      };
+      find(0);
+    }
     setIdle(view === 'history' ? `History: ${history().length === 1 ? '1 article' : `${history().length} articles`}` : statusIdle);
 
     function go2(v, s = '') { go(route('myarticles', s ? `${v}/${s}` : v)); }
@@ -3397,7 +3450,7 @@
         star ? h('span', { class: 'mstar', title: 'In Favorites', role: 'img', 'aria-label': 'In Favorites' }, icon('star')) : null,
         mark ? markFor(t) : null,
         remove ? h('button', { class: 'rx', title: removeLabel || `Remove “${t}” from Favorites`, 'aria-label': removeLabel || `Remove ${t} from Favorites`, onclick: remove }, '✕') : null);
-      dragFrom(row, key);
+      dragFrom(row, key, () => (st.sel.has(selKey) ? [...st.sel].map((k) => (st.view === 'history' ? 'r:' + k.replace(/@\d+$/, '') : k)) : null));
       return row;
     }
     // The selection bar follows the ticked rows (kept at the top of the list).
