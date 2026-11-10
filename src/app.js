@@ -320,8 +320,10 @@
   }
   const live = (token) => token === renderToken;
 
+  let cameBack = false;   // this screen was opened with Back or Forward (games use it to return to where the player was)
   async function render(r, restore = false) {
     const token = ++renderToken;
+    cameBack = restore;
     const y = restore ? nav.scroll[nav.idx] || 0 : 0;
     const [name, ...rest] = r.split('/');
     const arg = rest.length ? decodeURIComponent(rest.join('/')) : '';
@@ -4302,6 +4304,7 @@
     removeAllDownloads,
     downloadTitle,
     openArticle: (t) => openArticle(t, linkFrom()),
+    cameBack: () => cameBack,
     setCrumbs,
     setIdle, setStatus, setFontScale, applyPrefs, updateVolume, speechStop, updateNet, announce,
     // True when nothing can come from the internet: Offline mode, or no connection.

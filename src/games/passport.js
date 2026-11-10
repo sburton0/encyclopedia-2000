@@ -30,6 +30,10 @@
     s.onerror = () => reject(new Error(`Couldn't load ${src}`));
     document.head.append(s);
   });
+  // The question on screen, kept while the app is open, so reading an answer's article and coming Back (or Forward)
+  // returns to the same question, answered or not: { region } or { region, i, pick, pts }. Opening Passport any other way
+  // starts at the passport.
+  let resume = null;
   let ready = null;
   const loadData = () => (ready ||= Promise.all([
     window.E2KWorldMap ? null : script('world/map-data.js'),
@@ -144,6 +148,7 @@
     // ---------- the passport ----------
     function passport() {
       gen++;
+      resume = null;
       keys = null;
       api.setCrumbs([]);
       const n = stampCount(st);
@@ -215,13 +220,17 @@
       question(region);
     }
 
-    function question(region) {
+    // shown: an answered question to draw again ({ i, pick, pts }), when coming Back to it; nothing is scored again.
+    function question(region, shown = null) {
       const my = ++gen;
       const trip = st.trips[region];
       const total = trip.qs.length;
-      const q = trip.qs[trip.i];
+      const qi = shown ? shown.i : trip.i;
+      const q = trip.qs[qi];
       const c = data.byId.get(q.id);
+      if (!c && shown) return passport();
       if (!c) { trip.i++; save(); return trip.i < total ? question(region) : finish(region); }
+      resume = { region };
       api.setCrumbs([region === 'World' ? 'World Tour' : region], passport);
       const name = (id) => data.byId.get(id)?.name || id;
 
@@ -230,17 +239,17 @@
       const step = 924 / (total - 1);
       for (let i = 0; i < total; i++) {
         const x = 10 + i * step;
-        const been = i < trip.i;
-        if (i < total - 1) route.append(svg('path', { d: `M${x + 8} 15h${step - 16}`, stroke: been && i < trip.i - 1 ? '#f0a830' : 'rgba(255,255,255,.32)', 'stroke-width': 2, 'stroke-dasharray': been && i < trip.i - 1 ? '' : '4 6' }));
+        const been = i < qi;
+        if (i < total - 1) route.append(svg('path', { d: `M${x + 8} 15h${step - 16}`, stroke: been && i < qi - 1 ? '#f0a830' : 'rgba(255,255,255,.32)', 'stroke-width': 2, 'stroke-dasharray': been && i < qi - 1 ? '' : '4 6' }));
         const ok = trip.given?.[i];
         route.append(svg('circle', { cx: x, cy: 15, r: been ? 7 : 5, fill: been ? (ok ? '#f0a830' : '#8899a6') : 'rgba(255,255,255,.28)' }));
       }
-      const px = 10 + trip.i * step;
+      const px = 10 + qi * step;
       const pl = svg('g', { transform: `translate(${px - 12} 3) rotate(90 12 12)`, fill: '#fff' });
       pl.append(svg('path', { d: PLANE }));
       route.append(pl);
 
-      const kicker = `${region === 'World' ? 'WORLD TOUR' : region.toUpperCase()} · QUESTION ${trip.i + 1} OF ${total}`;
+      const kicker = `${region === 'World' ? 'WORLD TOUR' : region.toUpperCase()} · QUESTION ${qi + 1} OF ${total}`;
       const titles = { whose: 'Whose flag is this?', flagof: 'Find the flag', cap: 'Name the capital', capof: 'Whose capital?' };
       const prompts = {
         whose: 'Which country flies this flag?',
@@ -258,7 +267,7 @@
       // The left card: the flag, or the country on its continent (whose capital: lit only once answered).
       const mapCard = (lit) => h('div', { class: 'mapbox' }, continent(api, data, c.region, { fill: '#b9c7b4', mark: lit ? c.id : null, markFill: INK[c.region] }));
       let card;
-      if (q.kind === 'whose') card = h('div', { class: 'pp-card' }, flagImg(api, c, 'The flag to name'), h('div', { class: 'cap' }, `Flag № ${trip.i + 1}`));
+      if (q.kind === 'whose') card = h('div', { class: 'pp-card' }, flagImg(api, c, 'The flag to name'), h('div', { class: 'cap' }, `Flag № ${qi + 1}`));
       else card = h('div', { class: 'pp-card map' }, mapCard(q.kind !== 'capof'), h('div', { class: 'cap' }, q.kind === 'capof' ? c.region : `${c.name} · ${c.region}`));
 
       const prompt = h('p', { class: 'prompt', tabindex: -1 }, prompts[q.kind]);
@@ -277,7 +286,7 @@
       prompt.focus({ preventScroll: true });
       keys = (e) => { const n = Number(e.key); if (n >= 1 && n <= buttons.length && !buttons[n - 1].disabled) { e.preventDefault(); buttons[n - 1].click(); } };
 
-      function choose(i) {
+      function choose(i, again = false) {
         if (my !== gen) return;
         keys = null;
         const ok = i === q.answer;
@@ -290,23 +299,26 @@
           else { b.classList.add('dim'); if (q.kind === 'flagof') b.setAttribute('aria-label', what); }
           if (q.kind === 'flagof') b.append(h('span', { class: 'fn' }, name(q.choices[j])));
         });
-        trip.given = trip.given || [];
-        trip.given[trip.i] = ok;
-        let pts = 0;
-        if (ok) {
-          st.streak++;
-          pts = Math.min(200, 100 + 25 * (st.streak - 1));
-          st.points += pts;
-          st.best = Math.max(st.best, st.streak);
-          trip.right++;
-          if (!st.met.includes(c.id)) st.met.push(c.id);
-          sfx('correct');
-        } else {
-          st.streak = 0;
-          sfx('wrong');
+        let pts = again ? shown.pts : 0;
+        if (!again) {
+          trip.given = trip.given || [];
+          trip.given[trip.i] = ok;
+          if (ok) {
+            st.streak++;
+            pts = Math.min(200, 100 + 25 * (st.streak - 1));
+            st.points += pts;
+            st.best = Math.max(st.best, st.streak);
+            trip.right++;
+            if (!st.met.includes(c.id)) st.met.push(c.id);
+            sfx('correct');
+          } else {
+            st.streak = 0;
+            sfx('wrong');
+          }
+          resume = { region, i: trip.i, pick: i, pts };
+          trip.i++;
+          save();
         }
-        trip.i++;
-        save();
         score.textContent = fmt(st.points);
         streak.textContent = `Streak ×${st.streak}`;
         streak.classList.toggle('none', st.streak < 2);
@@ -324,15 +336,17 @@
           h('b', { class: ok ? 'ok' : 'no' }, ok ? (st.streak > 1 ? `Right! +${pts} (streak ×${st.streak})` : `Right! +${pts}`) : `Not quite. The answer is ${right}.`),
           h('p', {}, line, ' ', h('button', { class: 'pp-lnk', onclick: () => api.openArticle(learn[1]) }, `Read about ${learn[0]} ›`)),
           next);
-        api.announce(`${feedback.firstChild.textContent} ${line}`);
+        if (!again) api.announce(`${feedback.firstChild.textContent} ${line}`);
         next.focus({ preventScroll: true });
         keys = (e) => { if (e.key === 'Enter' && document.activeElement === document.body) { e.preventDefault(); next.click(); } };
         void canvas;
       }
+      if (shown) choose(shown.pick, true);
     }
 
     function finish(region) {
       gen++;
+      resume = null;
       keys = null;
       const trip = st.trips[region];
       const total = trip.qs.length;
@@ -408,7 +422,12 @@
       const world = svg('svg', { class: 'pp-world', viewBox: '0 0 1000 500', preserveAspectRatio: 'xMidYMid slice', 'aria-hidden': 'true' });
       for (const c of d.M.countries) world.append(svg('path', { d: c.d }));
       root.prepend(world);
-      passport();
+      // Back from an answer's article: the same question. Otherwise, the passport.
+      const back = api.cameBack() ? resume : null;
+      const trip = back && st.trips[back.region];
+      if (trip && back.pick != null && trip.i === back.i + 1) question(back.region, back);
+      else if (trip && back.pick == null && trip.i < trip.qs.length) question(back.region);
+      else passport();
     })
       .catch(() => show(h('div', { class: 'pp-loading' }, 'Passport couldn’t load its map. Try opening it again.')));
 

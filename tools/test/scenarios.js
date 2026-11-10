@@ -484,7 +484,17 @@ module.exports = [
         const a = await t.js(answer('Europe'));
         await t.js(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "${a + 1}", bubbles: true }));`);
         await t.waitFor('document.querySelector(".pp-feedback .go")', 3000);
-        if (i === 3) await t.shot('passport-answered');
+        if (i === 3) {
+          await t.shot('passport-answered');
+          const before = await t.js('return [document.querySelector(".pp-qhead small").textContent, document.querySelector(".pp-feedback").innerText, document.querySelector(".pp-qhead .sc b").textContent, document.querySelectorAll(".pp-canvas .right, .pp-canvas .wrong").length].join("|");');
+          await t.js('document.querySelector(".pp-feedback .pp-lnk").click();');
+          await t.waitFor('document.querySelector(".content.article") && !document.querySelector(".pp-canvas")', 15000);
+          await t.command('Back', 'ArrowLeft', { altKey: true });
+          await t.waitFor('document.querySelector(".pp-feedback .go")', 15000);
+          const after = await t.js('return [document.querySelector(".pp-qhead small").textContent, document.querySelector(".pp-feedback").innerText, document.querySelector(".pp-qhead .sc b").textContent, document.querySelectorAll(".pp-canvas .right, .pp-canvas .wrong").length].join("|");');
+          t.check('Read about…, then Back: the same question, answered, with the same points (nothing scored twice)', before === after && /QUESTION 4 OF 8/.test(after), after);
+          t.check('…and the trip is still on question 5 next', await t.js('return JSON.parse(localStorage.getItem("e2k.passport")).trips.Europe.i === 4;'));
+        }
         await t.js('document.querySelector(".pp-feedback .go").click();');
       }
       t.check('The trip mixes kinds of question', kinds.size >= 2, [...kinds].join());
@@ -537,6 +547,90 @@ module.exports = [
       t.check('An old trip naming territories gets new questions, every flag showing', fixed.all && fixed.imgs && fixed.n === 2, JSON.stringify(fixed));
       await t.js('E2K.go("activities");');
       t.check('Its card in Activities shows the progress', await t.waitFor('[...document.querySelectorAll(".gcard")].some((c) => /Passport/.test(c.textContent) && /1 of 6 stamps/.test(c.textContent))', 5000));
+    },
+  },
+  {
+    name: 'animal-sounds', group: 'General', title: 'Animal Sounds: it’s in Activities’ Nature; habitats switch; a sound plays with its waveform, line, and credits; a round of Who’s Calling? from the keyboard; every sound and picture is on this computer',
+    route: 'activities',
+    async run(t) {
+      await t.waitFor('document.querySelector(".act-group[data-cat=Nature]")', 10000);
+      t.check('Animal Sounds is in Activities under Nature', await t.js('return [...document.querySelectorAll(".act-group[data-cat=Nature] .gcard b")].some((b) => b.textContent === "Animal Sounds");'));
+      await t.js('[...document.querySelectorAll(".act-group[data-cat=Nature] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
+      t.check('It opens on Listen: seven habitats, Oceans first, with its animals', await t.waitFor('document.querySelectorAll(".as-hab button").length === 7 && document.querySelector(".as-hab button.on")?.textContent.startsWith("Oceans") && document.querySelectorAll(".as-grid .as-card").length === 5', 15000));
+      t.check('The location bar says Animal Sounds', /Animal Sounds/.test(await t.js('return document.getElementById("crumbs").innerText;')));
+      const D = await t.js('const D = window.E2KAnimalData; return { n: D.animals.length, credited: D.animals.every((a) => a.credit.artist && a.credit.license && a.line && a.article), licenses: [...new Set(D.animals.flatMap((a) => [a.credit.license, a.credit.picLicense]).filter(Boolean))] };');
+      t.check('Every animal has a line, an article, and a credited recording', D.n >= 35 && D.credited, `${D.n} animals`);
+      t.check('Only public domain, CC0, CC BY and CC BY-SA', D.licenses.every((l) => /^(Public domain|CC0|CC BY(-SA)? \d(\.\d)?)$/.test(l)), D.licenses.join(', '));
+      const ids = await t.js('return window.E2KAnimalData.animals.map((a) => a.id);');
+      const dir = path.join(__dirname, '..', '..', 'src', 'activities', 'animals');
+      const missing = ids.flatMap((id) => [id + '.ogg', id + '.jpg']).filter((f) => !fs.existsSync(path.join(dir, f))).length;
+      t.check('Every sound and picture ships with the app', missing === 0, `${missing} missing`);
+      let bad = await t.axe();
+      t.check('Listen: no serious accessibility problems', !bad.length, bad.join('; '));
+      // Birds: nine animals in two rows; playing one lights its waveform.
+      await t.js('[...document.querySelectorAll(".as-hab button")].find((b) => b.textContent.startsWith("Birds")).click();');
+      t.check('Birds shows nine animals', await t.waitFor('document.querySelectorAll(".as-grid.two .as-card").length === 9', 3000));
+      await t.js('document.querySelectorAll(".as-grid .as-card")[1].click();');
+      t.check('A card plays its sound: Now Playing, pause on its card, the waveform lit', await t.waitFor('document.querySelector(".as-audio").currentTime > 0.5 && document.querySelector(".as-now .np").textContent === "NOW PLAYING" && document.querySelector(".as-card.on .pl").textContent === "❚❚" && document.querySelectorAll(".as-now rect.lit").length > 3', 6000));
+      t.check('Now Playing names it, with its line, the article link, and the credits', await t.js('const n = document.querySelector(".as-now").innerText; return /Common loon · yodel/.test(n) && /Read about the common loon/.test(n) && /Sound: .+ · CC BY-SA/.test(n) && /Picture: /.test(n);'));
+      t.check('The sound follows the app’s volume', await t.js('return Math.abs(document.querySelector(".as-audio").volume - E2KAudio.level()) < 0.01;'));
+      await t.shot('animal-sounds-listen');
+      await t.js('document.querySelector(".as-now .pb").click();');
+      t.check('The play button pauses it', await t.waitFor('document.querySelector(".as-audio").paused && document.querySelector(".as-now .np").textContent === "LISTEN"', 2000));
+      t.check('The habitat is remembered', await t.js('return JSON.parse(localStorage.getItem("e2k.animalSounds")).habitat === "Birds";'));
+      await t.js('document.querySelector(".as-now a").click();');
+      await t.waitFor('document.querySelector(".content.article") && !document.querySelector(".as-canvas")', 15000);
+      await t.command('Back', 'ArrowLeft', { altKey: true });
+      t.check('Read about the common loon, then Back: Listen, still on the loon', await t.waitFor('/Common loon/.test(document.querySelector(".as-now h2")?.textContent || "") && document.querySelector(".as-card.on b")?.textContent === "Common loon"', 15000));
+      // Who's Calling?: ten sounds, the first eight right by the number keys, then two wrong.
+      await t.js('document.querySelector(".as-btns .hot").click();');
+      for (let i = 0; i < 10; i++) {
+        // The new sound playing (the last one is paused when a question opens, so this never catches it).
+        await t.waitFor('document.querySelectorAll(".as-ch .as-card:not(:disabled)").length === 4 && !document.querySelector(".as-audio").paused && document.querySelector(".as-audio").currentTime > 0', 6000);
+        if (i === 0) {
+          t.check('A question plays its sound by itself, with four animals to choose from', await t.js('return !document.querySelector(".as-audio").paused && /SOUND 1 OF 10/.test(document.querySelector(".as-q small").textContent);'));
+          bad = await t.axe();
+          t.check('A question: no serious accessibility problems', !bad.length, bad.join('; '));
+        }
+        const right = await t.js('const id = document.querySelector(".as-audio").src.match(/animals\\/(\\w+)\\.ogg/)[1]; const name = window.E2KAnimalData.animals.find((a) => a.id === id).name; return [...document.querySelectorAll(".as-ch .as-card b")].findIndex((b) => b.textContent === name);');
+        const pick = i < 8 ? right : (right + 1) % 4;
+        await t.js(`document.dispatchEvent(new KeyboardEvent("keydown", { key: "${pick + 1}", bubbles: true }));`);
+        await t.waitFor('!document.querySelector(".as-fb").hidden', 3000);
+        if (i === 0) t.check('Right: marked ✓, with its line, article link, and credits; Next Sound has focus', await t.js('const f = document.querySelector(".as-fb").innerText; return !!document.querySelector(".as-card.right") && /Right!/.test(f) && /Read about the /.test(f) && /Sound: /.test(f) && document.activeElement === document.querySelector(".as-fb .bbtn");'));
+        if (i === 4) {
+          const state = 'return [document.querySelector(".as-q small").textContent, document.querySelector(".as-q h2").textContent, document.querySelector(".as-score").innerText, [...document.querySelectorAll(".as-ch .as-card")].map((c) => c.className + c.querySelector("b").textContent).join()].join("|");';
+          const before = await t.js(state);
+          await t.js('document.querySelector(".as-fb a").click();');
+          await t.waitFor('document.querySelector(".content.article") && !document.querySelector(".as-canvas")', 15000);
+          await t.command('Back', 'ArrowLeft', { altKey: true });
+          await t.waitFor('!document.querySelector(".as-fb")?.hidden', 15000);
+          const after = await t.js(state);
+          t.check('Read about…, then Back: the same sound, answered, the same choices and score', before === after && /SOUND 5 OF 10/.test(after), after);
+          t.check('…and the sound doesn’t start by itself', await t.js('return document.querySelector(".as-audio").paused;'));
+        }
+        if (i === 8) {
+          t.check('Wrong: the pick is marked ✗ and the right animal ✓', await t.js('return !!document.querySelector(".as-card.wrong") && !!document.querySelector(".as-card.right") && /Not quite/.test(document.querySelector(".as-fb").innerText);'));
+          await t.shot('animal-sounds-answered');
+        }
+        t.check(`After sound ${i + 1}, the score is right`, await t.js(`return document.querySelector(".as-score").innerText.replace(/\\s+/g, " ").trim() === "${Math.min(i + 1, 8)} of ${i + 1} right";`));
+        await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));');
+      }
+      t.check('The round ends at 8 of 10, saved as the best round', await t.waitFor('/8\\s*of 10/.test(document.querySelector(".as-end")?.innerText || "")', 3000)
+        && await t.js('return JSON.parse(localStorage.getItem("e2k.animalSounds")).best === 8;'));
+      await t.js('[...document.querySelectorAll(".as-end .bbtn")].find((b) => /Animal Sounds/.test(b.textContent)).click();');
+      t.check('Back to Listen, still on Birds', await t.waitFor('document.querySelector(".as-hab button.on")?.textContent.startsWith("Birds")', 3000));
+      // Mid-round, then away by the toolbar and in again from Activities: a fresh start on Listen, not the old round.
+      await t.js('document.querySelector(".as-btns .hot").click();');
+      await t.waitFor('document.querySelector(".as-ch")', 3000);
+      await t.js('E2K.go("activities");');
+      await t.waitFor('document.querySelector(".act-group[data-cat=Nature]")', 5000);
+      await t.js('[...document.querySelectorAll(".act-group[data-cat=Nature] .gcard")].find((c) => /Animal Sounds/.test(c.textContent)).click();');
+      t.check('Opened again from Activities, it starts on Listen', await t.waitFor('document.querySelector(".as-hab") && !document.querySelector(".as-ch")', 5000));
+      // Leaving stops the sound.
+      await t.js('document.querySelectorAll(".as-grid .as-card")[0].click();');
+      await t.waitFor('!document.querySelector(".as-audio").paused', 3000);
+      await t.js('E2K.go("home");');
+      t.check('Leaving Animal Sounds stops the sound', await t.waitFor('!document.querySelector(".as-audio")', 3000) && await t.js('return ![...document.querySelectorAll("audio")].some((a) => !a.paused);'));
     },
   },
   {

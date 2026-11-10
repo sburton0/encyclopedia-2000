@@ -55,6 +55,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
   - **Lifelines**: famous lives side by side on one timeline, with ready-made sets or anyone you add; point at a year to see who was alive and how old they were.
   - **World Clock**: a world map with day and night following the Sun, and clocks for the cities you choose.
   - **Almanac Calendar**: a month of moon phases, sunrise and sunset, seasons, and daylight saving changes for any city, with Wikipedia's "On this day" for each date.
+  - **Animal Sounds**: 39 animals in seven habitats (oceans, rainforests, grasslands, forests, birds, farms, bugs and frogs), each with its recording, a picture, a line about the sound, and its article; then **Who's Calling?**, ten sounds to match to their animals. Every sound and picture ships with the app, so it works offline.
 
 ## What's next
 
@@ -87,6 +88,8 @@ The World Explorer map lives in `src/world/map-data.js`, generated from Natural 
 
 Passport's countries (sovereign states only, no territories) and capitals (`src/games/passport-data.js`, from Wikidata, CC0) and flag pictures (`src/games/flags/`, 320-pixel PNGs from Wikimedia Commons, public domain or freely licensed) ship with the app so it works offline. Run `npm run passport` to rebuild them; it needs an internet connection and keeps pictures already downloaded.
 
+Animal Sounds' recordings and pictures (`src/activities/animals/`, with the credits and waveforms in `src/activities/animal-sounds-data.js`) come from Wikimedia Commons, public domain, CC0, CC BY, or CC BY-SA only, and each is credited on screen. Run `npm run animals` to rebuild them (it needs an internet connection and ffmpeg); it keeps the loudest 8 seconds of each recording, evens out the volume, and saves it as Opus. The animals, their files, and the lines about them are listed at the top of `tools/make-animals.mjs`.
+
 ## Project layout
 
 | Path | Purpose |
@@ -109,6 +112,8 @@ Passport's countries (sovereign states only, no territories) and capitals (`src/
 | `src/games/registry.js` | Where games register themselves |
 | `src/games/starchart.js`, `src/games/games.css` | The Star Chart game and the games styles |
 | `src/games/passport.js`, `src/games/passport.css`, `src/games/passport-data.js`, `src/games/flags/` | Passport, the flag and capitals game, and its data |
+| `src/activities/animal-sounds.js`, `src/activities/animal-sounds.css`, `src/activities/animal-sounds-data.js`, `src/activities/animals/` | Animal Sounds and its recordings and pictures |
+| `tools/make-animals.mjs` | Builds Animal Sounds' data (`npm run animals`) |
 
 ## Adding a game
 
