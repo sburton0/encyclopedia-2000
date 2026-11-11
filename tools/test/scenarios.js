@@ -1365,7 +1365,7 @@ module.exports = [
       t.check('With a notice showing, it checks at every start and every 3 hours (a removal goes quickly)', due(now - 1 * H, true, now, true) === true && due(now - 1 * H, true, now, false) === false && due(now - 4 * H, true, now, false) === true);
       t.check('Never checked: it checks', due(0, false, now, false) === true);
       const semver = require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'semver'));
-      const env = { platform: 'win32', version: '0.5.4-beta', today: '2026-11-01', satisfies: (v, r) => semver.satisfies(semver.coerce(v).version, r) };
+      const env = { platform: 'win32', edition: 'installed', version: '0.5.4-beta', today: '2026-11-01', satisfies: (v, r) => semver.satisfies(semver.coerce(v).version, r) };
       const one = (x) => pick({ news: { id: 'a', text: 'Hello.', ...x } }, env).news;
       t.check('A plain item is shown', one({})?.text === 'Hello.');
       t.check('Text with HTML is ignored', one({ text: 'Hi <b>there</b>' }) === null);
@@ -1375,6 +1375,10 @@ module.exports = [
       t.check('Links to the website and the app’s GitHub page are allowed', !!one({ link: { label: 'Go', url: 'https://encyclopedia2000.com/usb' } }) && !!one({ link: { label: 'Go', url: 'https://github.com/sburton0/encyclopedia-2000/releases' } }));
       t.check('After its end date it isn’t shown', one({ until: '2026-10-31' }) === null && !!one({ until: '2026-11-01' }));
       t.check('Only on the platforms it names', one({ platforms: ['linux'] }) === null && !!one({ platforms: ['win32', 'darwin'] }));
+      t.check('Only for the editions it names', one({ editions: ['portable'] }) === null && !!one({ editions: ['installed'] }) && !!one({ editions: ['portable', 'installed'] }));
+      t.check('…and the portable sees the portable’s', !!pick({ news: { id: 'a', text: 'Hi.', editions: ['portable'] } }, { ...env, edition: 'portable' }).news
+        && pick({ news: { id: 'a', text: 'Hi.', editions: ['installed'] } }, { ...env, edition: 'portable' }).news === null);
+      t.check('An editions field that isn’t a list is ignored (nothing shown)', one({ editions: 'portable' }) === null && one({ editions: 'installed' }) === null);
       t.check('Only for the versions it names (0.5.4 Beta counts as 0.5.4)', one({ versions: '<0.5.4' }) === null && !!one({ versions: '<=0.5.4' }) && !!one({ versions: '<0.6' }) && one({ versions: 'nonsense!!' }) === null);
       t.check('A broken file shows nothing', JSON.stringify(pick('oops', env)) === '{"news":null,"important":null}' && JSON.stringify(pick(null, env)) === '{"news":null,"important":null}');
       t.check('An id that isn’t simple is ignored', one({ id: '<x>' }) === null && one({ id: '' }) === null);
