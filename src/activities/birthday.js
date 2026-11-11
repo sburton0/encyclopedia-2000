@@ -2,14 +2,30 @@
 (() => {
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   const cache = new Map(); // "7-20" -> { births, events }
+  const pad = (n) => String(n).padStart(2, '0');
+
+  // Offline, each date's 12 best-known birthdays saved with the app (data/birthdays.js, tools/make-birthdays.mjs; loaded
+  // when first needed), as Wikipedia's births feed would give them, without portraits.
+  let saved = null;
+  const savedBirthdays = () => saved || (saved = new Promise((resolve) => {
+    const s = document.createElement('script');
+    s.src = 'data/birthdays.js';
+    s.onload = () => resolve(window.E2K_BIRTHDAYS || null);
+    s.onerror = () => { saved = null; resolve(null); };
+    document.head.append(s);
+  }));
+  async function savedBirths(m, d) {
+    const B = await savedBirthdays();
+    return (B?.days[`${pad(m)}-${pad(d)}`] || []).map(([year, title, description]) => ({ year, pages: [{ title, description }] }));
+  }
 
   async function dayData(m, d) {
     const key = `${m}-${d}`;
     if (!cache.has(key)) {
       const date = new Date(2000, m - 1, d);
-      // Offline, Wikipedia's birthday lists aren't available; the date's saved highlights stand in for its events.
+      // Offline, the saved birthdays and the date's saved highlights (for its events) stand in.
       cache.set(key, Promise.all([Wiki.onThisDay(date, 'births'), Wiki.onThisDay(date, 'events')])
-        .then(([b, e]) => (b.offline ? { offline: true, births: [], events: e.selected || [] } : { births: b.births || [], events: e.events || [] }))
+        .then(async ([b, e]) => (b.offline ? { offline: true, births: await savedBirths(m, d), events: e.selected || [] } : { births: b.births || [], events: e.events || [] }))
         .catch((err) => { cache.delete(key); throw err; }));
     }
     return cache.get(key);
@@ -67,17 +83,23 @@
       list.scrollTop = 0;
       if (!data) return;
       if (tab === 'births') {
-        // A dozen famous birthdays spread across the centuries, newest first, people with portraits only.
-        const pool = data.births.filter((b) => b.pages?.[0]?.thumbnail).sort((a, b) => a.year - b.year);
-        const n = Math.min(12, pool.length);
-        const people = Array.from({ length: n }, (_, i) => pool[Math.floor(i * pool.length / n)]).reverse();
+        // Online, a dozen famous birthdays spread across the centuries, newest first, people with portraits only.
+        // Offline, the dozen best-known saved with the app (already newest first), with their initial for a portrait.
+        let people = data.births;
+        if (!data.offline) {
+          const pool = data.births.filter((b) => b.pages?.[0]?.thumbnail).sort((a, b) => a.year - b.year);
+          const n = Math.min(12, pool.length);
+          people = Array.from({ length: n }, (_, i) => pool[Math.floor(i * pool.length / n)]).reverse();
+        }
         list.replaceChildren(people.length ? h('div', { class: 'bd-grid' }, people.map((b) => {
           const p = b.pages[0];
           const desc = plainDesc(p.description);
+          const name = titleOf(p).replace(/ \(.*\)$/, '');
           return h('button', { class: 'bd-person', title: titleOf(p), onclick: () => api.openArticle(titleOf(p)) },
-            h('i', { style: `background-image:url('${p.thumbnail.source}')` }),
-            h('div', {}, h('b', {}, titleOf(p).replace(/ \(.*\)$/, '')), h('span', {}, desc ? `${desc}, born ${b.year}` : `Born ${b.year}`)));
-        })) : h('p', { class: 'act-note' }, data.offline ? 'Famous birthdays come from Wikipedia, so they need the internet. The On This Day in History tab has this date’s highlights.' : 'No famous birthdays found for this date.'));
+            p.thumbnail ? h('i', { style: `background-image:url('${p.thumbnail.source}')` }) : h('i', { class: 'none', 'aria-hidden': 'true' }, name.charAt(0)),
+            h('div', {}, h('b', {}, name), h('span', {}, desc ? `${desc}, born ${b.year}` : `Born ${b.year}`)));
+        }), data.offline ? h('p', { class: 'act-note bd-saved' }, 'Offline: the best-known birthdays saved with the app. Portraits and the full list come back online.') : null)
+          : h('p', { class: 'act-note' }, 'No famous birthdays found for this date.'));
       } else {
         const evs = data.events.filter((e) => e !== headlineOf()).sort((a, b) => b.year - a.year);
         list.replaceChildren(...evs.map((e) => {

@@ -108,6 +108,8 @@
 .bd-person { display: flex; gap: 12px; align-items: center; min-width: 0; padding: 6px; background: none; border: 1px solid transparent; text-align: left; color: #fff; }
 .bd-person:hover { background: rgba(var(--deep), .45); border-color: rgba(var(--edge), .3); }
 .bd-person i { flex: none; width: 48px; height: 48px; border-radius: 50%; background: #1c3566 center/cover; border: 2px solid rgba(255, 255, 255, .7); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); }
+.bd-person i.none { display: grid; place-items: center; font: 300 22px "Segoe UI"; font-style: normal; color: #fff; background: linear-gradient(#3a5a9a, #1c3566); }
+.bd-grid .bd-saved { grid-column: 1 / -1; margin: 8px 6px 0; }
 .bd-person div { min-width: 0; }
 .bd-person b { display: block; font: 600 13.5px "Segoe UI"; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .bd-person span { display: block; font: 12px "Segoe UI"; color: var(--sky); }

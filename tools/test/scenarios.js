@@ -27,6 +27,15 @@ const label = (q) => `[...document.querySelectorAll('.offline .packs button, .di
 const openLibrary = async (t) => { await t.js('E2KLibrary.open(E2K);'); await t.waitFor('document.querySelector(".offline .status")'); await t.sleep(1200); };
 // The page showing an article (while one page fades into the next, both are in the window).
 const pageOf = (title) => `[...document.querySelectorAll(".page")].find((p) => (p.querySelector("h1")?.textContent || "").trim() === ${JSON.stringify(title)})`;
+// No connection at all, as the page sees it (navigator.onLine false, every request failing), or back again. Offline mode
+// is turned off at startup when there's no library or download, so this is how those tests go offline.
+async function noNet(t, on) {
+  const d = t.win.webContents.debugger;
+  if (!d.isAttached()) d.attach('1.3');
+  await d.sendCommand('Network.enable');
+  await d.sendCommand('Network.emulateNetworkConditions', { offline: on, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+  await t.js('E2K.updateNet();');
+}
 const libFiles = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 
 // Waits for a download to show progress, then calls act(); returns false if it finished before that (a very fast
@@ -593,6 +602,82 @@ module.exports = [
       c = await find('Peru');
       t.check('If Wikidata can’t be reached: the saved facts, marked as saved', /Lima/.test(c.text) && /saved with the app/.test(c.saved) && c.flagOk, JSON.stringify(c));
       await t.js('window.fetch = window.__fetch;');
+    },
+  },
+  {
+    name: 'birthday-offline', group: 'Reading offline', title: 'The Day You Were Born offline: famous birthdays from the copies saved with the app (twelve per date, best-known, newest first), and the date’s saved highlights',
+    route: 'activity/birthday',
+    async run(t) {
+      await t.waitFor('document.querySelector(".bd-pick select")', 10000);
+      await noNet(t, true);
+      await t.js(`const [m, d] = document.querySelectorAll(".bd-pick select"); m.value = "7"; m.dispatchEvent(new Event("change"));
+        d.value = "20"; const y = document.querySelector(".bd-pick input"); y.value = "1990"; y.dispatchEvent(new Event("change"));
+        document.querySelector(".bd-pick .go").click();`);
+      t.check('Offline, Famous Birthdays lists twelve people', await t.waitFor('document.querySelectorAll(".bd-grid .bd-person").length === 12', 10000),
+        await t.js('return document.querySelector(".act-scroll")?.innerText.slice(0, 300);'));
+      const people = await t.js(`return [...document.querySelectorAll(".bd-person")].map((b) => ({ name: b.querySelector("b").textContent, line: b.querySelector("span").textContent,
+        initial: b.querySelector("i.none")?.textContent, title: b.title }));`);
+      const years = people.map((p) => Number((p.line.match(/(\d+)$/) || [])[1]));
+      t.check('Each with a description and the year, newest first', people.every((p) => /born \d+$|^Born \d+$/.test(p.line)) && years.every((y, i) => !i || y <= years[i - 1]), JSON.stringify(people.slice(0, 3)));
+      t.check('Each shows its initial where the portrait would be', people.every((p) => p.initial === p.name.charAt(0)), JSON.stringify(people.map((p) => p.initial)));
+      t.check('A note says they were saved with the app', /saved with the app/.test(await t.js('return document.querySelector(".bd-saved")?.textContent || "";')));
+      const all = await t.js('const B = window.E2K_BIRTHDAYS; const k = Object.keys(B.days); return { dates: k.length, full: k.filter((d) => B.days[d].length === 12).length, leap: (B.days["02-29"] || []).length };');
+      t.check('Every date of the year (leap day too) has twelve saved', all.dates === 366 && all.full >= 360 && all.leap > 0, JSON.stringify(all));
+      let bad = await t.axe();
+      t.check('No serious accessibility problems', !bad.length, bad.join('; '));
+      await t.shot('birthday-offline');
+      await t.js(`[...document.querySelectorAll(".bd-person")].find((b) => b.title).click();`);
+      t.check('A person opens their article (or says it isn’t available offline)', await t.waitFor('!document.querySelector(".bd-grid")', 10000));
+      await t.command('Back', 'ArrowLeft', { altKey: true });
+      await t.waitFor('document.querySelector(".bd-tabs")', 10000);
+      await t.js('document.querySelector(".bd-tabs [data-tab=events]").click();');
+      t.check('On This Day in History has the date’s saved highlights', await t.waitFor('document.querySelectorAll(".act-scroll .bd-ev").length >= 3', 10000));
+    },
+  },
+  {
+    name: 'lifelines-offline', group: 'Reading offline', title: 'Lifelines offline: the ready-made sets (saved with the app, with portraits), anyone looked up online before, and a clear message for someone new; dates read from an article’s opening',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K', 10000);
+      await noNet(t, true);
+      await t.js('E2K.go("activity/lifelines");');
+      const rows = () => t.js('return [...document.querySelectorAll(".ll-row")].map((r) => r.innerText.split("\\n")[0]);');
+      t.check('Offline, the first set loads: eight people', await t.waitFor('document.querySelectorAll(".ll-row").length === 8', 15000), JSON.stringify(await rows()));
+      t.check('…with their portraits from the app', await t.js('const i = [...document.querySelectorAll(".ll-who i")]; return i.length === 8 && i.every((x) => /activities\\/lifelines\\/.+\\.jpg/.test(x.style.backgroundImage));'));
+      await t.js('[...document.querySelectorAll(".ll-sets .act-chip")].find((b) => b.textContent === "Inventors").click();');
+      t.check('Every set works offline (Inventors: Morse and Benz in place of the Wright brothers)', await t.waitFor('document.querySelectorAll(".ll-row").length === 8 && /Samuel Morse/.test(document.querySelector(".ll-rows").innerText) && /Benz/.test(document.querySelector(".ll-rows").innerText)', 10000),
+        JSON.stringify(await rows()));
+      await t.sleep(600);
+      await t.shot('lifelines-offline');
+      const add = async (name) => {
+        await t.js(`const i = document.querySelector(".ll-add input"); i.value = ${JSON.stringify(name)}; document.querySelector(".ll-add .go").click();`);
+        await t.waitFor('!/^Looking up/.test(document.querySelector("#status")?.textContent || "")', 15000);
+        await t.sleep(300);
+        return t.js('return document.querySelector("#status")?.textContent || "";');
+      };
+      let msg = await add('Marie Curie');
+      t.check('Someone new, with no connection or library: says what’s needed', /needs the internet or an offline library/.test(msg), msg);
+      // Online: look up Marie Curie; then offline again, she's remembered.
+      await noNet(t, false);
+      msg = await add('Marie Curie');
+      t.check('Online, she’s added', /Added Marie Curie/.test(msg), msg);
+      t.check('…and remembered', await t.js('const p = JSON.parse(localStorage.getItem("e2k.lifelinesPeople") || "{}")["Marie Curie"]; return p && p.born === 1867 && p.died === 1934;'));
+      await noNet(t, true);
+      t.win.webContents.reload();
+      await t.waitFor('window.E2K && document.querySelector("#view")', 15000);
+      await t.js('E2K.go("activity/lifelines");');
+      t.check('Offline after a restart: the chart as it was, Marie Curie included', await t.waitFor('/Marie Curie/.test(document.querySelector(".ll-rows")?.innerText || "") && document.querySelectorAll(".ll-row").length === 9', 15000),
+        JSON.stringify(await rows()));
+      const parsed = await t.js(`const f = E2KActivities.get("lifelines").datesFrom; return [
+        f("Galileo di Vincenzo Bonaiuti de' Galilei (15 February 1564 – 8 January 1642) was"),
+        f("Pythagoras of Samos (Ancient Greek: Πυθαγόρας; c. 570 – c. 495 BC) was"),
+        f("Augustus (born Gaius Octavius; 23 September 63 BC – 19 August AD 14) was"),
+        f("Taylor Alison Swift (born December 13, 1989) is"),
+        f("Paris (French pronunciation: [paʁi]) is the capital")];`);
+      t.check('With an offline library, dates are read from the article’s opening (BC, AD, living)', JSON.stringify(parsed) === JSON.stringify([
+        { born: 1564, died: 1642 }, { born: -569, died: -494 }, { born: -62, died: 14 }, { born: 1989, died: null }, null]), JSON.stringify(parsed));
+      const bad = await t.axe();
+      t.check('No serious accessibility problems', !bad.length, bad.join('; '));
     },
   },
   {

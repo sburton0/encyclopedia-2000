@@ -88,6 +88,8 @@ The World Explorer map lives in `src/world/map-data.js`, generated from Natural 
 
 Passport's countries (sovereign states only, no territories) and capitals (`src/games/passport-data.js`, from Wikidata, CC0) and flag pictures (`src/games/flags/`, 320-pixel PNGs from Wikimedia Commons, public domain or freely licensed) ship with the app so it works offline. Run `npm run passport` to rebuild them; it needs an internet connection and keeps pictures already downloaded.
 
+Every activity works offline. Besides World Explorer's facts (below), The Day You Were Born ships each date's 12 best-known birthdays (`src/data/birthdays.js`, from Wikipedia's "On this day" births ranked by how many Wikipedias cover each person) and Lifelines ships its ready-made sets with public-domain portraits (`src/activities/lifelines-data.js`, `src/activities/lifelines/`); people added to Lifelines online are remembered, and with an offline library their dates are read from the article. `npm run offline-data` refreshes these with the On This Day highlights and Home's featured articles.
+
 World Explorer's facts and summaries for every country, territory, and continent (`src/world/facts-data.js`, from Wikidata and Wikipedia) and the territories' flags (`src/world/flags/`; the sovereign states use Passport's) ship with the app, so a country's card works offline; online the facts still come live from Wikidata. Run `npm run world-facts` to refresh them.
 
 Animal Sounds' recordings and pictures (`src/activities/animals/`, with the credits and waveforms in `src/activities/animal-sounds-data.js`) come from Wikimedia Commons, public domain, CC0, CC BY, or CC BY-SA only, and each is credited on screen. Run `npm run animals` to rebuild them (it needs an internet connection and ffmpeg); it keeps the loudest 8 seconds of each recording, evens out the volume, and saves it as Opus. The animals, their files, and the lines about them are listed at the top of `tools/make-animals.mjs`.
@@ -116,6 +118,8 @@ Animal Sounds' recordings and pictures (`src/activities/animals/`, with the cred
 | `src/games/passport.js`, `src/games/passport.css`, `src/games/passport-data.js`, `src/games/flags/` | Passport, the flag and capitals game, and its data |
 | `src/activities/animal-sounds.js`, `src/activities/animal-sounds.css`, `src/activities/animal-sounds-data.js`, `src/activities/animals/` | Animal Sounds and its recordings and pictures |
 | `src/world/facts-data.js`, `src/world/flags/`, `tools/make-world-facts.mjs` | World Explorer's saved facts, summaries, and territory flags (`npm run world-facts`) |
+| `src/data/birthdays.js`, `tools/make-birthdays.mjs` | The Day You Were Born's saved birthdays (`npm run offline-data`) |
+| `src/activities/lifelines-data.js`, `src/activities/lifelines/`, `tools/make-lifelines.mjs` | Lifelines' saved sets and portraits (`npm run offline-data`) |
 | `tools/make-animals.mjs` | Builds Animal Sounds' data (`npm run animals`) |
 
 ## Adding a game

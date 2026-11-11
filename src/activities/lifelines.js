@@ -1,5 +1,7 @@
 // Lifelines: people's lifespans as bars on one timeline, so you can see who was alive at the same time.
-// Birth and death dates come from Wikidata; portraits and descriptions from Wikipedia.
+// Birth and death dates come from Wikidata; portraits and descriptions from Wikipedia. Offline: the ready-made sets saved
+// with the app (lifelines-data.js, tools/make-lifelines.mjs), anyone looked up before (remembered), and with an offline
+// library, dates read from the opening of the person's article.
 (() => {
   const SETS = [
     ['Surprising Overlaps', ['Galileo Galilei', 'William Shakespeare', 'Isaac Newton', 'Gottfried Wilhelm Leibniz', 'Johann Sebastian Bach', 'George Frideric Handel', 'Benjamin Franklin', 'Wolfgang Amadeus Mozart']],
@@ -7,7 +9,7 @@
     ['Great Composers', ['Antonio Vivaldi', 'Johann Sebastian Bach', 'George Frideric Handel', 'Joseph Haydn', 'Wolfgang Amadeus Mozart', 'Ludwig van Beethoven', 'Franz Schubert', 'Frédéric Chopin']],
     ['U.S. Founders', ['Benjamin Franklin', 'George Washington', 'John Adams', 'Thomas Jefferson', 'John Jay', 'James Madison', 'Alexander Hamilton']],
     ['Ancient Greece', ['Pythagoras', 'Hippocrates', 'Socrates', 'Plato', 'Aristotle', 'Alexander the Great', 'Euclid', 'Archimedes']],
-    ['Inventors', ['James Watt', 'Alexander Graham Bell', 'Thomas Edison', 'Nikola Tesla', 'Guglielmo Marconi', 'Wilbur Wright', 'Orville Wright', 'Henry Ford']],
+    ['Inventors', ['James Watt', 'Alexander Graham Bell', 'Thomas Edison', 'Nikola Tesla', 'Samuel Morse', 'Guglielmo Marconi', 'Carl Benz', 'Henry Ford']],
   ];
   const COLORS = ['#9fd3ff', '#ffd27a', '#b5e8a6', '#f2b8d6', '#cdb4ff', '#ffb866', '#86e0d0', '#ff9f8f'];
   const MAX = 14;
@@ -22,33 +24,101 @@
     return d.charAt(0).toUpperCase() + d.slice(1);
   };
 
-  async function lookup(title) {
+  // ---------- offline ----------
+  let savedReady = null;
+  const loadSaved = () => (savedReady ||= window.E2KLifelinesData ? Promise.resolve(window.E2KLifelinesData) : new Promise((resolve) => {
+    const el = document.createElement('script');
+    el.src = 'activities/lifelines-data.js';
+    el.onload = () => resolve(window.E2KLifelinesData || null);
+    el.onerror = () => { savedReady = null; resolve(null); };
+    document.head.append(el);
+  }));
+  // People looked up online are remembered (the most recent 200), so they're there offline too.
+  const REMEMBER = 'lifelinesPeople';
+  const remembered = (api) => api.store.get(REMEMBER, {});
+  function remember(api, title, p) {
+    const all = remembered(api);
+    delete all[title];
+    all[title] = p;
+    const keys = Object.keys(all);
+    for (const k of keys.slice(0, Math.max(0, keys.length - 200))) delete all[k];
+    api.store.set(REMEMBER, all);
+  }
+  // Years from the opening of an article: the first parenthesis with a range ("15 February 1564 – 8 January 1642",
+  // "c. 570 – c. 495 BC", "63 BC – AD 14") or a birth ("born 12 May 1950"). Astronomical years (0 = 1 BC).
+  function datesFrom(text) {
+    const lastYear = (seg) => { const m = seg.match(/(\d{1,4})(?!.*\d)/); return m ? Number(m[1]) : null; };
+    for (const [, inner] of (text || '').matchAll(/\(([^()]*)\)/g)) {
+      for (const piece of inner.split(';')) {
+        const bc = /\b(BC|BCE)\b/.test(piece);
+        const range = piece.split(/\s*[–—]\s*|\s+-\s+/);
+        if (range.length === 2) {
+          let [a, b] = range.map(lastYear);
+          if (a === null || b === null) continue;
+          const aBC = /\b(BC|BCE)\b/.test(range[0]) || (bc && !/\b(AD|CE)\b/.test(range[0]));
+          const bBC = /\b(BC|BCE)\b/.test(range[1]);
+          if (aBC) a = 1 - a;
+          if (bBC) b = 1 - b;
+          if (b >= a && b - a < 130) return { born: a, died: b };
+        }
+        const born = piece.match(/\bborn\b[^0-9]*(?:\d{1,2}\s+\w+\s+|\w+\s+\d{1,2},\s+)?(\d{3,4})\b/);
+        if (born) return { born: Number(born[1]), died: null };
+      }
+    }
+    return null;
+  }
+
+  // Online, Wikidata (and the person is remembered); offline or if that fails, the saved sets, the remembered, then
+  // the offline library's article.
+  async function lookup(title, api) {
     if (people.has(title)) return people.get(title);
     const p = (async () => {
-      const s = await Wiki.summary(title);
-      const q = s.wikibase_item;
-      if (!q) throw Object.assign(new Error('no item'), { why: 'none' });
-      const query = `SELECT ?b ?d WHERE { OPTIONAL { wd:${q} wdt:P569 ?b } OPTIONAL { wd:${q} wdt:P570 ?d } }`;
-      const res = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query));
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const rows = (await res.json()).results.bindings;
-      const yr = (k) => {
-        const ys = rows.map((r) => r[k]?.value).filter(Boolean).map((v) => parseInt(v.match(/^(-?\d+)/)[1], 10));
-        return ys.length ? Math.min(...ys) : null;
-      };
-      const born = yr('b');
-      if (born === null) throw Object.assign(new Error('no birth date'), { why: 'nodate' });
-      return {
-        title: s.titles?.normalized || s.title || title,
-        name: (s.titles?.normalized || s.title || title).replace(/ \(.*\)$/, ''),
-        role: plainDesc(s.description),
-        thumb: s.thumbnail?.source || '',
-        born,
-        died: yr('d'),
-      };
+      const saved = await loadSaved();
+      // By the set's title, or by the article's own (what the chart saves).
+      const own = saved && (saved.people[title] || Object.values(saved.people).find((x) => x.title === title));
+      if (!(api.offline && api.offline())) {
+        try {
+          const live = await lookupLive(title);
+          remember(api, title, live);
+          return own?.thumb ? { ...live, thumb: own.thumb } : live;
+        } catch (e) { if (e.why) throw e; }
+      }
+      if (own) return own;
+      const mem = remembered(api)[title];
+      if (mem) return mem;
+      let s = null;
+      try { s = await Wiki.summary(title); } catch {}
+      const d = s && datesFrom(s.extract);
+      if (!d) throw Object.assign(new Error('offline'), { why: s ? 'nodate' : 'offline' });
+      const t = s.titles?.normalized || s.title || title;
+      return { title: t, name: t.replace(/ \(.*\)$/, ''), role: plainDesc(s.description), thumb: '', ...d };
     })();
     people.set(title, p);
     try { const v = await p; people.set(title, v); return v; } catch (e) { people.delete(title); throw e; }
+  }
+
+  async function lookupLive(title) {
+    const s = await Wiki.summary(title);
+    const q = s.wikibase_item;
+    if (!q) throw Object.assign(new Error('no item'), { why: 'none' });
+    const query = `SELECT ?b ?d WHERE { OPTIONAL { wd:${q} wdt:P569 ?b } OPTIONAL { wd:${q} wdt:P570 ?d } }`;
+    const res = await fetch('https://query.wikidata.org/sparql?format=json&query=' + encodeURIComponent(query));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = (await res.json()).results.bindings;
+    const yr = (k) => {
+      const ys = rows.map((r) => r[k]?.value).filter(Boolean).map((v) => parseInt(v.match(/^(-?\d+)/)[1], 10));
+      return ys.length ? Math.min(...ys) : null;
+    };
+    const born = yr('b');
+    if (born === null) throw Object.assign(new Error('no birth date'), { why: 'nodate' });
+    return {
+      title: s.titles?.normalized || s.title || title,
+      name: (s.titles?.normalized || s.title || title).replace(/ \(.*\)$/, ''),
+      role: plainDesc(s.description),
+      thumb: s.thumbnail?.source || '',
+      born,
+      died: yr('d'),
+    };
   }
 
   function mount(root, api) {
@@ -81,15 +151,15 @@
       markSet(setName);
       chart.replaceChildren(h('p', { class: 'act-note' }, 'Looking up their lives…'));
       api.setStatus('Looking up dates in Wikidata…', true);
-      const got = await Promise.all(titles.map((t) => lookup(t).catch(() => null)));
+      const got = await Promise.all(titles.map((t) => lookup(t, api).catch(() => null)));
       if (my !== token) return;
       list = got.filter(Boolean);
       selected = list[0] || null;
       year = null;
-      // Dates come from Wikidata, which needs the internet; say so instead of showing an empty chart.
-      if (!list.length && api.offline && api.offline()) {
-        chart.replaceChildren(h('p', { class: 'act-note' }, 'Lifelines looks up birth and death dates on Wikidata, so it needs the internet. Go online from the status bar to use it.'));
-        api.setIdle('Lifelines needs the internet');
+      // Offline, people never looked up can't be found (without an offline library); say so instead of an empty chart.
+      if (!list.length && titles.length && api.offline && api.offline()) {
+        chart.replaceChildren(h('p', { class: 'act-note' }, 'These people haven’t been looked up on this computer yet. Try one of the sets above, go online, or install an offline library.'));
+        api.setIdle('Ready');
         return;
       }
       save();
@@ -105,7 +175,7 @@
       if (list.length >= MAX) { api.setIdle(`The chart holds up to ${MAX} people. Remove someone first.`); return; }
       api.setStatus(`Looking up ${title}…`, true);
       try {
-        const p = await lookup(title);
+        const p = await lookup(title, api);
         if (list.some((x) => x.title === p.title)) { api.setIdle(`${p.name} is already on the chart`); return; }
         list.push(p);
         selected = p;
@@ -115,7 +185,7 @@
         api.setIdle(`Added ${p.name}`);
       } catch (e) {
         api.setIdle(e.why === 'nodate' || e.why === 'none' ? `There’s no birth date on record for “${title}”. Lifelines works with people.`
-          : api.offline && api.offline() ? 'Lifelines needs the internet to look up dates' : 'Couldn’t look that up. Please try again.');
+          : e.why === 'offline' ? 'Adding someone new needs the internet or an offline library. The sets above work offline.' : 'Couldn’t look that up. Please try again.');
       }
     }
 
@@ -272,5 +342,6 @@
     category: 'History',
     blurb: 'See famous lives side by side on one timeline. Did Newton and Bach live at the same time? Point at any year to find out.',
     art, mount,
+    datesFrom,   // for the tests
   });
 })();
