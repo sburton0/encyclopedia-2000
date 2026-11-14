@@ -37,7 +37,7 @@ const ANIMALS = [
 
   ['Forests', 'wolf', 'Gray wolf', 'Wolf', 'Howl', 'Wolf howls.ogg', 'Wolves howl to find each other and to warn other packs away; a howl can carry for about 10 kilometres (6 miles).', { by: 'U.S. Fish and Wildlife Service' }],
   ['Forests', 'elk', 'Elk', 'Elk', 'Bugle', 'American Elk Bugling.ogg', 'In autumn, bull elk “bugle”: a call that starts low, rises to a high whistle, and ends in grunts.'],
-  ['Forests', 'moose', 'Moose', 'Moose', 'Calls', 'Moose mate.ogg', 'In the autumn mating season, bull moose grunt and cows give long, moaning calls.'],
+  // No moose: Commons' only moose audio ("Moose mate.ogg") is a trail camera's soundtrack, not a moose calling (Scott, 2026-11-14).
   ['Forests', 'fox', 'Red fox', 'Red fox', 'Scream', 'FuchsSchreit.mp3', 'Red foxes have many calls; their eerie scream is heard most in winter, the mating season.'],
   ['Forests', 'tiger', 'Tiger', 'Tiger', 'Growl', '439280 schots angry-tiger.wav', 'Tigers roar to tell other tigers where they are, and greet friends with a soft, snorting “chuff.”'],
   ['Forests', 'reddeer', 'Red deer', 'Red deer', 'Roar', 'Red Deer (Cervus elaphus) (W1CDR0001424 BD3).ogg', 'In autumn, red deer stags roar to show off, and the deepest roars tend to come from the biggest stags.', { by: 'British Library' }],
@@ -56,7 +56,8 @@ const ANIMALS = [
   ['Farms', 'horse', 'Horse', 'Horse', 'Neigh', 'Wiehern.ogg', 'A horse’s neigh, or whinny, can tell other horses who it is and how it’s feeling.', { picBy: 'François Marchal' }],
   ['Farms', 'sheep', 'Sheep', 'Sheep', 'Bleat', 'Sheep bleating.ogg', 'A ewe and her lamb know each other’s bleats, even in a crowded flock.'],
   ['Farms', 'cow', 'Cow', 'Cattle', 'Moo', 'Mudchute cow 1.ogg', 'Cows moo to keep in touch with their calves and herd, and a mother and calf know each other’s voices.'],
-  ['Farms', 'dog', 'Dog', 'Dog', 'Bark', 'A dog making noises and barking.flac', 'Dogs bark far more than wolves do, a habit that grew as they lived alongside people.'],
+  ['Farms', 'dog', 'Dog', 'Dog', 'Bark', 'A dog making noises and barking.flac', 'Dogs bark far more than wolves do, a habit that grew as they lived alongside people.',
+    { at: 8.3, len: 5.7 }],   // from the barking: the loudest stretch began with 2.5 s of other noises (Scott, 2026-11-14)
 
   ['Bugs and frogs', 'cicada', 'Cicada', 'Cicada', 'Song', 'Cicadas in Greece.ogg', 'Male cicadas sing by clicking drum-like plates on their sides called tymbals; some are as loud as a lawnmower.'],
   ['Bugs and frogs', 'peeper', 'Spring peeper', 'Spring peeper', 'Chorus', 'Springpeepers.ogg', 'Spring peepers are tiny frogs, about as long as a paper clip, but a pond full of them can be heard far away.'],

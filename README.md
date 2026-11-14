@@ -55,7 +55,7 @@ Encyclopedia 2000 collects no personal information and has no ads or accounts. Y
   - **Lifelines**: famous lives side by side on one timeline, with ready-made sets or anyone you add; point at a year to see who was alive and how old they were.
   - **World Clock**: a world map with day and night following the Sun, and clocks for the cities you choose.
   - **Almanac Calendar**: a month of moon phases, sunrise and sunset, seasons, and daylight saving changes for any city, with Wikipedia's "On this day" for each date.
-  - **Animal Sounds**: 39 animals in seven habitats (oceans, rainforests, grasslands, forests, birds, farms, bugs and frogs), each with its recording, a picture, a line about the sound, and its article; then **Who's Calling?**, ten sounds to match to their animals. Every sound and picture ships with the app, so it works offline.
+  - **Animal Sounds**: 38 animals in seven habitats (oceans, rainforests, grasslands, forests, birds, farms, bugs and frogs), each with its recording, a picture, a line about the sound, and its article; then **Who's Calling?**, ten sounds to match to their animals. Every sound and picture ships with the app, so it works offline.
 
 ## What's next
 
