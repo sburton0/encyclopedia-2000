@@ -59,9 +59,9 @@ encyclopedia2000.com uses no cookies and no advertising or cross-site trackers, 
 
 ## Email sign-ups
 
-You can give us your email address in two places: on our beta sign-up page, to get the download link, and on our home page, to get news. We use **Kit** (kit.com), an email service, for both. Kit stores your email address, the date you signed up, and whether you asked for news. We use your address only to send what you asked for: the download link, news, or both. We never sell or share it, and the app itself never sees it.
+You can give us your email address in three places: on our beta sign-up page, to get the download link; on our home page, to get news; and on our USB Offline Edition page, to reserve a copy. We use **Kit** (kit.com), an email service, for all three. Kit stores your email address, the date you signed up, and whether you asked for news. If you reserve a copy, it also stores your answers to two optional questions: which computer you'd use it on, and whether you'd like to hear about the Classic Edition on DVD. We use your address only to send what you asked for: the download link, news, word about the editions you asked about, or a mix of these. We use the reservation answers to plan the editions. We never sell or share your address or answers, and the app itself never sees them.
 
-If you only asked for the download link, we delete your address within 90 days. If you asked for news, we keep it until you unsubscribe with the link at the bottom of every email, and delete it within 90 days after that. Kit's [privacy policy](https://kit.com/privacy) also applies. Sign-up is for people 13 and older.
+If you only asked for the download link, we delete your address within 90 days. If you asked for news, we keep it until you unsubscribe with the link at the bottom of every email, and delete it within 90 days after that. If you reserved a copy, we keep your address until we've told you whether each edition you asked about is ready or won't be made, and delete it within 90 days after that, unless you also asked for news; if you unsubscribe first, we delete it within 90 days of that. Reserving a copy is free and isn't an order. Kit's [privacy policy](https://kit.com/privacy) also applies. Sign-up is for people 13 and older.
 
 ## Children
 
