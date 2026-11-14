@@ -83,14 +83,22 @@
       list.scrollTop = 0;
       if (!data) return;
       if (tab === 'births') {
-        // Online, a dozen famous birthdays spread across the centuries, newest first, people with portraits only.
-        // Offline, the dozen best-known saved with the app (already newest first), with their initial for a portrait.
+        // The dozen best-known saved with the app (already newest first), shown at once (Wikipedia's list for a date
+        // can take several seconds); online, each gets its portrait from Wikipedia's list once that comes, and offline
+        // keeps its initial for one. A date with none saved shows a dozen of Wikipedia's spread across the centuries,
+        // newest first, people with portraits only.
         let people = data.births;
-        if (!data.offline) {
-          const pool = data.births.filter((b) => b.pages?.[0]?.thumbnail).sort((a, b) => a.year - b.year);
-          const n = Math.min(12, pool.length);
-          people = Array.from({ length: n }, (_, i) => pool[Math.floor(i * pool.length / n)]).reverse();
+        if (!data.offline && !data.early) {
+          if (data.saved?.length) {
+            const online = new Map(data.births.filter((b) => b.pages?.[0]).map((b) => [titleOf(b.pages[0]), b]));
+            people = data.saved.map((b) => online.get(titleOf(b.pages[0])) || b);
+          } else {
+            const pool = data.births.filter((b) => b.pages?.[0]?.thumbnail).sort((a, b) => a.year - b.year);
+            const n = Math.min(12, pool.length);
+            people = Array.from({ length: n }, (_, i) => pool[Math.floor(i * pool.length / n)]).reverse();
+          }
         }
+        if (data.early && !people.length) return list.replaceChildren(h('p', { class: 'act-note' }, 'Looking through the encyclopedia…'));
         list.replaceChildren(people.length ? h('div', { class: 'bd-grid' }, people.map((b) => {
           const p = b.pages[0];
           const desc = plainDesc(p.description);
@@ -101,6 +109,7 @@
         }), data.offline ? h('p', { class: 'act-note bd-saved' }, 'Offline: the best-known birthdays saved with the app. Portraits and the full list come back online.') : null)
           : h('p', { class: 'act-note' }, 'No famous birthdays found for this date.'));
       } else {
+        if (data.early) return list.replaceChildren(h('p', { class: 'act-note' }, 'Looking through the encyclopedia…'));
         const evs = data.events.filter((e) => e !== headlineOf()).sort((a, b) => b.year - a.year);
         list.replaceChildren(...evs.map((e) => {
           const t = e.pages?.[0] ? titleOf(e.pages[0]) : '';
@@ -148,10 +157,15 @@
         headline);
       list.replaceChildren(h('p', { class: 'act-note' }, 'Looking through the encyclopedia…'));
       api.setStatus('Looking up your birthday…', true);
+      data = null;
+      const mine = savedBirths(m, d);
+      // The saved birthdays while Wikipedia's list comes.
+      mine.then((births) => { if (my === token && !data) { data = { early: true, births, events: [] }; drawList(); } });
       try {
         const got = await dayData(m, d);
         if (my !== token) return;
-        data = got;
+        data = got.offline ? got : { ...got, saved: await mine };
+        if (my !== token) return;
         const top = headlineOf();
         if (top) {
           const t = top.pages?.[0] ? titleOf(top.pages[0]) : '';

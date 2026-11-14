@@ -732,6 +732,31 @@ module.exports = [
     },
   },
   {
+    name: 'birthday-online', group: 'Activities', title: 'The Day You Were Born online: the date’s dozen best-known birthdays show at once (Wikipedia’s list for a date can take several seconds), then the same people get their portraits, and the date’s events come',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      await t.js(`localStorage.setItem('e2k.birthday', JSON.stringify({ m: 3, d: 14, y: 1980 })); E2K.go('activity/birthday');`);
+      const t0 = Date.now();
+      const shown = await t.waitFor('document.querySelectorAll(".bd-person").length === 12', 10000);
+      const ms = Date.now() - t0;
+      t.check('Twelve famous birthdays within a second', shown && ms < 1000, `${ms} ms`);
+      const names = () => t.js('return [...document.querySelectorAll(".bd-person b")].map((b) => b.textContent).join("|");');
+      const first = await names();
+      t.check('…the best-known, Albert Einstein among them', /Albert Einstein/.test(first), first);
+      t.check('Portraits come for them', await t.waitFor('document.querySelectorAll(".bd-person i:not(.none)").length >= 8', 30000),
+        `${await t.js('return document.querySelectorAll(".bd-person i:not(.none)").length;')} of 12 with portraits`);
+      t.check('…the same people, in the same order', (await names()) === first);
+      t.check('No “saved with the app” note online', !(await t.js('return !!document.querySelector(".bd-saved");')));
+      t.check('The day’s headline shows', await t.waitFor('document.querySelector(".bd-headline:not([hidden]) p")?.textContent.length > 20', 10000));
+      await t.js('document.querySelector(".bd-tabs [data-tab=events]").click();');
+      t.check('On This Day in History lists events', await t.waitFor('document.querySelectorAll(".bd-ev").length >= 10', 10000));
+      await t.js('document.querySelector(".bd-tabs [data-tab=births]").click();');
+      await t.sleep(600);
+      await t.shot('birthday-online');
+    },
+  },
+  {
     name: 'load-times', group: 'General', title: 'Nothing takes several seconds: every main screen, game, and activity is ready within 3 seconds of opening it (online, a fresh profile), with each time reported',
     route: 'home',
     async run(t) {
@@ -767,6 +792,9 @@ module.exports = [
       await time('Periodic Table', go('activity/periodic-table'), 'document.querySelectorAll(".pt-el").length > 100');
       await time('The Solar System', go('activity/solar-system'), 'document.querySelector(".ss-svg .ss-body") && document.querySelector(".act-cb h2")');
       await time('The Day You Were Born', go('activity/birthday'), 'document.querySelectorAll(".bd-person").length >= 8');
+      // Where its time went: Wikipedia's two feeds for the date (when each started, and how long it took).
+      t.check('The Day You Were Born: its requests, for the record', true, await t.js(`return performance.getEntriesByType('resource').filter((e) => /onthisday|birthdays\.js/.test(e.name))
+        .map((e) => e.name.split('/').slice(-3).join('/') + ' at ' + Math.round(e.startTime) + ': took ' + Math.round(e.duration) + ' ms, ' + Math.round(e.encodedBodySize / 1024) + ' KB').join('; ') + '; now ' + Math.round(performance.now());`));
       await time('Lifelines', go('activity/lifelines'), 'document.querySelectorAll(".ll-row").length >= 6');
       await time('World Clock', go('activity/world-clock'), 'document.querySelector(".wc-map svg") && !document.querySelector(".wc-loading")');
       await time('Almanac Calendar (with its events)', go('activity/almanac'), 'document.querySelectorAll(".ac-day:not(.blank)").length >= 28 && document.querySelector(".ac-otd .ac-ev")');
