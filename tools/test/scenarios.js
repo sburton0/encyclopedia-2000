@@ -159,10 +159,12 @@ module.exports = [
     },
   },
   {
-    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 3 seconds (one slow pick doesn’t hold up the rest, and the picks aren’t sent one after another), each picture at the top of its card',
+    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 3 seconds, from one request to Wikipedia each time (bursts of single random requests are refused), each picture at the top of its card',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 15000);
+      // Count the requests for random articles.
+      await t.js(`window.__randoms = 0; const f = window.fetch; window.fetch = (u, ...a) => { if (/random/.test(String(u))) window.__randoms++; return f(u, ...a); };`);
       const times = [];
       for (let i = 0; i < 3; i++) {
         const t0 = Date.now();
@@ -173,6 +175,8 @@ module.exports = [
       }
       t.check('Eight cards each time, with different articles', await t.js('const ts = [...document.querySelectorAll(".cards .card b")].map((b) => b.textContent); return ts.length === 8 && new Set(ts).size === 8;'));
       t.check('The cards fill in within 3 seconds', times.every((ms) => ms < 3000), times.map((ms) => `${ms} ms`).join(', '));
+      const n = await t.js('return window.__randoms;');
+      t.check('One request to Wikipedia per page of cards (three in all)', n === 3, `${n} requests`);
       // A card stretched to the tallest in its row keeps its picture at the top, with no white gap above it.
       const gaps = await t.js('return [...document.querySelectorAll(".cards .card")].map((c) => Math.round(c.querySelector(".ph").getBoundingClientRect().top - c.getBoundingClientRect().top));');
       t.check('Every picture sits at the top of its card', gaps.every((g) => g <= 1), `gaps above the pictures: ${gaps.join(', ')} px`);

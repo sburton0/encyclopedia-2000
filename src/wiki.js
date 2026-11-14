@@ -255,6 +255,16 @@ window.Wiki = (() => {
     // Not through the browser's cache: it sends identical requests made at the same time one after another (to see if it
     // can reuse the first answer), which made the Articles page's random picks arrive in a line instead of together.
     random: () => search(() => get(`${BASE}/api/rest_v1/page/random/summary`, 'json', true, { cache: 'no-store' }), async () => { const r = await lib.random(); if (!r) throw new Error('The library is empty'); return libSummary(r); }),
+    // Several random articles in one request, each shaped like a summary (title, description, extract, thumbnail), for
+    // Browse's cards. One request rather than many: Wikipedia refuses bursts of single random requests (HTTP 429,
+    // found 2026-11-14). Offline, from the library.
+    randomMany: (n) => search(async () => {
+      const r = await get(`${BASE}/w/api.php?action=query&format=json&formatversion=2&origin=*&generator=random&grnnamespace=0&grnfilterredir=nonredirects&grnlimit=${n}`
+        + '&prop=description|extracts|pageimages|pageprops&ppprop=disambiguation&exintro=1&explaintext=1&exsentences=3&exlimit=max&piprop=thumbnail&pithumbsize=320', 'json', true, { cache: 'no-store' });
+      // Disambiguation pages ("may refer to:" lists) are left out.
+      return (r.query?.pages || []).filter((p) => !p.pageprops || !('disambiguation' in p.pageprops)).map((p) => ({ title: p.title, titles: { normalized: p.title }, description: p.description || '', extract: (p.extract || '').trim(),
+        thumbnail: p.thumbnail?.source ? { source: p.thumbnail.source } : null }));
+    }, async () => (await Promise.all(Array.from({ length: n }, () => lib.random().then((x) => (x ? libSummary(x) : null), () => null)))).filter(Boolean)),
     searchTitles: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/title?q=${encodeURIComponent(q)}&limit=8`), async () => ({ pages: await libTitles(q, 8) })),
     // Offline, results are titles that start with what was typed (the library's word search isn't readable here yet).
     searchPages: (q) => search(() => get(`${BASE}/w/rest.php/v1/search/page?q=${encodeURIComponent(q)}&limit=20`), async () => ({ pages: await libTitles(q, 20, true) })),
