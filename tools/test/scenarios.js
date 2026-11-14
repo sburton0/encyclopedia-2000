@@ -858,6 +858,11 @@ module.exports = [
       const text = shown ? await t.js('return document.querySelector(".dialog.whatsnew").innerText;') : '';
       t.check('What\'s New shows after an update', shown);
       t.check('It names this version', text.includes(ver.split('.').slice(0, 2).join('.')), `${ver}: ${text.slice(0, 80)}`);
+      const pics = await t.js(`const im = [...document.querySelectorAll(".dialog.whatsnew .wnpics img")];
+        await Promise.all(im.map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; })));
+        return im.map((i) => ({ ok: i.naturalWidth === 480, alt: i.alt, w: Math.round(i.getBoundingClientRect().width) }));`);
+      t.check('Three pictures, each loaded, described for screen readers, and side by side', pics.length === 3 && pics.every((p) => p.ok && p.alt && p.w > 150 && p.w < 300), JSON.stringify(pics));
+      t.check('…with a name and a line under each, then "Also new"', await t.js('return document.querySelectorAll(".dialog.whatsnew figcaption b").length === 3 && /Also new/.test(document.querySelector(".dialog.whatsnew .wnalso")?.innerText || "");'));
       await t.sleep(1200);   // past its fade-in
       await t.shot('whats-new');
       t.win.webContents.reload();
@@ -2533,9 +2538,11 @@ module.exports = [
       // On a display with other scaling the window can open wider than asked; set it again so it's 980 pixels.
       if (t.win.getContentSize()[0] !== 980) { t.win.setContentSize(980, 700); await t.sleep(800); }
       const order = await t.js(`return [...document.querySelectorAll("#toolbar .tbtn, #toolbar .tsep")].map((b) => b.classList.contains("tsep") ? "|" : (b.textContent.trim() || b.getAttribute("aria-label")));`);
-      const want = ['Browse', 'Media', 'Activities', '|', 'Random article', 'History'];
+      // My Articles (with its ▾) is with the places; then History and Random lead the icon tools (Scott, 2026-11-14).
+      const want = ['Browse', 'Media', 'Activities', 'My Articles', '▾', '|', 'History', 'Random article'];
       const i = order.indexOf('Browse');
-      t.check('Browse · Media · Activities | Random · History', i >= 0 && JSON.stringify(order.slice(i, i + 6)) === JSON.stringify(want), JSON.stringify(order));
+      t.check('Browse · Media · Activities · My Articles ▾ | History · Random', i >= 0 && JSON.stringify(order.slice(i, i + want.length)) === JSON.stringify(want), JSON.stringify(order));
+      t.check('The split button has no line between its parts at rest', await t.js('return getComputedStyle(document.querySelector(".tsplit .tarrow")).boxShadow === "none";'));
       t.check('Timeline isn’t on the toolbar (it’s on Home and in the Features menu)', !order.includes('Timeline'));
       t.check('The icon buttons have tooltips with their shortcuts', await t.js(`return document.querySelector(".tbtn[data-cmd=myhist]").title === "History (${process.platform === 'darwin' ? '⌘Y' : 'Ctrl+Y'})";`));
       const fit = await t.js(`const tb = document.getElementById("toolbar"), f = document.getElementById("field").getBoundingClientRect();

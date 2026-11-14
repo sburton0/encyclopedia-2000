@@ -288,7 +288,11 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 /* The toolbar's My Articles button: the main part opens the pane; the arrow, past a line, opens Manage */
 .tsplit { display: inline-flex; }
 .tsplit .tmain { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 8px; }
-.tsplit .tarrow { min-width: 18px; width: 18px; margin-left: -1px; font-size: 9px; color: #aab3c5; border-top-left-radius: 0; border-bottom-left-radius: 0; box-shadow: inset 1px 0 0 #3a404c; }
+.tsplit .tarrow { min-width: 18px; width: 18px; margin-left: -1px; font-size: 9px; color: #aab3c5; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+/* One control: no line between its parts at rest; hovering either part outlines both, with a faint line between them,
+   and only the part under the pointer lights up (its own :hover), like the article's Download for Offline button. */
+.tsplit:hover .tbtn { border-color: var(--bar-edge); }
+.tsplit:hover .tarrow { box-shadow: inset 1px 0 0 rgba(255, 255, 255, .14); }
 .tsplit .tarrow:hover { color: #fff; }
 /* In a narrow window My Articles is its icon (its tooltip and spoken name stay), so the Find box keeps its room. */
 @media (max-width: 1119px) { .tsplit .tmain .tl { display: none; } .tsplit .tmain { padding-right: 6px; } }
@@ -981,11 +985,19 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 
 /* ---------- Options dialog ---------- */
 .dialog.options { width: 540px; }
-.dialog.whatsnew { width: 440px; }
-.wn { margin: 4px 0 6px; padding: 0; list-style: none; }
-.wn li { position: relative; margin: 0 0 9px; padding-left: 16px; }
-.wn li::before { content: "\25C6"; position: absolute; left: 0; color: var(--orange); }
-.wn b { display: block; color: #fff; }
+.dialog.whatsnew { width: 800px; max-width: calc(100vw - 40px); }
+/* Three pictures across, a name and a line under each, then "Also new" (no big logo: the pictures need the room). */
+.dialog.whatsnew .db > img { display: none; }
+.dialog.whatsnew .db { padding-left: 26px; padding-right: 26px; }
+.wnpics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 14px 0 6px; }
+.wnpics figure { margin: 0; min-width: 0; }
+.wnpics img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border: 1px solid rgba(255, 255, 255, .35); box-shadow: 0 4px 14px rgba(0, 0, 0, .45); }
+.wnpics b { display: block; margin-top: 10px; color: var(--gold); font-size: 14.5px; }
+.wnpics figcaption span { display: block; margin-top: 2px; font-size: 13px; line-height: 1.4; color: #dfe7f7; }
+.wnalso { margin: 14px 0 0; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .2); font-size: 13px; color: #dfe7f7; }
+.wnalso b { color: #fff; }
+.wnalso ul { margin: 4px 0 0; padding-left: 18px; }
+.wnalso li { margin: 2px 0; }
 .options .otabs { display: flex; gap: 2px; padding: 10px 12px 0; border-bottom: 1px solid var(--ink-3); }
 .options .otab { padding: 6px 16px; margin-bottom: -1px; border: 1px solid transparent; border-bottom: 0; background: none; color: var(--sky); font: 600 12px "Segoe UI"; }
 .options .otab:hover { color: #fff; }

@@ -1781,20 +1781,23 @@
   const WHATS_NEW = {
     version: '0.6',
     name: '0.6 Beta',
-    items: [
-      ['Download for Offline', 'Save any article with its pictures and sounds to read without the internet, or a whole category at once.'],
-      ['My Articles', `Your favorites in folders, your downloaded articles, and a full History, all in one place. Open it from the toolbar or with ${MAC ? '⌘I' : 'Ctrl+I'}.`],
-      ['Activities', 'Games are now part of Activities, with two new ones, Passport (flags and capitals) and Animal Sounds. Star the ones you like, and every activity works offline.'],
-      ['Fixes and improvements', 'A new toolbar (Browse, Media, Activities, Random, History), and links to part of an article open at that part.'],
+    // Three features, each with a close-up picture (whatsnew/, 480×300, shown at half size so they're sharp on
+    // high-DPI screens; made from the real app, see mockups/whats-new/), then the rest in a short list.
+    pictures: [
+      ['whatsnew/download.jpg', 'An article’s Download for Offline menu', 'Download for Offline', 'Save articles with their pictures and sounds to read anywhere.'],
+      ['whatsnew/myarticles.jpg', 'The My Articles pane, with favorites in folders', 'My Articles', `Favorites in folders, downloads, and History, all in one place (${MAC ? '⌘I' : 'Ctrl+I'}).`],
+      ['whatsnew/passport.jpg', 'Passport, with three continent stamps', 'Passport and Animal Sounds', 'New in Activities, beside Star Chart. Star the ones you like.'],
     ],
+    also: ['Every activity works offline.', 'A new toolbar: Browse, Media, Activities, My Articles, then History and Random.', 'Links to part of an article open at that part.'],
   };
   const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
   const featureVersion = (v) => (v || '').split(/[.-]/).slice(0, 2).join('.');
   function whatsNew() {
     if (document.querySelector('.dialog.whatsnew')) return;
     dialog('What’s New', `What’s new in version ${WHATS_NEW.name}`, [
-      'Thanks for updating. Here’s what’s new:',
-      h('ul', { class: 'wn' }, WHATS_NEW.items.map(([b, t]) => h('li', {}, h('b', {}, b), t))),
+      h('div', { class: 'wnpics' }, WHATS_NEW.pictures.map(([src, alt, name, line]) =>
+        h('figure', {}, h('img', { src, alt }), h('figcaption', {}, h('b', {}, name), h('span', {}, line))))),
+      h('div', { class: 'wnalso' }, h('b', {}, 'Also new'), h('ul', {}, WHATS_NEW.also.map((t) => h('li', {}, t)))),
     ], [['See All Changes…', () => { window.e2k.openExternal(RELEASES_URL); setIdle('Opened in your web browser'); }], ['Close', null, true]]);
     document.querySelector('.overlay:last-child .dialog').classList.add('whatsnew');
   }
