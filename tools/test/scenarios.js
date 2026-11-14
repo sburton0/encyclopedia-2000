@@ -857,6 +857,7 @@ module.exports = [
       const text = shown ? await t.js('return document.querySelector(".dialog.whatsnew").innerText;') : '';
       t.check('What\'s New shows after an update', shown);
       t.check('It names this version', text.includes(ver.split('.').slice(0, 2).join('.')), `${ver}: ${text.slice(0, 80)}`);
+      await t.sleep(1200);   // past its fade-in
       await t.shot('whats-new');
       t.win.webContents.reload();
       await t.sleep(4000);
@@ -1665,8 +1666,7 @@ module.exports = [
       t.win.webContents.reload();
       await t.waitFor('document.querySelector(".dialog.whatsnew")', 10000);
       const wn = await t.js('return document.querySelector(".dialog.whatsnew")?.innerText || "";');
-      t.check('What’s New says Encyclopedia 2000 › Offline Library, not Tools', /Encyclopedia 2000 › Offline Library/.test(wn) && !/Tools ›/.test(wn));
-      t.check('…and ⌘F', /⌘F/.test(wn));
+      t.check('What’s New uses the Mac’s shortcut (⌘I), not Ctrl', /⌘I/.test(wn) && !/Ctrl\+/.test(wn), wn.slice(0, 300));
       await t.js('document.querySelector(".dialog.whatsnew .go:last-child")?.click();');
       await t.command('Keyboard Shortcuts', '/');
       await t.waitFor('document.querySelector(".dialog.keys")', 4000);

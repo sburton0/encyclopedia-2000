@@ -1779,13 +1779,13 @@
   // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
   // New installs skip it, and bug-fix releases don't change it.
   const WHATS_NEW = {
-    version: '0.5',
-    name: '0.5 Beta',
+    version: '0.6',
+    name: '0.6 Beta',
     items: [
-      ['Offline Library', `Download Wikipedia to your computer and read and search it without the internet. Open ${TOOLS} Offline Library to choose a library.`],
-      ['Online or Offline', 'Click the light in the status bar to go offline, or to read from your library first even when you’re online.'],
-      ['Find in Article', `Press ${MAC ? '⌘F' : 'Ctrl+F'} to find a word on the page. Help › Keyboard Shortcuts lists the rest.`],
-      ['Fixes and improvements', 'Search results without a picture show an icon for the kind of subject, and railway route diagrams draw correctly.'],
+      ['Download for Offline', 'Save any article with its pictures and sounds to read without the internet, or a whole category at once.'],
+      ['My Articles', `Your favorites in folders, your downloaded articles, and a full History, all in one place. Open it from the toolbar or with ${MAC ? '⌘I' : 'Ctrl+I'}.`],
+      ['Activities', 'Games are now part of Activities, with two new ones, Passport (flags and capitals) and Animal Sounds. Star the ones you like, and every activity works offline.'],
+      ['Fixes and improvements', 'A new toolbar (Browse, Media, Activities, Random, History), and links to part of an article open at that part.'],
     ],
   };
   const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
