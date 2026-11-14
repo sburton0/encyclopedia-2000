@@ -159,24 +159,28 @@ module.exports = [
     },
   },
   {
-    name: 'articles-page', group: 'General', title: 'Articles: eight random articles fill in together, in under 3 seconds, from one request to Wikipedia each time (bursts of single random requests are refused), each picture at the top of its card',
+    name: 'articles-page', group: 'General', title: 'Articles: eight random articles show together in under 2 seconds, with their opening text in under 3, from two requests to Wikipedia each time (bursts of single random requests are refused; asking for opening text with the random articles took Wikipedia up to 3 s), each picture at the top of its card',
     route: 'home',
     async run(t) {
       await t.waitFor('document.querySelector(".home")', 15000);
       // Count the requests for random articles.
-      await t.js(`window.__randoms = 0; const f = window.fetch; window.fetch = (u, ...a) => { if (/random/.test(String(u))) window.__randoms++; return f(u, ...a); };`);
-      const times = [];
+      await t.js(`window.__randoms = 0; const f = window.fetch; window.fetch = (u, ...a) => { if (/random/.test(String(u))) window.__randoms++; if (/prop=extracts/.test(String(u))) window.__openings++; return f(u, ...a); }; window.__openings = 0;`);
+      const times = [], texts = [];
       for (let i = 0; i < 3; i++) {
         const t0 = Date.now();
         // Shuffle draws a new grid; the old one is marked so the wait can't count its cards.
         await t.js(i ? 'document.querySelector(".cards").dataset.old = 1; document.querySelector(".tools .bbtn").click();' : 'E2K.go("explore")');
         await t.waitFor('document.querySelectorAll(".cards:not([data-old]) .card:not(.ghost)").length === 8', 15000);
         times.push(Date.now() - t0);
+        await t.waitFor('!document.querySelector(".cards:not([data-old]) .card p.wait")', 15000);
+        texts.push(Date.now() - t0);
       }
       t.check('Eight cards each time, with different articles', await t.js('const ts = [...document.querySelectorAll(".cards .card b")].map((b) => b.textContent); return ts.length === 8 && new Set(ts).size === 8;'));
-      t.check('The cards fill in within 3 seconds', times.every((ms) => ms < 3000), times.map((ms) => `${ms} ms`).join(', '));
-      const n = await t.js('return window.__randoms;');
-      t.check('One request to Wikipedia per page of cards (three in all)', n === 3, `${n} requests`);
+      t.check('The cards show within 2 seconds', times.every((ms) => ms < 2000), times.map((ms) => `${ms} ms`).join(', '));
+      t.check('…and their opening text within 3', texts.every((ms) => ms < 3000), texts.map((ms) => `${ms} ms`).join(', '));
+      t.check('Most cards have opening text', await t.js('return [...document.querySelectorAll(".cards .card p")].filter((p) => p.textContent.length > 20).length >= 6;'));
+      const n = await t.js('return [window.__randoms, window.__openings];');
+      t.check('Two requests to Wikipedia per page of cards: the articles, then their opening text', n[0] === 3 && n[1] === 3, `${n[0]} for articles, ${n[1]} for opening text`);
       // A card stretched to the tallest in its row keeps its picture at the top, with no white gap above it.
       const gaps = await t.js('return [...document.querySelectorAll(".cards .card")].map((c) => Math.round(c.querySelector(".ph").getBoundingClientRect().top - c.getBoundingClientRect().top));');
       t.check('Every picture sits at the top of its card', gaps.every((g) => g <= 1), `gaps above the pictures: ${gaps.join(', ')} px`);

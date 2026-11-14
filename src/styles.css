@@ -760,6 +760,7 @@ mark.fh.cur { background: var(--orange); color: #1a1000; box-shadow: 0 0 0 2px v
 .card .b b { display: block; font: 600 14px "Segoe UI"; color: var(--ink-2); }
 .card .b span { display: block; margin-bottom: 4px; font: 11.5px "Segoe UI"; color: #5f5f5f; }
 .card .b p { margin: 0; font: 12.5px/1.45 var(--read-font); color: #333; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.card .b p.wait { height: 4.6em; border-radius: 3px; background: linear-gradient(90deg, rgba(128,128,150,.13), rgba(128,128,150,.05), rgba(128,128,150,.13)); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 .card.ghost { height: 250px; background: linear-gradient(90deg, #eef2f9, #f8fafd, #eef2f9); background-size: 200% 100%; animation: shimmer 1.2s linear infinite; }
 @keyframes shimmer { to { background-position: -200% 0; } }
 

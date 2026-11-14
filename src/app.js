@@ -1183,21 +1183,29 @@
     let picks = [];
     try { picks = await Wiki.randomMany(16); } catch {}
     if (!live(token)) return;
-    const score = (s) => (s.extract ? 2 : 0) + (s.thumbnail?.source ? 1 : 0);
+    const score = (s) => (s.thumbnail?.source ? 2 : 0) + (s.extract || s.description ? 1 : 0);
     const keep = new Set(picks.map((s, i) => [s, i]).sort((a, b) => score(b[0]) - score(a[0]) || a[1] - b[1]).slice(0, 8).map(([s]) => s));
     picks = picks.filter((s) => keep.has(s));
     let filled = 0;
+    const waiting = new Map();
     for (const s of picks) {
       const t = s.titles?.normalized || s.title;
       if (filled >= 8 || !t || seen.has(t)) continue;
       seen.add(t);
+      const p = h('p', { class: s.extract ? '' : 'wait' }, s.extract || '');
+      if (!s.extract) waiting.set(t, p);
       ghosts[filled++].replaceWith(h('button', { class: 'card', onclick: () => openArticle(t) },
         h('div', { class: 'ph', style: bg(s.thumbnail?.source) }),
-        h('div', { class: 'b' }, h('b', {}, t), s.description ? h('span', {}, s.description) : null, h('p', {}, s.extract || ''))));
+        h('div', { class: 'b' }, h('b', {}, t), s.description ? h('span', {}, s.description) : null, p)));
     }
     if (!filled) throw new Error('No articles returned');
     ghosts.slice(filled).forEach((g) => g.remove());
     setIdle();
+    // The cards show at once; their opening text follows in one more request.
+    if (waiting.size) {
+      const text = await Wiki.openings([...waiting.keys()]);
+      for (const [t, p] of waiting) { p.textContent = text[t] || ''; p.classList.remove('wait'); }
+    }
   }
 
   // ---------- gallery: Picture of the Day, Media of the Day (videos and sounds), and Featured Sounds ----------
