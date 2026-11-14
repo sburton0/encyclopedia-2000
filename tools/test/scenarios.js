@@ -728,6 +728,53 @@ module.exports = [
     },
   },
   {
+    name: 'load-times', group: 'General', title: 'Nothing takes several seconds: every main screen, game, and activity is ready within 3 seconds of opening it (online, a fresh profile), with each time reported',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      await t.sleep(1500);
+      // A birthday saved, so The Day You Were Born shows one when it opens.
+      await t.js(`localStorage.setItem('e2k.birthday', JSON.stringify({ m: 7, d: 20, y: 1990 }));`);
+      const LIMIT = 3000;
+      const times = [];
+      // Opens something, then waits until it's really ready (its content in, not a placeholder or "Loading…").
+      const time = async (label, open, ready, ms = 20000) => {
+        const t0 = Date.now();
+        await t.js(open);
+        const ok = await t.waitFor(ready, ms);
+        const took = Date.now() - t0;
+        times.push([label, ok ? took : null]);
+        t.check(`${label}: ready in ${ok ? (took / 1000).toFixed(1) + ' s' : 'over ' + ms / 1000 + ' s'}`, ok && took < LIMIT, ok ? `${took} ms` : 'not ready');
+        await t.sleep(400);
+      };
+      const go = (r) => `E2K.go(${JSON.stringify(r)});`;
+      await time('Home', go('home'), 'document.querySelector(".home .panel.disc")?.innerText.length > 80 && document.querySelector(".home .alm")?.innerText.length > 80');
+      await time('Browse (eight cards)', go('explore'), 'document.querySelectorAll(".cards .card:not(.ghost)").length === 8');
+      await time('Browse, Shuffle', 'document.querySelector(".cards").dataset.old = 1; document.querySelector(".tools .bbtn").click();', 'document.querySelectorAll(".cards:not([data-old]) .card:not(.ghost)").length === 8');
+      await time('An article (Moon)', go('article/Moon'), '/Moon/.test(document.querySelector(".band h1")?.textContent || "") && document.querySelector(".content.article .text p")?.textContent.length > 100');
+      await time('Random article', go('random'), '!/^Moon/.test(document.querySelector(".band h1")?.textContent || "Moon") && document.querySelector(".content.article .text p")?.textContent.length > 40');
+      await time('Media (Picture of the Day)', go('gallery'), '(() => { const i = document.querySelector(".potd figure img"); return i && i.complete && i.naturalWidth > 0; })()');
+      await time('My Articles', go('myarticles/favorites'), 'document.querySelector(".myart")');
+      await time('Activities', go('activities'), 'document.querySelectorAll(".act-group .gcard").length >= 9');
+      await time('Star Chart', go('game/starchart'), 'document.querySelectorAll(".sc-const").length === 6');
+      await time('Star Chart: a question', 'document.querySelector(".sc-const").dispatchEvent(new MouseEvent("click", { bubbles: true }));', 'document.querySelector(".sc-q-prompt") && document.querySelectorAll(".sc-choice").length === 4');
+      await time('Passport', go('game/passport'), 'document.querySelector(".pp-book .pp-slot")');
+      await time('Animal Sounds', go('activity/animal-sounds'), '[...document.querySelectorAll(".as-grid .as-card .ph")].length >= 4 && document.querySelector(".as-now .ph")');
+      await time('Periodic Table', go('activity/periodic-table'), 'document.querySelectorAll(".pt-el").length > 100');
+      await time('The Solar System', go('activity/solar-system'), 'document.querySelector(".ss-svg .ss-body") && document.querySelector(".act-cb h2")');
+      await time('The Day You Were Born', go('activity/birthday'), 'document.querySelectorAll(".bd-person").length >= 8');
+      await time('Lifelines', go('activity/lifelines'), 'document.querySelectorAll(".ll-row").length >= 6');
+      await time('World Clock', go('activity/world-clock'), 'document.querySelector(".wc-map svg") && !document.querySelector(".wc-loading")');
+      await time('Almanac Calendar (with its events)', go('activity/almanac'), 'document.querySelectorAll(".ac-day:not(.blank)").length >= 28 && document.querySelector(".ac-otd .ac-ev")');
+      await time('World Explorer', go('world'), 'document.querySelectorAll("path.wx-cty").length > 200');
+      await time('World Explorer: a country’s facts', `const i = document.querySelector('input[placeholder="Find a country"]'); i.value = "Kenya"; i.dispatchEvent(new Event("input")); i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));`,
+        'document.querySelector(".wx-card h2")?.textContent === "Kenya" && document.querySelectorAll(".wx-facts tr").length >= 3 && !document.querySelector(".wx-card .wx-loading")');
+      await time('Home (opened from another screen)', go('home'), 'document.querySelector(".home .panel.disc")?.innerText.length > 80 && document.querySelector(".home .alm")?.innerText.length > 80');
+      console.log('load times: ' + times.map(([l, ms]) => `${l} ${ms == null ? '—' : ms + ' ms'}`).join('; '));
+      t.check('The slowest, for the record', true, times.filter(([, ms]) => ms != null).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([l, ms]) => `${l} ${ms} ms`).join(', '));
+    },
+  },
+  {
     name: 'starred-activities', group: 'General', title: 'Starred activities: a star on every card and in the location bar inside a game or activity; starred ones come first in Activities, in the order starred, and stay starred after a restart',
     route: 'activities',
     async run(t) {
