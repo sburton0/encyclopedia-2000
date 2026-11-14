@@ -444,7 +444,7 @@
     return h('div', { class: 'pp-art', 'aria-hidden': 'true' },
       h('div', { class: 'pg' },
         h('i', { class: 'st', style: '--ink:#2f5fc4;--rot:-8deg;left:16%;top:18%' }, 'EUROPE'),
-        h('i', { class: 'st', style: '--ink:#7a42c0;--rot:6deg;left:46%;top:48%' }, 'SOUTH AMERICA'),
+        h('i', { class: 'st', style: '--ink:#b83232;--rot:6deg;left:36%;top:54%' }, 'ASIA'),
         h('i', { class: 'st round', style: '--ink:#b05c0c;--rot:-14deg;left:60%;top:10%' }, 'AFRICA')));
   }
   function progress(api) {
@@ -457,7 +457,7 @@
   E2KGames.register({
     id: 'passport',
     name: 'Passport',
-    blurb: 'Flags and capitals of the world. Take a trip to each continent, earn its stamp, and open the World Tour. Works offline.',
+    blurb: 'Flags and capitals of the world. Take a trip to each continent, earn its stamp, and open the World Tour.',
     art, progress, mount,
   });
 })();

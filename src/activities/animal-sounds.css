@@ -22,7 +22,6 @@
 .as-hab button span { margin-left: auto; font: 12px "Segoe UI"; color: #bcd6e0; }
 .as-hab button.on { background: rgba(255, 255, 255, .92); color: #13323f; }
 .as-hab button.on span { color: #4b6670; }
-.as-hab .all { margin-top: 10px; font: 12.5px "Segoe UI"; color: #cfe6ea; }
 
 .as-now { position: absolute; left: 250px; right: 36px; top: 100px; height: 196px; display: flex; gap: 18px; padding: 14px; background: rgba(6, 24, 32, .62); border-radius: 6px; }
 .as-now > .ph { width: 180px; height: 158px; flex: none; background: #0a1a24 center/cover; border-radius: 4px; }

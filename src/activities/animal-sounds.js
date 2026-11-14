@@ -169,8 +169,7 @@
         h('div', { class: 'as-btns' },
           h('button', { class: 'bbtn', onclick: () => { stop(); resume = null; api.go('activities'); } }, '‹ Activities'),
           h('button', { class: 'bbtn hot', onclick: () => { stop(); round(); } }, 'Who’s Calling? ›')),
-        h('div', { class: 'as-hab', role: 'group', 'aria-label': 'Habitats' }, habs,
-          h('div', { class: 'all' }, `${data.animals.length} animals · every sound works offline`)),
+        h('div', { class: 'as-hab', role: 'group', 'aria-label': 'Habitats' }, habs),
         now,
         h('div', { class: 'as-grid' + (animals.length > 5 ? ' two' : ''), role: 'group', 'aria-label': hab }, cards));
       keep();
@@ -301,7 +300,7 @@
     id: 'animal-sounds',
     name: 'Animal Sounds',
     category: 'Science',
-    blurb: 'Hear the calls of the wild, from whale songs to crickets, then guess who’s calling in a 10-sound round. Works offline.',
+    blurb: 'Hear the calls of the wild, from whale songs to crickets, then guess who’s calling in a 10-sound round.',
     art, mount,
   });
 })();
