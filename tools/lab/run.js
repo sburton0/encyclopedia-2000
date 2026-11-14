@@ -386,6 +386,9 @@ async function updateInstalled() {
     const file = (feed.match(/^path:\s*(.+)$/m) || [])[1]?.trim();
     const need = [[path.join(source, old), `old/${old}`], [path.join(dir, FEED[m.platform]), `new/${FEED[m.platform]}`], [path.join(dir, file), `new/${file}`],
       [path.join(dir, `${file}.blockmap`), `new/${file}.blockmap`], [path.join(source, `${old}.blockmap`), `new/${old}.blockmap`]];
+    // The Mac's .dmg too, if it's there, for installing over the old version.
+    const dmg = m.platform === 'darwin' && fs.readdirSync(dir).find((f) => /^Encyclopedia-2000-.+\.dmg$/.test(f));
+    if (dmg) need.push([path.join(dir, dmg), `new/${dmg}`]);
     const missing = need.filter(([l]) => !fs.existsSync(l)).map(([l]) => l);
     if (missing.length) { console.error(red(`Missing: ${missing.join(', ')}`)); process.exit(1); }
     // Over to the machine, into a fresh folder (files it already has, at the same size, aren't sent again).

@@ -9,6 +9,12 @@
 //     the app closes, the new version is installed and starts by itself.
 //   Update on Close: the app downloads it by itself and is closed like a person would; the new version is installed, and
 //     the next start is the new version.
+//   Installer over it (when the new installer or .dmg is in --files): the old version with 0.5-style data (a flat
+//     favorites list, the twelve recent titles, a theme) is closed, and the new one is installed over it the way a person
+//     would: on Windows the new installer, silently; on the Mac the .dmg, quarantined as a download is, checked by
+//     Gatekeeper, and its app copied over the old one (the quarantine then lifted, as the Open click does). The new
+//     version keeps the favorites (on the My Articles page), the recent titles (History, under Earlier), and the theme,
+//     and shows What's New (it's not a first run).
 // Both: the new version keeps the favorite and the settings. The stand-in's log shows whether the download was partial
 // (a differential download: only the changed parts, by range requests) or the whole file.
 //   node tools/lab/update-installed.js --old-dir <folder with the old installer .exe or Mac .zip>
@@ -145,6 +151,21 @@ const RESTART_NOW = `(async () => {
   if (s.state === 'ready') e2k.update.install();
   return { state: s.state, version: s.version, agent: navigator.userAgent };
 })()`;
+// 0.5's data: the flat favorites list, the recent titles, a theme.
+const RECENT = ['Moon', 'Saturn', 'Honey bee'];
+const SEED = `localStorage.setItem('e2k.favorites', ${JSON.stringify(JSON.stringify(FAV))}); localStorage.setItem('e2k.recent', ${JSON.stringify(JSON.stringify(RECENT))});
+  localStorage.setItem('e2k.theme', '"aurora"'); localStorage.getItem('e2k.recent')`;
+const LOOK = `(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const whatsNew = !!document.querySelector('.dialog.whatsnew');
+  document.querySelectorAll('.overlay').forEach((o) => o.remove());
+  E2K.go('myarticles/favorites'); await wait(2000);
+  const fav = document.body.innerText;
+  E2K.go('myarticles/history'); await wait(2000);
+  const hist = document.body.innerText;
+  return { agent: navigator.userAgent, whatsNew, favPage: fav.includes(${JSON.stringify(FAV[0].title)}),
+    history: ${JSON.stringify(RECENT)}.filter((t) => hist.includes(t)), earlier: /Earlier/.test(hist), theme: localStorage.getItem('e2k.theme') };
+})()`;
 const agentVersion = (a) => ((a || '').match(/encyclopedia-?2000\/(\S+)/i) || [])[1] || '';
 
 // --- The stand-in for GitHub -------------------------------------------------------------------------------------------
@@ -199,9 +220,52 @@ const server = http.createServer((req, res) => {
     else check(`…downloaded ${d.text}${d.ranges ? '' : ' (whole: a fresh install has no earlier update to build on)'}`, true);
   };
 
-  for (const how of ['Restart Now', 'Update on Close']) {
+  const installer = fs.readdirSync(FILES).find((f) => (WIN ? f === NEW_FILE && /\.exe$/.test(f) : /^Encyclopedia-2000-.+\.dmg$/.test(f)));
+  for (const how of ['Restart Now', 'Update on Close', ...(installer ? ['Installer over it'] : [])]) {
     group = how;
     log.length = 0;
+    if (how === 'Installer over it') {
+      try {
+        await installOld();
+        check(`${OLD_VERSION} installed`, isVersion(version(), OLD_VERSION), version());
+        check('0.5-style favorites, recent titles, and a theme saved', (await hook(SEED, 'over-seed')) === JSON.stringify(RECENT));
+        const settings0 = readJson(path.join(P.data, 'settings.json')) || {};
+        const file = path.join(FILES, installer);
+        if (WIN) {
+          execFileSync(file, ['/S'], { timeout: 300000, windowsHide: true });
+          await sleep(3000);
+          kill();
+        } else {
+          // Marked as Safari marks a download; Gatekeeper's verdict on the .dmg, then on the app copied from it.
+          sh(`xattr -w com.apple.quarantine "0083;$(printf %x $(date +%s));Safari;" ${lit(file)}`);
+          const dmgOk = sh(`spctl -a -t open --context context:primary-signature -vv ${lit(file)} 2>&1 || true`);
+          check('Gatekeeper accepts the downloaded .dmg', /accepted/.test(dmgOk) && /Notarized Developer ID/.test(dmgOk), dmgOk.replace(/\n/g, ' '));
+          const mnt = '/tmp/e2k-dmg';
+          sh(`hdiutil detach ${lit(mnt)} -force >/dev/null 2>&1; mkdir -p ${lit(mnt)} && hdiutil attach -nobrowse -readonly -mountpoint ${lit(mnt)} ${lit(file)} >/dev/null`, 300000);
+          fs.rmSync(P.app, { recursive: true, force: true });
+          sh(`ditto ${lit(path.join(mnt, 'Encyclopedia 2000.app'))} ${lit(P.app)}`, 300000);
+          sh(`hdiutil detach ${lit(mnt)} -force >/dev/null`);
+          const q = sh(`xattr -p com.apple.quarantine ${lit(P.app)} 2>/dev/null || (xattr -w com.apple.quarantine "0083;$(printf %x $(date +%s));Safari;" ${lit(P.app)} && echo added)`);
+          const appOk = sh(`spctl -a -vv ${lit(P.app)} 2>&1 || true`);
+          check('Gatekeeper accepts the app, quarantined as a download', /accepted/.test(appOk) && /Notarized Developer ID/.test(appOk), `${appOk.replace(/\n/g, ' ')} (quarantine: ${q})`);
+          sh(`xattr -dr com.apple.quarantine ${lit(P.app)}`);
+        }
+        check(`${NEW_VERSION} is installed over it`, isVersion(version(), NEW_VERSION), version());
+        check('…signed as released', signedOk(signature()), signature());
+        const after = await hook(LOOK, 'over-after', 20000);
+        check(`It starts as ${NEW_VERSION}`, after && isVersion(agentVersion(after.agent), NEW_VERSION), JSON.stringify(after));
+        check('What’s New shows (not a first run)', after?.whatsNew);
+        check('The favorite is on the My Articles page', after?.favPage);
+        check('The recent titles are in History, under Earlier', after?.history.length === RECENT.length && after.earlier, JSON.stringify(after?.history));
+        check('The theme is kept', after?.theme === '"aurora"', after?.theme);
+        const settings1 = readJson(path.join(P.data, 'settings.json')) || {};
+        check('Settings kept', Object.keys(settings0).filter((k) => !['bounds', 'maximized'].includes(k)).every((k) => JSON.stringify(settings0[k]) === JSON.stringify(settings1[k])), JSON.stringify(settings1));
+      } catch (e) {
+        check('Ran to the end', false, e.message);
+      }
+      kill();
+      continue;
+    }
     try {
       await installOld();
       check(`${OLD_VERSION} installed`, isVersion(version(), OLD_VERSION), version());
