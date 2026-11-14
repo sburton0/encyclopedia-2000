@@ -16,6 +16,7 @@
     "passport": "node tools/make-passport.mjs",
     "animals": "node tools/make-animals.mjs",
     "world-facts": "node tools/make-world-facts.mjs",
+    "portable-splash": "electron tools/make-portable-splash.js",
     "test:app": "node tools/test/run.js",
     "lab": "node tools/lab/run.js",
     "dist": "node tools/patch-uninstaller.js && node tools/sign-nsis-plugins.js && electron-builder --win --publish never -c.electronDist=node_modules/electron/dist",
@@ -164,7 +165,8 @@
       }
     ],
     "portable": {
-      "artifactName": "Encyclopedia-2000-Portable-${version}.${ext}"
+      "artifactName": "Encyclopedia-2000-Portable-${version}.${ext}",
+      "splashImage": "build/portable-splash.bmp"
     }
   }
 }
