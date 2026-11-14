@@ -48,6 +48,17 @@ const sha512 = (f) => crypto.createHash('sha512').update(fs.readFileSync(f)).dig
 
 (async () => {
   console.log(`Building ${version} in ${REPO}`);
+  // 0. Before anything slow: can this session reach the notarization login in the keychain? A locked keychain
+  //    (after a restart, or locked by time or sleep) otherwise shows up 20 minutes later as "upload failed", forever.
+  group = 'Keychain';
+  const kc = sh('/usr/bin/xcrun', ['notarytool', 'history', '--keychain-profile', process.env.PROFILE || 'e2k-notary']);
+  if (!check('The notarization login can be read (the keychain is unlocked)', kc.ok, kc.out.trim().split(/\r?\n/).pop())) {
+    console.log('  Unlock the login keychain on this Mac (sign in at its screen, or Keychain Access › File › Unlock), then run it again.');
+    fs.writeFileSync(path.join(RESULTS, 'checks.json'), JSON.stringify(checks, null, 2));
+    console.log('');
+    console.log('0 of 1 passed (the keychain is locked; nothing was built).');
+    process.exit(1);
+  }
   // 1. The tests.
   group = 'Tests';
   if (args.includes('--skip-tests')) check('Skipped (--skip-tests)', true);

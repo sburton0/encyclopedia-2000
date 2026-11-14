@@ -2561,7 +2561,7 @@ module.exports = [
     async run(t) {
       // A screen shorter than the window asked for (the lab's Mac: 1080 pixels) can't make it portrait.
       const [cw, ch] = t.win.getContentSize();
-      if (ch <= cw) return t.skip('The viewer in a portrait window', `this screen can't open a window taller than it is wide (got ${cw}×${ch})`);
+      if (ch < 1600) return t.skip('The viewer in a portrait window', `this screen can't open a window that tall (got ${cw}×${ch} of 980×1742)`);
       await t.js('E2K.openArticle("Florence Nightingale");');
       t.check('The article opens', await t.waitFor('document.querySelector(".band h1")?.textContent === "Florence Nightingale" && [...document.querySelectorAll(".mbox .mt.audio")].length', 40000));
       await t.js('document.querySelector(".mbox .mt.audio").click();');
