@@ -452,6 +452,7 @@ module.exports = [
       await t.waitFor('document.querySelector(".home .shelf .orb")', 10000);
       const orbs = await t.js('return [...document.querySelectorAll(".home .shelf .orb")].map((o) => o.textContent.trim());');
       t.check('Home’s shelf has My Articles and no Games', orbs.includes('My Articles') && !orbs.includes('Games'), JSON.stringify(orbs));
+      t.check('…with Activities before My Articles, as on the toolbar', orbs.indexOf('Activities') >= 0 && orbs.indexOf('Activities') + 1 === orbs.indexOf('My Articles'), JSON.stringify(orbs));
       // Someone new: nothing saved, downloaded, or read yet.
       await t.js(`localStorage.removeItem('e2k.favorites'); localStorage.removeItem('e2k.history'); localStorage.removeItem('e2k.recent');`);
       t.win.webContents.reload();

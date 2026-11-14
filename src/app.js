@@ -406,8 +406,8 @@
     { id: 'media', label: 'Media', icon: 'film', bg: '#ffe2d2,#e0612a 55%,#6a2008', run: () => go('gallery') },
     { id: 'timeline', label: 'Timeline', icon: 'hourglass', bg: '#fff6d0,#e2a21e 55%,#6b4a05', run: () => go('onthisday') },
     { id: 'world', label: 'World Explorer', icon: 'globe', bg: '#d6ffe0,#2fae5a 55%,#0b4a22', run: () => go('world') },
-    { id: 'myarticles', label: 'My Articles', icon: 'books', bg: '#d4fbf6,#1fa39a 55%,#08433f', run: () => go('myarticles/favorites') },
     { id: 'activities', label: 'Activities', icon: 'puzzle', bg: '#ffd9e8,#d83a7a 55%,#5c0a2c', run: () => go('activities') },
+    { id: 'myarticles', label: 'My Articles', icon: 'books', bg: '#d4fbf6,#1fa39a 55%,#08433f', run: () => go('myarticles/favorites') },
   ];
   const orb = (id) => ORBS.find((o) => o.id === id);
 
