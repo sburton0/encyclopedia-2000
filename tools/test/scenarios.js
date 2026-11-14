@@ -535,6 +535,13 @@ module.exports = [
         await t.js('document.querySelector(".pp-feedback .go").click();');
       }
       t.check('Every picture comes from the app itself, not the internet', await t.js('return [...document.querySelectorAll(".pp-canvas img")].every((i) => i.src.startsWith("file:") || !/^https?:/.test(i.src));'));
+      // With no connection at all: the question and its flags still show.
+      await noNet(t, true);
+      await t.js('E2K.go("home"); E2K.go("game/passport");');
+      await t.waitFor('document.querySelector(".pp-slot")', 15000);
+      await t.js('[...document.querySelectorAll(".pp-slot")].find((b) => /Africa/.test(b.getAttribute("aria-label"))).click();');
+      t.check('With no connection, a trip continues, with its map or flags', await t.waitFor('document.querySelector(".pp-ask .prompt") && ([...document.querySelectorAll(".pp-canvas img")].every((i) => i.complete && i.naturalWidth > 0)) && (document.querySelector(".pp-card img, .pp-flagch img, .pp-card svg"))', 10000));
+      await noNet(t, false);
       t.win.webContents.reload();
       await t.waitFor('window.E2K && document.querySelector("#view")', 15000);
       await t.js('E2K.go("game/passport");');
@@ -679,6 +686,40 @@ module.exports = [
         { born: 1564, died: 1642 }, { born: -569, died: -494 }, { born: -62, died: 14 }, { born: 1989, died: null }, null]), JSON.stringify(parsed));
       const bad = await t.axe();
       t.check('No serious accessibility problems', !bad.length, bad.join('; '));
+    },
+  },
+  {
+    name: 'every-theme', group: 'General', title: 'Every theme: Home, Activities, My Articles, Passport, and Animal Sounds draw in each of the seven themes (a screenshot of each, for looking over)',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K && window.E2KThemes', 10000);
+      // Something to show: favorites in folders, and three Passport stamps.
+      await t.js(`localStorage.setItem('e2k.favorites', JSON.stringify([
+        { folder: 'Space', id: 'f1', open: true, items: [{ title: 'Moon', desc: 'Natural satellite of Earth' }, { title: 'Saturn', desc: 'Sixth planet from the Sun' }] },
+        { folder: 'Music', id: 'f2', open: false, items: [{ title: 'Ray Charles', desc: 'American musician' }] },
+        { title: 'Leonardo da Vinci', desc: 'Italian polymath' }]));
+        localStorage.setItem('e2k.passport', JSON.stringify({ points: 2350, streak: 0, best: 6, met: [], tour: null, trips: {},
+          stamps: { Europe: { date: '02 NOV 2026', right: 8 }, Africa: { date: '06 NOV 2026', right: 7 }, Asia: { date: '09 NOV 2026', right: 6 } } }));`);
+      const themes = await t.js('return E2KThemes.list.map((x) => x.id);');
+      t.check('Seven themes', themes.length === 7, themes.join());
+      const screens = [
+        ['home', 'home', 'document.querySelector(".home .orb")'],
+        ['activities', 'activities', 'document.querySelector(".act-group .gcard")'],
+        ['myarticles', 'myarticles/favorites', 'document.querySelector(".myart .mrow, .myart .mfolder, .myart")'],
+        ['passport', 'game/passport', 'document.querySelector(".pp-book .pp-stamp")'],
+        ['animals', 'activity/animal-sounds', 'document.querySelector(".as-grid .as-card .ph")'],
+      ];
+      for (const theme of themes) {
+        await t.js(`localStorage.setItem('e2k.theme', JSON.stringify(${JSON.stringify(theme)})); E2K.applyPrefs();`);
+        const missing = [];
+        for (const [name, route, ready] of screens) {
+          await t.js(`E2K.go(${JSON.stringify(route)});`);
+          if (!(await t.waitFor(ready, 15000))) missing.push(name);
+          await t.sleep(1200);   // past the fade-in and the pictures
+          await t.shot(`${theme}-${name}`);
+        }
+        t.check(`${theme}: every screen drew`, !missing.length && (await t.js('return document.documentElement.dataset.theme || E2KThemes.current();')) === theme, missing.join());
+      }
     },
   },
   {
@@ -832,6 +873,16 @@ module.exports = [
       await t.waitFor('!document.querySelector(".as-audio").paused', 3000);
       await t.js('E2K.go("home");');
       t.check('Leaving Animal Sounds stops the sound', await t.waitFor('!document.querySelector(".as-audio")', 3000) && await t.js('return ![...document.querySelectorAll("audio")].some((a) => !a.paused);'));
+      // With no connection at all: the pictures show and a sound plays (they ship with the app).
+      await noNet(t, true);
+      await t.js('E2K.go("activity/animal-sounds");');
+      await t.waitFor('document.querySelector(".as-grid .as-card")', 10000);
+      await t.js('document.querySelectorAll(".as-grid .as-card")[1].click();');
+      t.check('With no connection, a sound plays', await t.waitFor('document.querySelector(".as-audio") && document.querySelector(".as-audio").currentTime > 0.3', 6000));
+      t.check('…and the pictures show', await t.js(`const urls = [...document.querySelectorAll(".as-grid .ph")].map((p) => getComputedStyle(p).backgroundImage).filter((b) => b.startsWith('url("')).map((b) => b.slice(5, -2));
+        const ok = await Promise.all(urls.map((u) => new Promise((r) => { const i = new Image(); i.onload = () => r(i.naturalWidth > 0); i.onerror = () => r(false); i.src = u; })));
+        return ok.length >= 5 && ok.every(Boolean);`));
+      await noNet(t, false);
     },
   },
   {

@@ -147,6 +147,11 @@
 [data-theme="classic"] .crumbs { border-bottom: 1px solid #808080; }
 [data-theme="classic"] .crumbs .here { color: #000080; }
 [data-theme="classic"] .crumbs a:hover { color: #000080; background: #d4d4d4; border-color: #808080; }
+/* The location bar's Star button (inside a game or activity): dark text on the gray bar, a raised 3D button. */
+[data-theme="classic"] .crumbs .cstar { color: #000; background: #c0c0c0; border-color: #fff #808080 #808080 #fff; }
+[data-theme="classic"] .crumbs .cstar i { color: #806000; }
+[data-theme="classic"] .crumbs .cstar:hover { color: #000080; background: #d4d4d4; }
+[data-theme="classic"] .crumbs .cstar.on { color: #000080; background: #d4d4d4; border-color: #808080 #fff #fff #808080; }
 [data-theme="classic"] .statusbar { border-top: 1px solid #fff; }
 [data-theme="classic"] .statusbar .sb { border-right: 1px solid #808080; box-shadow: 1px 0 #fff; }
 /* Gray, beveled panels with blue title bars on the Home screen. */
