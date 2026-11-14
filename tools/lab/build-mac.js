@@ -48,15 +48,20 @@ const sha512 = (f) => crypto.createHash('sha512').update(fs.readFileSync(f)).dig
 
 (async () => {
   console.log(`Building ${version} in ${REPO}`);
-  // 0. Before anything slow: can this session reach the notarization login in the keychain? A locked keychain
-  //    (after a restart, or locked by time or sleep) otherwise shows up 20 minutes later as "upload failed", forever.
-  group = 'Keychain';
+  // 0. Before anything slow: does Apple's notary service take this Mac's notarization login? Otherwise the trouble
+  //    shows up 20 minutes later as "upload failed", retried forever (mac-release.sh hides notarytool's message).
+  //    Seen so far: a locked keychain, and Apple's updated developer agreement not yet accepted (HTTP 403).
+  group = 'Notarization';
   const kc = sh('/usr/bin/xcrun', ['notarytool', 'history', '--keychain-profile', process.env.PROFILE || 'e2k-notary']);
-  if (!check('The notarization login can be read (the keychain is unlocked)', kc.ok, kc.out.trim().split(/\r?\n/).pop())) {
-    console.log('  Unlock the login keychain on this Mac (sign in at its screen, or Keychain Access › File › Unlock), then run it again.');
+  if (!check('Apple accepts the notarization login', kc.ok, kc.out.trim().split(/\r?\n/).filter((l) => /error|agreement|keychain/i.test(l)).join(' ') || kc.out.trim().slice(-300))) {
+    console.log(/agreement/i.test(kc.out)
+      ? '  Apple needs its updated developer agreement accepted: developer.apple.com/account (and App Store Connect › Business). Then run it again.'
+      : /keychain/i.test(kc.out)
+        ? '  Unlock the login keychain on this Mac (sign in at its screen, or Keychain Access › File › Unlock), then run it again.'
+        : '  See the message above, then run it again.');
     fs.writeFileSync(path.join(RESULTS, 'checks.json'), JSON.stringify(checks, null, 2));
     console.log('');
-    console.log('0 of 1 passed (the keychain is locked; nothing was built).');
+    console.log('0 of 1 passed (notarization would fail; nothing was built).');
     process.exit(1);
   }
   // 1. The tests.
