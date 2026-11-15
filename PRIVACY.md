@@ -1,6 +1,6 @@
 # Encyclopedia 2000 Privacy Policy
 
-**Effective November 8, 2026**
+**Effective November 16, 2026**
 
 Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It's built to respect your privacy: it has no accounts, no ads, no analytics, and no tracking, and it doesn't collect or sell any personal information.
 
@@ -9,15 +9,17 @@ Encyclopedia 2000 is a free desktop encyclopedia for Windows, Mac, and Linux. It
 The app saves a few things so it works the way you left it. They're stored only on your computer and are never sent anywhere:
 
 - Your settings from Tools → Options, such as sound, text size, and startup choices
-- Your favorites and your recently viewed articles
-- Game progress, such as Star Chart stars and score
+- Your favorites and their folders, and the activities you've starred
+- Your history: the articles you've read and when (Recently viewed is its newest few)
+- Articles you download for offline reading, with their pictures and sounds (and videos, if you choose them)
+- Game progress, such as Star Chart stars and score and Passport's stamps
 - What you enter in activities, such as the birthday in The Day You Were Born and the people in Lifelines
 - The window's size and position
 - Your offline library, if you download one: a Wikipedia file saved in the folder you choose in **Tools → Offline Library**, along with the library's settings (Online or Offline mode, "use the offline library first", and the image choice) and the progress of a download in progress
 
 The installed version keeps these in your user profile on your computer. The portable version keeps them in an "Encyclopedia 2000 Data" folder next to the program.
 
-To remove an offline library, use **Remove…** in **Tools → Offline Library** (or delete its file from the folder shown there). To remove the rest, use **Tools → Options → Privacy → Clear Recently Viewed** or **Reset All Settings**, uninstall the app, or (for the portable version) delete the "Encyclopedia 2000 Data" folder. Uninstalling may leave your settings folder behind; you can delete it from `%APPDATA%\encyclopedia-2000`.
+To remove an offline library, use **Remove…** in **Tools → Offline Library** (or delete its file from the folder shown there). To remove downloaded articles, use **Remove…** in **Tools → Options → Storage**, or delete them in **My Articles**. To clear your history, use **Clear History…** on the History page (in **My Articles**) or in **Tools → Options → Privacy**; **Pause history** on the History page stops adding to it. To remove the rest, uninstall the app, or (for the portable version) delete the "Encyclopedia 2000 Data" folder. Uninstalling may leave your settings folder behind; you can delete it from `%APPDATA%\encyclopedia-2000`.
 
 ## What the app connects to
 
