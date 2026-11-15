@@ -329,7 +329,7 @@ size: ${b.length}
   }
   return runJobs(ms, {
     branch: 'main', runner: 'tools/lab/update-portable.js', title: `Portable self-update, ${old} → ${newFile}${dry ? ' (dry run)' : ''}`,
-    testArgs: ['--code', 'e2k-lab/update/portable-update.js', '--old', `e2k-lab/update/old/${old}`, '--old-version', oldVersion, '--files', 'e2k-lab/update/new', ...(dry ? ['--dry'] : [])],
+    testArgs: ['--code', 'e2k-lab/update/portable-update.js', '--old', `e2k-lab/update/old/${old}`, '--old-version', oldVersion, '--files', 'e2k-lab/update/new', ...(dry ? ['--dry'] : []), ...(args.includes('--github') ? ['--github'] : [])],
   });
 }
 
@@ -415,7 +415,7 @@ async function updateInstalled() {
   }
   return runJobs(ms, {
     branch: 'main', runner: 'lab:update-installed.js', title: `Installed self-update from ${oldDir ? path.basename(source) : tag}`,
-    testArgs: ['--old-dir', 'e2k-lab/update-installed/old', '--files', 'e2k-lab/update-installed/new'],
+    testArgs: ['--old-dir', 'e2k-lab/update-installed/old', '--files', 'e2k-lab/update-installed/new', ...(args.includes('--github') ? ['--github'] : [])],
   });
 }
 

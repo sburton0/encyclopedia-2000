@@ -26,6 +26,8 @@ const HOME = os.homedir();
 const resolve = (p) => (path.isAbsolute(p) ? p : path.join(HOME, p));
 const CODE = resolve(opt('--code')), OLD = resolve(opt('--old')), OLD_VERSION = opt('--old-version'), FILES = resolve(opt('--files'));
 const DRY = args.includes('--dry');
+// --github: the app checks GitHub itself (after publishing), with no stand-in; the files given are only to know what to expect.
+const GITHUB = args.includes('--github');
 const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
 const RESULTS = path.join(HOME, 'e2k', 'tools', 'test', 'results', `update-${stamp}`);
 fs.mkdirSync(RESULTS, { recursive: true });
@@ -109,7 +111,7 @@ const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.repl
   async function realRound(letter, how) {
     const t = prepare(letter, true);
     try {
-      const env = { ...process.env, E2K_UPDATE_TEST_FEED: origin, ...(how === 'restart' ? { E2K_UPDATE_TEST_RESTART: '1' } : {}) };
+      const env = { ...process.env, ...(GITHUB ? {} : { E2K_UPDATE_TEST_FEED: origin }), ...(how === 'restart' ? { E2K_UPDATE_TEST_RESTART: '1' } : {}) };
       spawn(t.exe, [], { cwd: t.dir, env, detached: true, stdio: 'ignore' }).unref();
       const t0 = Date.now();
       check('The old version starts from the stick', await until(appRunning, 120000), `${Math.round((Date.now() - t0) / 1000)} s`);
@@ -181,7 +183,7 @@ const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.repl
 
   const groups = [...new Set(checks.map((c) => c.group))];
   const bad = new Set(checks.filter((c) => !c.ok).map((c) => c.group));
-  const lines = [`# Portable self-update on the test stick${DRY ? ' (dry run)' : ''}`, '',
+  const lines = [`# Portable self-update on the test stick${DRY ? ' (dry run)' : ''}${GITHUB ? ', from GitHub' : ''}`, '',
     `${new Date().toLocaleString()} on ${os.hostname()}. ${path.basename(OLD)} (${OLD_VERSION}; ${REAL ? 'the real app' : 'its update code only'}) → ${want.file} (${want.version}). ` +
     `${groups.length - bad.size} of ${groups.length} passed.`, ''];
   for (const g of groups) {

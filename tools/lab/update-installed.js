@@ -32,6 +32,8 @@ const resolve = (p) => (path.isAbsolute(p) ? p : path.join(HOME, p));
 const WIN = process.platform === 'win32', MAC = process.platform === 'darwin';
 if (!WIN && !MAC) { console.log('Only on Windows and macOS (the Linux .deb doesn\'t update itself).'); process.exit(2); }
 const OLD_DIR = resolve(opt('--old-dir')), FILES = resolve(opt('--files'));
+// --github: the app updates from GitHub itself (after publishing): no stand-in, and no Installer over it round.
+const GITHUB = args.includes('--github');
 const OLD_RE = WIN ? /^Encyclopedia-2000-Installer-(.+)\.exe$/ : /^Encyclopedia-2000-(.+)-mac\.zip$/;
 const oldName = fs.readdirSync(OLD_DIR).find((f) => OLD_RE.test(f));
 if (!oldName) { console.log(`No old ${WIN ? 'installer' : 'Mac zip'} in ${OLD_DIR}`); process.exit(2); }
@@ -216,12 +218,13 @@ const server = http.createServer((req, res) => {
   // update zip to build on, so there it's only reported.
   const partial = () => {
     const d = download();
+    if (GITHUB) return check('…downloaded from GitHub (its size isn’t measured here)', true);
     if (WIN) check(`…a partial download (only the changed parts): ${d.text}`, d.ranges > 0 && !d.whole);
     else check(`…downloaded ${d.text}${d.ranges ? '' : ' (whole: a fresh install has no earlier update to build on)'}`, true);
   };
 
   const installer = fs.readdirSync(FILES).find((f) => (WIN ? f === NEW_FILE && /\.exe$/.test(f) : /^Encyclopedia-2000-.+\.dmg$/.test(f)));
-  for (const how of ['Restart Now', 'Update on Close', ...(installer ? ['Installer over it'] : [])]) {
+  for (const how of ['Restart Now', 'Update on Close', ...(installer && !GITHUB ? ['Installer over it'] : [])]) {
     group = how;
     log.length = 0;
     if (how === 'Installer over it') {
@@ -276,7 +279,7 @@ const server = http.createServer((req, res) => {
       check('…it updates from GitHub (its app-update.yml)', /provider: github/.test(original), original.replace(/\n/g, ' '));
       check('A favorite saved', (await hook(SET_FAV, `${how}-favorite`)) === JSON.stringify(FAV));
       const settings0 = readJson(path.join(P.data, 'settings.json')) || {};
-      pointAtStandIn();
+      if (!GITHUB) pointAtStandIn();
       const t0 = Date.now();
       if (how === 'Restart Now') {
         const out = path.join(RESULTS, 'restart-now.json');
@@ -324,7 +327,7 @@ const server = http.createServer((req, res) => {
   const groups = [...new Set(checks.map((c) => c.group))];
   const bad = new Set(checks.filter((c) => !c.ok).map((c) => c.group));
   const passed = groups.length - bad.size;
-  const md = [`# Installed update: ${path.basename(OLD)} (${OLD_VERSION}) → ${NEW_FILE} (${NEW_VERSION})`, '',
+  const md = [`# Installed update: ${path.basename(OLD)} (${OLD_VERSION}) → ${NEW_FILE} (${NEW_VERSION})${GITHUB ? ', from GitHub' : ''}`, '',
     `${new Date().toLocaleString()} on ${os.hostname()}, ${os.platform()} ${os.release()}.`, '', `${passed} of ${groups.length} passed.`, ''];
   for (const g of groups) {
     md.push(`### ${bad.has(g) ? '✗' : '✓'} ${g}`, '');
