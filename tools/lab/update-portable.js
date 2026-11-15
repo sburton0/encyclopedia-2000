@@ -111,7 +111,12 @@ const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.repl
   async function realRound(letter, how) {
     const t = prepare(letter, true);
     try {
-      const env = { ...process.env, ...(GITHUB ? {} : { E2K_UPDATE_TEST_FEED: origin }), ...(how === 'restart' ? { E2K_UPDATE_TEST_RESTART: '1' } : {}) };
+      // From GitHub there's no test feed, so the updater's own Restart Now hook is off: the page presses it instead (what the
+      // button does), once the update is ready.
+      const press = `(async () => { const end = Date.now() + 10 * 60 * 1000; let s = await e2k.update.state(); while (Date.now() < end && s.state !== 'ready') { await new Promise((r) => setTimeout(r, 1000)); s = await e2k.update.state(); } if (s.state === 'ready') e2k.update.install(); return s; })()`;
+      const env = { ...process.env, ...(GITHUB ? {} : { E2K_UPDATE_TEST_FEED: origin }), ...(how === 'restart' ? (GITHUB
+        ? { E2K_EVAL: press, E2K_EVAL_OUT: path.join(RESULTS, `${letter}-press.json`), E2K_CAPTURE: path.join(RESULTS, `${letter}-press.png`), E2K_DELAY: '3000', E2K_EVAL_WAIT: '30000' }
+        : { E2K_UPDATE_TEST_RESTART: '1' }) : {}) };
       spawn(t.exe, [], { cwd: t.dir, env, detached: true, stdio: 'ignore' }).unref();
       const t0 = Date.now();
       check('The old version starts from the stick', await until(appRunning, 120000), `${Math.round((Date.now() - t0) / 1000)} s`);
