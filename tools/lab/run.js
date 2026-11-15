@@ -10,6 +10,7 @@
 //   npm run lab -- update-installed [--from tag | --old-dir dir] [--draft dir] [--draft-mac dir]
 //                                               an installed copy updating itself, on the Windows machine and the Mac
 //   npm run lab -- build-mac [--branch b] [--upload tag]  the Mac release, built and checked on the M2 build machine
+//   npm run lab -- portable-start --exe <portable> [--exe <another>]  the Windows portable's start, timed on the old PC
 // Results: tools/test/results/lab-<date and time>/summary.md, with each machine's own report beside it.
 // Uses the PC's lab key (~/.ssh/e2k-lab, made by make-setup-stick.ps1); the machines accept nothing else.
 const { spawn } = require('child_process');
@@ -418,7 +419,32 @@ async function updateInstalled() {
   });
 }
 
-const COMMANDS = { status, test, agent, update, 'update-installed': updateInstalled, 'build-mac': buildMac };
+// --- portable-start: how long the Windows portable takes to start on the old Windows machine ------------------------------
+//   npm run lab -- portable-start --exe <portable .exe> [--exe <another> ...] [--runs 3]
+// Each .exe goes to its own folder on the machine (named after its folder here, e.g. "release" and "no-picture").
+async function portableStart() {
+  const exes = [];
+  for (let i; (i = args.indexOf('--exe')) >= 0;) { exes.push(path.resolve(args[i + 1])); args.splice(i, 2); }
+  const runs = takeOpt('--runs') || '3';
+  if (!exes.length || exes.some((e) => !fs.existsSync(e))) { console.error(red('Give each portable with --exe <file>')); process.exit(1); }
+  const ms = MACHINES.filter((m) => m.platform === 'win32');
+  for (const m of ms) {
+    const r = await ssh(m, 'if (Test-Path e2k-lab/portable-start/builds) { Remove-Item -Recurse -Force e2k-lab/portable-start/builds }; New-Item -ItemType Directory -Force e2k-lab/portable-start/builds | Out-Null; "ok"');
+    if (r.code) { console.error(red(`${m.name}: not reachable`)); process.exit(1); }
+    for (const exe of exes) {
+      const label = path.basename(path.dirname(exe));
+      await ssh(m, `New-Item -ItemType Directory -Force 'e2k-lab/portable-start/builds/${label}' | Out-Null`);
+      console.log(dim(`  copying ${label}/${path.basename(exe)} to ${m.name}...`));
+      const cp = await scpTo(m, exe, `e2k-lab/portable-start/builds/${label}/${path.basename(exe)}`);
+      if (cp.code) { console.error(red(`copying failed: ${cp.err}`)); process.exit(1); }
+    }
+    const cp = await scpTo(m, path.join(LAB, 'portable-start.js'), 'e2k-lab/portable-start.js');
+    if (cp.code) { console.error(red(`${m.name}: copying the script failed: ${cp.err}`)); process.exit(1); }
+  }
+  return runJobs(ms, { branch: 'main', runner: 'lab:portable-start.js', title: 'The portable’s start', testArgs: ['--builds', 'e2k-lab/portable-start/builds', '--runs', runs] });
+}
+
+const COMMANDS = { status, test, agent, update, 'update-installed': updateInstalled, 'build-mac': buildMac, 'portable-start': portableStart };
 if (!COMMANDS[command]) {
   console.error(`Unknown command "${command}". Commands: ${Object.keys(COMMANDS).join(', ')} (install, usb and downloads come later).`);
   process.exit(2);
