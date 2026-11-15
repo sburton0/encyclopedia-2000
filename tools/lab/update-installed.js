@@ -254,7 +254,10 @@ const server = http.createServer((req, res) => {
         check('…signed as released', signedOk(signature()), signature());
         const after = await hook(LOOK, 'over-after', 20000);
         check(`It starts as ${NEW_VERSION}`, after && isVersion(agentVersion(after.agent), NEW_VERSION), JSON.stringify(after));
-        check('What’s New shows (not a first run)', after?.whatsNew);
+        // What's New is once per feature version (0.5 → 0.6 shows it; 0.6.0 → 0.6.1 doesn't).
+        const feature = (v) => v.split(/[.-]/).slice(0, 2).join('.');
+        if (feature(OLD_VERSION) !== feature(NEW_VERSION)) check('What’s New shows (not a first run)', after?.whatsNew);
+        else check('No What’s New (the same feature version)', after && !after.whatsNew);
         check('The favorite is on the My Articles page', after?.favPage);
         check('The recent titles are in History, under Earlier', after?.history.length === RECENT.length && after.earlier, JSON.stringify(after?.history));
         check('The theme is kept', after?.theme === '"aurora"', after?.theme);
