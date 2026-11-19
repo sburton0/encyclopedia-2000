@@ -1452,6 +1452,14 @@ module.exports = [
       t.check('The news shows above Explore', await t.waitFor('/USB Offline Edition/.test(document.querySelector(".home .news")?.textContent || "")', 8000));
       const news = await t.js('const n = document.querySelector(".home .news"), s = document.querySelector(".home .shelf").getBoundingClientRect(), r = n.getBoundingClientRect(); return { link: n.querySelector(".more")?.textContent, above: r.bottom <= s.top, label: n.getAttribute("aria-label") };');
       t.check('…with its link, in the gap above Explore, as a named region', news.link === 'Learn more ›' && news.above && news.label === 'News', JSON.stringify(news));
+      // 0.6.1: a long featured title (two lines or more) and a long summary made Today's discovery reach down into the news.
+      const disc = await t.js(`const d = document.querySelector(".home .disc"), b = d?.querySelector("b"), p = d?.querySelector("p");
+        if (!d || !b || !p) return { missing: true };
+        b.textContent = "Can't Let Go (Mariah Carey song), with a title long enough to wrap onto three lines or more in this box";
+        p.textContent = "A long summary. ".repeat(40);
+        const r = d.getBoundingClientRect(), n = document.querySelector(".home .news").getBoundingClientRect();
+        return { bottom: Math.round(r.bottom), news: Math.round(n.top) };`);
+      t.check('With a long title and summary, Today’s discovery still ends above the news', !disc.missing && disc.bottom <= disc.news, JSON.stringify(disc));
       t.check('…and Tab reaches it before Explore (it comes first in the page)', await t.js('return !!(document.querySelector(".home .news").compareDocumentPosition(document.querySelector(".home .shelf")) & Node.DOCUMENT_POSITION_FOLLOWING);'));
       t.check('The important notice shows under the toolbar', await t.js('return /fixes a problem/.test(document.getElementById("notice")?.textContent || "") && document.getElementById("notice").nextElementSibling?.classList.contains("stage");'));
       await t.sleep(600);                     // the news fades in

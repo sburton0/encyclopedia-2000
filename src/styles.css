@@ -470,6 +470,10 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .home .disc .thumb { flex: none; width: 60px; height: 60px; border-radius: 50%; background: #3a5f99 center/cover; border: 2px solid rgba(255, 255, 255, .8); box-shadow: 0 0 14px rgba(140, 180, 255, .5); }
 .home .disc b { display: block; font: 600 italic 14px "Segoe UI"; color: var(--gold); }
 .home .disc p { margin: 2px 0 0; font: 12px/1.45 "Segoe UI"; color: #e6eefc; display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; }
+/* With news showing below it, Today's discovery ends above the news (a two-line title with six lines of text reached
+   it): its title at most two lines, its text five. */
+.home-canvas:has(.news) .disc b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.home-canvas:has(.news) .disc p { -webkit-line-clamp: 5; }
 .home .disc .more, .home .alm .more { display: inline-block; margin-top: 10px; padding: 0; background: none; border: 0; font: 600 12px "Segoe UI"; color: #fff; }
 .home .disc .more:hover, .home .alm .more:hover { color: var(--gold); text-decoration: underline; }
 .home .disc .savedlink { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
