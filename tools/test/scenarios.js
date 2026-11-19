@@ -1532,6 +1532,12 @@ module.exports = [
       t.check('Only for the versions it names (0.5.4 Beta counts as 0.5.4)', one({ versions: '<0.5.4' }) === null && !!one({ versions: '<=0.5.4' }) && !!one({ versions: '<0.6' }) && one({ versions: 'nonsense!!' }) === null);
       t.check('A broken file shows nothing', JSON.stringify(pick('oops', env)) === '{"news":null,"important":null}' && JSON.stringify(pick(null, env)) === '{"news":null,"important":null}');
       t.check('An id that isn’t simple is ignored', one({ id: '<x>' }) === null && one({ id: '' }) === null);
+      // From 0.6.1: a button that opens a screen in the app ({ label, route }), from a short list or a game or activity id.
+      t.check('A link to a screen in the app is allowed', one({ link: { label: 'Go to Activities', route: 'activities' } })?.link?.route === 'activities'
+        && !!one({ link: { label: 'Play', route: 'game/passport' } }) && !!one({ link: { label: 'History', route: 'myarticles/history' } }));
+      t.check('A route that isn’t on the list, or a route with a url, is ignored', one({ link: { label: 'Go', route: 'options' } }) === null
+        && one({ link: { label: 'Go', route: 'game/../x' } }) === null && one({ link: { label: 'Go', route: 'activities', url: 'https://encyclopedia2000.com/' } }) === null
+        && one({ link: { label: 'Go', route: 7 } }) === null);
       // In the app: both show; Show news off hides the news; Offline mode hides both.
       t.check('Both show in the app', await t.waitFor('document.querySelector(".home .news") && document.getElementById("notice")', 8000));
       await t.js('await window.e2k.settings.set({ showNews: false }); window.e2k.notice.refresh();');
@@ -1544,6 +1550,13 @@ module.exports = [
       t.check('Offline mode hides both', await t.waitFor('!document.querySelector(".home .news") && !document.getElementById("notice")', 4000));
       await t.js('window.e2k.net.setOffline(false); window.e2k.notice.refresh();');
       t.check('…and they come back online', await t.waitFor('document.querySelector(".home .news") && document.getElementById("notice")', 4000));
+      // The banner's in-app button opens that screen and closes the banner (for good).
+      fs.writeFileSync(path.join(t.profile, 'notice-test.json'), JSON.stringify({ news: null, important: { id: 'i2', text: 'Games have moved to Activities.', link: { label: 'Go to Activities', route: 'activities' } } }));
+      await t.js('window.e2k.notice.refresh();');
+      t.check('A banner with an in-app button shows it', await t.waitFor('document.querySelector("#notice .nl")?.textContent === "Go to Activities"', 4000));
+      await t.js('document.querySelector("#notice .nl").click();');
+      t.check('…which opens Activities and closes the banner', await t.waitFor('document.querySelectorAll(".act-group").length > 0 && !document.getElementById("notice")', 4000)
+        && (await t.js('return JSON.parse(localStorage.getItem("e2k.noticeSeen") || "[]").includes("i2");')));
     },
   },
 
@@ -1803,6 +1816,67 @@ module.exports = [
       const d = await t.js('const d = document.querySelector(".overlay .dialog"); return { b: [...d.querySelectorAll(".df .go")].map((b) => b.textContent), text: d.innerText };');
       t.check('Download, Download from Website…, Later, with the size and the manual route', d.b.join() === 'Download,Download from Website…,Later' && /98 MB/.test(d.text) && /Encyclopedia 2000 Data/.test(d.text), d.b.join());
       await t.shot('portable-check-available');
+    },
+  },
+
+  // ---------- Linux: copies the computer updates (the apt repository, Flathub) ----------
+  {
+    name: 'linux-system-update', group: 'General', title: 'Linux apt/Flatpak copies: no update check of their own; Check for Updates explains; a version the system installs offers Restart Now',
+    route: 'home', env: (profile) => ({ E2K_FAKE_SYSTEM: 'apt', E2K_FAKE_DPKG_STATUS: path.join(profile, 'dpkg-status') }),
+    setup: (ctx) => {
+      const v = require(path.join(process.env.E2K_TEST_APP || path.resolve(__dirname, '..', '..'), 'package.json')).version.replace(/-/g, '~');
+      fs.writeFileSync(path.join(ctx.profile, 'dpkg-status'), `Package: other
+Status: install ok installed
+Version: 99.0
+
+Package: encyclopedia-2000
+Status: install ok installed
+Version: ${v}
+`);
+      return { settings: { autoUpdate: true } };
+    },
+    async run(t) {
+      const sys = require(path.join(process.env.E2K_TEST_APP, 'system-update.js'));
+      const no = () => false;
+      t.check('Detected: the Flatpak, the .deb with our repository; not a plain .deb, Windows, or the Mac',
+        sys.detect({ platform: 'linux', env: { FLATPAK_ID: 'x' }, exists: no }) === 'flatpak'
+        && sys.detect({ platform: 'linux', env: {}, exists: (f) => f === '/.flatpak-info' }) === 'flatpak'
+        && sys.detect({ platform: 'linux', env: {}, exists: (f) => f === sys.APT_SOURCES[0] }) === 'apt'
+        && sys.detect({ platform: 'linux', env: {}, exists: no }) === null
+        && sys.detect({ platform: 'win32', env: {}, exists: () => true }) === null && sys.detect({ platform: 'darwin', env: {}, exists: () => true }) === null);
+      const st = (status, v) => `Package: encyclopedia-2000
+Status: ${status}
+Version: ${v}
+`;
+      t.check('dpkg’s status file is read (0.6.2~beta is 0.6.2-beta; a package being removed doesn’t count)',
+        sys.debVersion(`Package: x
+Version: 1
+
+${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
+        && sys.debVersion(st('deinstall ok config-files', '0.6.2~beta')) === null && sys.debVersion('') === null
+        && sys.debVersion(st('install ok installed', '1:0.7.0')) === '0.7.0');
+
+      await t.waitFor('document.querySelector(".home")', 10000);
+      await t.sleep(800);
+      t.check('Nothing in the status bar while it’s the newest installed', await t.js('return document.getElementById("updatebar").hidden;'));
+      // Offline mode doesn't matter: nothing is checked online.
+      await t.js('window.e2k.net.setOffline(true);');
+      await t.sleep(300);
+      await t.js('E2K.command("updates");');
+      await t.waitFor('document.querySelector(".overlay .dialog")', 4000);
+      let d = await t.js('const d = document.querySelector(".overlay .dialog"); return { h: d.querySelector("h2").textContent, text: d.innerText, b: [...d.querySelectorAll(".df .go")].map((b) => b.textContent) };');
+      t.check('Check for Updates (even offline): “Updates come from your computer”, with OK', d.h === 'Updates come from your computer' && /Update Manager/.test(d.text) && d.b.join() === 'OK', JSON.stringify(d));
+      await t.js('document.querySelector(".overlay .dialog .df .go").click(); window.e2k.net.setOffline(false);');
+
+      // The system installs a newer version while the app is open.
+      fs.writeFileSync(path.join(t.profile, 'dpkg-status'), st('install ok installed', '9.9.1~beta'));
+      t.check('The status bar: “Version 9.9.1 Beta was installed”, Restart Now', await t.waitFor('(() => { const b = document.getElementById("updatebar"); return !b.hidden && /Version 9\\.9\\.1 Beta was installed/.test(b.innerText) && /Restart Now/.test(b.innerText); })()', 6000),
+        await t.js('return document.getElementById("updatebar").innerText;'));
+      await t.js('E2K.command("updates");');
+      await t.waitFor('document.querySelector(".overlay .dialog")', 4000);
+      d = await t.js('const d = document.querySelector(".overlay .dialog"); return { h: d.querySelector("h2").textContent, text: d.innerText, b: [...d.querySelectorAll(".df .go")].map((b) => b.textContent) };');
+      t.check('Check for Updates: “Restart to finish updating”, Restart Now and Later', d.h === 'Restart to finish updating' && /version 9\.9\.1 Beta/.test(d.text) && d.b.join() === 'Restart Now,Later', JSON.stringify(d));
+      await t.shot('linux-restart');
     },
   },
 

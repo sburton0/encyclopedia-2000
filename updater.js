@@ -38,6 +38,25 @@ function setup({ getWindow, isEnabled, quitForUpdate, getSettings }) {
     return;
   }
 
+  // Linux copies the computer keeps up to date (the apt repository, or Flathub): see system-update.js. Tests pretend
+  // with E2K_FAKE_SYSTEM (and E2K_FAKE_DPKG_STATUS, a stand-in for dpkg's status file).
+  const sys = require('./system-update');
+  const SYSTEM = sys.detect();
+  if (SYSTEM && (app.isPackaged || process.env.E2K_FAKE_SYSTEM)) {
+    send({ state: 'system', kind: SYSTEM });
+    const semver = require('semver');   // comes with electron-updater
+    const watcher = sys.watch(SYSTEM, {
+      current: app.getVersion(),
+      newer: (v, cur) => { try { return semver.gt(v, cur); } catch { return false; } },
+      onInstalled: ({ version }) => send({ state: 'installed', kind: SYSTEM, version }),
+      ...(process.env.E2K_FAKE_DPKG_STATUS ? { statusFile: process.env.E2K_FAKE_DPKG_STATUS, every: 1000 } : {}),
+    });
+    ipcMain.handle('update:state', () => state);
+    ipcMain.handle('update:check', () => { watcher.check(); return state; });
+    ipcMain.handle('update:install', () => { if (state.state === 'installed') watcher.restart(quitForUpdate); });
+    return;
+  }
+
   // Updates only work in the installed app; a copy run from the source folder can't replace itself.
   if (!app.isPackaged) {
     ipcMain.handle('update:state', () => ({ state: 'dev' }));

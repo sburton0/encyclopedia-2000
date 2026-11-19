@@ -26,7 +26,8 @@
     "dist:mac": "electron-builder --mac --publish never",
     "release:mac": "electron-builder --mac --publish always",
     "dist:linux": "electron-builder --linux --publish never",
-    "release:linux": "electron-builder --linux --publish always"
+    "release:linux": "electron-builder --linux --publish always",
+    "apt:publish": "node tools/apt-publish.js"
   },
   "devDependencies": {
     "axe-core": "4.10.2",
@@ -55,6 +56,7 @@
       "preload.js",
       "updater.js",
       "portable-update.js",
+      "system-update.js",
       "notices.js",
       "library.js",
       "downloads.js",
@@ -153,8 +155,11 @@
       "fpm": [
         "--deb-compression-level",
         "6",
-        "build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml"
-      ]
+        "build/linux/com.svid.encyclopedia2000.metainfo.xml=/usr/share/metainfo/com.svid.encyclopedia2000.metainfo.xml",
+        "build/linux/encyclopedia-2000-archive-keyring.gpg=/usr/share/keyrings/encyclopedia-2000-archive-keyring.gpg"
+      ],
+      "afterInstall": "build/linux/after-install.tpl",
+      "afterRemove": "build/linux/after-remove.tpl"
     },
     "publish": [
       {

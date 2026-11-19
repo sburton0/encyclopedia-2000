@@ -21,11 +21,16 @@ function due(checked, showing, now, starting) {
   return now - checked >= DAY;
 }
 
-// Links may only go to the website or the app's GitHub page.
+// Links may only go to the website, the app's GitHub page, or (from 0.6.1) a screen in the app: { label, route }, one of
+// ROUTES or a game or activity by its id. Copies before 0.6.1 drop a notice with a route (they don't know it), so aim
+// such notices at "versions": ">=0.6.1".
+const ROUTES = ['home', 'explore', 'gallery', 'onthisday', 'world', 'activities', 'myarticles/favorites', 'myarticles/history', 'myarticles/downloaded'];
+const okRoute = (r) => typeof r === 'string' && (ROUTES.includes(r) || /^(game|activity)\/[a-z0-9-]{1,40}$/.test(r));
 function safeLink(link) {
   if (!link || typeof link !== 'object') return null;
-  const { label, url } = link;
+  const { label, url, route } = link;
   if (typeof label !== 'string' || !label.trim() || label.length > 40 || /[<>]/.test(label)) return undefined;
+  if (route !== undefined) return url === undefined && okRoute(route) ? { label: label.trim(), route } : undefined;
   let u;
   try { u = new globalThis.URL(url); } catch { return undefined; }
   const ok = u.protocol === 'https:' && (/^(www\.)?encyclopedia2000\.com$/.test(u.hostname)
@@ -97,4 +102,4 @@ function setup({ getWindows, settings }) {
   setInterval(check, SOON).unref();
 }
 
-module.exports = { setup, pick, item, safeLink, due };
+module.exports = { setup, pick, item, safeLink, due, ROUTES };

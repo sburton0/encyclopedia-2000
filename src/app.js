@@ -1857,14 +1857,20 @@
   let notices = { news: null, important: null };
   const noticeSeen = (id) => store.get('noticeSeen', []).includes(id);
   const closeNotice = (id) => store.set('noticeSeen', [...store.get('noticeSeen', []), id].slice(-50));
-  const noticeLink = (link, cls) => (link ? h('button', { class: cls, onclick: () => window.e2k.openExternal(link.url) }, link.label) : null);
+  // A link opens the website in the browser, or (link.route) a screen in the app, which also closes the notice.
+  const noticeLink = (link, cls, done) => (link ? h('button', { class: cls, onclick: () => {
+    if (!link.route) return window.e2k.openExternal(link.url);
+    done();
+    go(link.route);
+  } }, link.label) : null);
   function showBanner() {
     $('#notice')?.remove();
     const n = notices.important;
     if (!n || noticeSeen(n.id)) return;
+    const close = () => { closeNotice(n.id); bar.remove(); fitHome(); };
     const bar = h('div', { class: 'notice', id: 'notice', role: 'region', 'aria-label': 'Important notice' },
-      h('span', { class: 'ni', 'aria-hidden': 'true' }, '!'), h('span', { class: 'nt' }, n.text), noticeLink(n.link, 'nl'),
-      h('button', { class: 'nx', title: 'Close', 'aria-label': 'Close notice', onclick: () => { closeNotice(n.id); bar.remove(); fitHome(); } }, '✕'));
+      h('span', { class: 'ni', 'aria-hidden': 'true' }, '!'), h('span', { class: 'nt' }, n.text), noticeLink(n.link, 'nl', close),
+      h('button', { class: 'nx', title: 'Close', 'aria-label': 'Close notice', onclick: close }, '✕'));
     $('.stage').before(bar);
     fitHome();
   }
@@ -1874,7 +1880,7 @@
     const n = notices.news;
     if (!n || noticeSeen(n.id)) return;
     const strip = h('div', { class: 'news', role: 'region', 'aria-label': 'News' },
-      h('small', {}, 'NEWS'), h('span', { title: n.text }, n.text), noticeLink(n.link, 'more'),
+      h('small', {}, 'NEWS'), h('span', { title: n.text }, n.text), noticeLink(n.link, 'more', () => { closeNotice(n.id); strip.remove(); }),
       h('button', { class: 'x', title: 'Close', 'aria-label': 'Close news', onclick: () => {
         closeNotice(n.id);
         strip.classList.add('gone');
@@ -1988,7 +1994,12 @@
 
   function showUpdate(s) {
     if (s.self) return showSelfUpdate(s);
-    if (s.state === 'ready') {
+    if (s.state === 'installed') {
+      // Linux: the computer installed a new version (apt or Flathub) while this one was open.
+      updateBar.replaceChildren(s.version ? `Version ${prettyVersion(s.version)} was installed` : 'A new version was installed', h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
+      updateBar.title = 'Your computer installed this update. Restart Encyclopedia 2000 to start using it.';
+      updateBar.hidden = false;
+    } else if (s.state === 'ready') {
       updateBar.replaceChildren(`Version ${prettyVersion(s.version)} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
       updateBar.title = 'Restart Encyclopedia 2000 to finish updating. Otherwise the update installs the next time you close it.';
       updateBar.hidden = false;
@@ -2006,14 +2017,21 @@
   window.e2k.update.state().then(showUpdate).catch(() => {});
 
   async function checkForUpdates() {
-    if (isOffline()) return dialog('Check for Updates', 'You’re in Offline mode', ['Go online from the status bar to check for updates.']);
+    // (A Linux copy the computer updates checks nothing online, so Offline mode doesn't matter there.)
+    const now = await window.e2k.update.state().catch(() => ({}));
+    if (isOffline() && !['system', 'installed'].includes(now.state)) return dialog('Check for Updates', 'You’re in Offline mode', ['Go online from the status bar to check for updates.']);
     setStatus('Checking for updates…', true);
     const s = await window.e2k.update.check().catch(() => ({ state: 'error' }));
     setIdle();
     showUpdate(s);
     const title = 'Check for Updates';
     if (s.self && ['available', 'ready', 'downloading'].includes(s.state)) return selfUpdateDialog(s);
-    if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
+    if (s.state === 'installed') dialog(title, 'Restart to finish updating', [
+      `Your computer installed ${s.version ? `version ${prettyVersion(s.version)}` : 'a new version'} along with its other updates. Restart Encyclopedia 2000 to start using it.`],
+      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
+    else if (s.state === 'system') dialog(title, 'Updates come from your computer', [
+      `Encyclopedia 2000 updates along with your other apps, through your computer’s software updates (${s.kind === 'flatpak' ? 'Software, Discover, or Update Manager' : 'Update Manager or Software Updater'}). When a new version is installed, you’ll see Restart Now in the status bar.`]);
+    else if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
       [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
     else if (s.state === 'available' && s.kind === 'deb') {
       // Ubuntu's App Center won't replace an app that's already installed, so updating takes one command in a terminal.
