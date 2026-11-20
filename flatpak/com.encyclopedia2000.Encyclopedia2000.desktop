@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Encyclopedia 2000
+Comment=The CD-ROM encyclopedia, reborn with Wikipedia
+Exec=encyclopedia-2000 %U
+Terminal=false
+Type=Application
+Icon=com.encyclopedia2000.Encyclopedia2000
+StartupWMClass=Encyclopedia 2000
+Categories=Education;
+Keywords=Wikipedia;encyclopedia;reference;learning;

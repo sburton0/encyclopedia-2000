@@ -52,7 +52,7 @@ function setup({ getWindow, isEnabled, quitForUpdate, getSettings }) {
       ...(process.env.E2K_FAKE_DPKG_STATUS ? { statusFile: process.env.E2K_FAKE_DPKG_STATUS, every: 1000 } : {}),
     });
     ipcMain.handle('update:state', () => state);
-    ipcMain.handle('update:check', () => { watcher.check(); return state; });
+    ipcMain.handle('update:check', async () => { await watcher.check(); return state; });
     ipcMain.handle('update:install', () => { if (state.state === 'installed') watcher.restart(quitForUpdate); });
     return;
   }

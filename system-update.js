@@ -34,64 +34,86 @@ function debVersion(statusText, pkg = PACKAGE) {
   return null;
 }
 
-// Watches for a newer installed version and reports it with onInstalled({ version }) (version is null for the Flatpak,
-// whose portal doesn't say). Returns { check, restart, stop }.
-function watch(kind, { current, onInstalled, newer, statusFile = DPKG_STATUS, every = EVERY }) {
-  let found = null, timer = null, monitor = null;
+// The Flatpak's version file (written at build time from the .deb: flatpak/com.encyclopedia2000.Encyclopedia2000.yml).
+const FLATPAK_VERSION_FILE = '/app/share/encyclopedia-2000/version';
+
+// Watches for a newer installed version and reports it with onInstalled({ version }). Returns { check, restart, stop };
+// check() resolves to what's been found (or null).
+// - apt: reads dpkg's status file (a small local file) every 10 minutes and at Check for Updates.
+// - Flatpak: asks Flatpak's portal to run a tiny command in the newest installed version of the app
+//   (flatpak-spawn --latest-version), which reads that version's version file. (The portal's own update monitor only
+//   lasts as long as the D-Bus connection that asked for it, which a command-line tool can't hold.)
+function watch(kind, { current, onInstalled, newer, statusFile = DPKG_STATUS, every = EVERY, latestFlatpak = flatpakLatest }) {
+  let found = null, timer = null, busy = null;
   const report = (version) => { if (found) return; found = { version }; onInstalled(found); };
 
-  const checkApt = () => {
+  const checkApt = async () => {
     let v = null;
     try { v = debVersion(fs.readFileSync(statusFile, 'utf8')); } catch { return found; }
     if (v && newer(v, current)) report(v);
     return found;
   };
-
-  if (kind === 'apt') {
-    checkApt();
-    timer = setInterval(checkApt, every);
-    timer.unref?.();
-  } else if (kind === 'flatpak' && !process.env.E2K_FAKE_SYSTEM) {
-    // The Flatpak portal tells a running app when a newer version of it has been installed (UpdateAvailable).
-    monitor = flatpakMonitor(() => report(null));
-  }
+  const checkFlatpak = () => {
+    if (found) return Promise.resolve(found);
+    if (!busy) busy = latestFlatpak().then((v) => { if (v && newer(v, current)) report(v); return found; }, () => found).finally(() => { busy = null; });
+    return busy;
+  };
+  const check = kind === 'apt' ? checkApt : checkFlatpak;
+  check();
+  timer = setInterval(check, every);
+  timer.unref?.();
 
   return {
-    check: () => (kind === 'apt' ? checkApt() : found),
+    check,
     // Starts the new version, then quits this one (quit). The Flatpak asks the portal for the newest installed version
     // (a relaunch from inside would start the old one again); the pause lets this copy close first.
     restart(quit) {
       const { app } = require('electron');
       if (kind === 'flatpak' && !process.env.E2K_FAKE_SYSTEM) {
+        // The portal's Spawn (flags 2: the latest version) returns as soon as the new copy has started, so nothing of
+        // this copy stays behind (flatpak-spawn would wait for the new copy, keeping the old one's sandbox open). This
+        // copy quits only once the call is answered: quitting closes its sandbox, which would cut the call off.
+        let done = false;
+        const finish = () => { if (!done) { done = true; quit(); } };
         try {
-          const cmd = process.env.FLATPAK_ID ? `/app/bin/${process.env.E2K_FLATPAK_COMMAND || 'encyclopedia-2000'}` : process.execPath;
-          spawn('flatpak-spawn', ['--latest-version', 'sh', '-c', `sleep 2; exec "${cmd}"`], { detached: true, stdio: 'ignore' }).unref();
-        } catch {}
+          const p = spawn('gdbus', ['call', '--session', '--dest', 'org.freedesktop.portal.Flatpak', '--object-path', '/org/freedesktop/portal/Flatpak',
+            '--method', 'org.freedesktop.portal.Flatpak.Spawn', "b'/'", "[b'/app/bin/encyclopedia-2000']", '{}', '{}', '2', '{}'],
+          { stdio: ['ignore', 'pipe', 'pipe'], env: plainEnv() });
+          // What the portal said, for "Restart Now didn't start the new version" reports (in the app's data folder).
+          let said = '';
+          p.stdout.on('data', (d) => { said += d; });
+          p.stderr.on('data', (d) => { said += d; });
+          p.on('close', (code) => {
+            try { fs.writeFileSync(require('path').join(app.getPath('userData'), 'last-restart.log'), `${new Date().toISOString()} gdbus ${code}: ${said}`); } catch {}
+            finish();
+          });
+          p.on('error', finish);
+        } catch { finish(); }
+        return setTimeout(finish, 10000);
       } else app.relaunch();
       quit();
     },
-    stop() { clearInterval(timer); try { monitor?.kill(); } catch {} },
+    stop() { clearInterval(timer); },
   };
 }
 
-// gdbus (part of the Flatpak runtime) asks the portal for an update monitor, then listens for its UpdateAvailable signal.
-function flatpakMonitor(onUpdate) {
-  let mon = null;
-  try {
-    const call = spawn('gdbus', ['call', '--session', '--dest', 'org.freedesktop.portal.Flatpak', '--object-path', '/org/freedesktop/portal/Flatpak',
-      '--method', 'org.freedesktop.portal.Flatpak.CreateUpdateMonitor', '{}'], { stdio: ['ignore', 'pipe', 'ignore'] });
-    let out = '';
-    call.stdout.on('data', (d) => { out += d; });
-    call.on('error', () => {});
-    call.on('close', () => {
-      const handle = /objectpath '([^']+)'/.exec(out)?.[1] || /'(\/org\/freedesktop\/portal\/Flatpak\/update_monitor\/[^']+)'/.exec(out)?.[1];
-      if (!handle) return;
-      mon = spawn('gdbus', ['monitor', '--session', '--dest', 'org.freedesktop.portal.Flatpak', '--object-path', handle], { stdio: ['ignore', 'pipe', 'ignore'] });
-      mon.on('error', () => {});
-      mon.stdout.on('data', (d) => { if (/UpdateAvailable/.test(String(d))) onUpdate(); });
-    });
-  } catch {}
-  return { kill: () => mon?.kill() };
+// Inside the Flatpak, Electron runs under zypak, which preloads itself (LD_PRELOAD) into everything the app starts;
+// tools the app runs itself get the environment without it.
+function plainEnv() {
+  return Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'LD_PRELOAD' && !/^ZYPAK_/.test(k)));
 }
 
-module.exports = { detect, debVersion, watch, APT_SOURCES, PACKAGE };
+// The newest installed version of this Flatpak ("0.6.2-beta"), or null.
+function flatpakLatest() {
+  return new Promise((resolve) => {
+    let out = '';
+    let p;
+    try { p = spawn('flatpak-spawn', ['--latest-version', 'cat', FLATPAK_VERSION_FILE], { stdio: ['ignore', 'pipe', 'ignore'], env: plainEnv() }); } catch { return resolve(null); }
+    const t = setTimeout(() => { try { p.kill(); } catch {} resolve(null); }, 15000);
+    p.stdout.on('data', (d) => { out += d; });
+    p.on('error', () => { clearTimeout(t); resolve(null); });
+    p.on('close', (code) => { clearTimeout(t); const v = out.trim(); resolve(code === 0 && /^\d+\.\d+\.\d+[\w.-]*$/.test(v) ? v : null); });
+  });
+}
+
+module.exports = { detect, debVersion, watch, APT_SOURCES, PACKAGE, FLATPAK_VERSION_FILE };

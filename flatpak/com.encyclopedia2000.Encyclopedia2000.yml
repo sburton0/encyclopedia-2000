@@ -1,0 +1,49 @@
+# Encyclopedia 2000 as a Flatpak (for Flathub). It repackages the released .deb (the same files as every other Linux
+# copy) on top of Flathub's Electron base app, which supplies zypak, Chromium's sandbox inside Flatpak's.
+# Flathub builds it from its own copy of this manifest (github.com/flathub/com.encyclopedia2000.Encyclopedia2000); at
+# each release, the .deb's url and sha256 below change (flatpak/README.md).
+# The app knows it's a Flatpak (FLATPAK_ID) and leaves updates to Flatpak (system-update.js).
+app-id: com.encyclopedia2000.Encyclopedia2000
+runtime: org.freedesktop.Platform
+runtime-version: '26.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '26.08'
+command: encyclopedia-2000
+separate-locales: false
+finish-args:
+  - --share=ipc
+  - --share=network          # Wikipedia, Wikimedia Commons, Wikidata, the offline library's download
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri             # drawing with the graphics card
+  - --socket=pulseaudio      # the startup sound, Read Aloud, articles' sounds and videos
+  - --env=ELECTRON_OZONE_PLATFORM_HINT=auto
+modules:
+  - name: encyclopedia-2000
+    buildsystem: simple
+    sources:
+      - type: file
+        dest-filename: encyclopedia-2000.deb
+        url: https://github.com/sburton0/encyclopedia-2000/releases/download/v0.6.1-beta/Encyclopedia-2000-0.6.1-beta-linux-amd64.deb
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        only-arches: [x86_64]
+      - type: file
+        path: encyclopedia-2000.sh
+      - type: file
+        path: com.encyclopedia2000.Encyclopedia2000.desktop
+      - type: file
+        path: com.encyclopedia2000.Encyclopedia2000.metainfo.xml
+    build-commands:
+      - ar x encyclopedia-2000.deb
+      - tar -xf data.tar.xz
+      - mv "opt/Encyclopedia 2000" /app/main
+      # The version, for the app to compare with the newest installed copy (system-update.js): "0.6.1~beta" → "0.6.1-beta".
+      - tar -xf control.tar.xz ./control
+      - "sed -n 's/^Version: //p' control | tr '~' '-' | install -Dm644 /dev/stdin /app/share/encyclopedia-2000/version"
+      # The .deb's own updater files and its AppArmor profile mean nothing inside Flatpak.
+      - rm -f /app/main/resources/app-update.yml /app/main/resources/apparmor-profile
+      - install -Dm755 encyclopedia-2000.sh /app/bin/encyclopedia-2000
+      - install -Dm644 com.encyclopedia2000.Encyclopedia2000.desktop -t /app/share/applications
+      - install -Dm644 com.encyclopedia2000.Encyclopedia2000.metainfo.xml -t /app/share/metainfo
+      - install -Dm644 usr/share/icons/hicolor/512x512/apps/encyclopedia-2000.png /app/share/icons/hicolor/512x512/apps/com.encyclopedia2000.Encyclopedia2000.png
