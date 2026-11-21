@@ -15,6 +15,9 @@
 //     Gatekeeper, and its app copied over the old one (the quarantine then lifted, as the Open click does). The new
 //     version keeps the favorites (on the My Articles page), the recent titles (History, under Earlier), and the theme,
 //     and shows What's New (it's not a first run).
+//   Quit mid-download (not with --github): the stand-in sends the update slowly; the app is closed a quarter of the way
+//     in, then started again with the stand-in at full speed. The download must finish within 5 minutes of that start
+//     (on the lab Mac, 0.5.6 once took over 16 minutes, until the start after), and closing then installs it.
 // Both: the new version keeps the favorite and the settings. The stand-in's log shows whether the download was partial
 // (a differential download: only the changed parts, by range requests) or the whole file.
 //   node tools/lab/update-installed.js --old-dir <folder with the old installer .exe or Mac .zip>
@@ -177,11 +180,30 @@ const feed = fs.readFileSync(path.join(FILES, feedFile), 'utf8');
 const NEW_VERSION = (feed.match(/^version:\s*(.+)$/m) || [])[1].trim();
 const NEW_FILE = (feed.match(/^path:\s*(.+)$/m) || [])[1].trim();
 const log = [];
+// Quit mid-download: the new file is sent at this many bytes a second (0: full speed), and `sent` counts what's gone out.
+let slow = 0, sent = 0;
+// While a favorite is saved first, the stand-in has no release (so the app starts no download of its own then).
+let quiet = false;
+function send(res, file, from, to) {
+  if (!slow) return fs.createReadStream(file, { start: from, end: to }).on('data', (c) => { sent += c.length; }).pipe(res);
+  const fd = fs.openSync(file, 'r');
+  let at = from;
+  const tick = () => {
+    if (res.destroyed || at > to) { fs.closeSync(fd); return res.end(); }
+    const n = Math.min(Math.ceil(slow / 10), to - at + 1), b = Buffer.alloc(n);
+    fs.readSync(fd, b, 0, n, at);
+    at += n; sent += n;
+    if (res.write(b)) setTimeout(tick, 100); else res.once('drain', () => setTimeout(tick, 100));
+  };
+  res.on('close', () => { at = to + 1; });
+  tick();
+}
 const server = http.createServer((req, res) => {
   const name = path.basename(decodeURIComponent(req.url.split('?')[0]));
   const entry = { method: req.method, name, range: req.headers.range || '', status: 200, bytes: 0 };
   log.push(entry);
   // Any channel's feed (latest.yml, beta.yml, latest-mac.yml…) is the new release's.
+  if (/\.yml$/.test(name) && quiet) { entry.status = 404; res.statusCode = 404; return res.end(); }
   if (/\.yml$/.test(name)) { const b = Buffer.from(feed); entry.bytes = b.length; return res.end(b); }
   const file = path.join(FILES, name);
   if (!name || !fs.existsSync(file)) { entry.status = 404; res.statusCode = 404; return res.end(); }
@@ -192,12 +214,12 @@ const server = http.createServer((req, res) => {
     entry.status = 206;
     entry.bytes = to - from + 1;
     res.writeHead(206, { 'Content-Range': `bytes ${from}-${to}/${size}`, 'Content-Length': entry.bytes, 'Accept-Ranges': 'bytes' });
-    return fs.createReadStream(file, { start: from, end: to }).pipe(res);
+    return send(res, file, from, to);
   }
   if (entry.range) { entry.status = 416; res.statusCode = 416; return res.end(); }   // GitHub sends one range per request too
   entry.bytes = size;
   res.writeHead(200, { 'Content-Length': size, 'Accept-Ranges': 'bytes' });
-  fs.createReadStream(file).pipe(res);
+  send(res, file, 0, size - 1);
 });
 
 (async () => {
@@ -224,9 +246,55 @@ const server = http.createServer((req, res) => {
   };
 
   const installer = fs.readdirSync(FILES).find((f) => (WIN ? f === NEW_FILE && /\.exe$/.test(f) : /^Encyclopedia-2000-.+\.dmg$/.test(f)));
-  for (const how of ['Restart Now', 'Update on Close', ...(installer && !GITHUB ? ['Installer over it'] : [])]) {
+  const downloaded = () => (WIN ? ((readJson(path.join(P.pending, 'update-info.json')) || {}).fileName || '').includes(NEW_VERSION) : macReady());
+  for (const how of ['Restart Now', 'Update on Close', ...(GITHUB ? [] : ['Quit mid-download']), ...(installer && !GITHUB ? ['Installer over it'] : [])]) {
     group = how;
     log.length = 0;
+    if (how === 'Quit mid-download') {
+      try {
+        await installOld();
+        check(`${OLD_VERSION} installed`, isVersion(version(), OLD_VERSION), version());
+        pointAtStandIn();
+        quiet = true;
+        check('A favorite saved', (await hook(SET_FAV, 'mid-favorite')) === JSON.stringify(FAV));
+        quiet = false;
+        for (const f of [P.pending, ...(MAC ? [P.shipit] : [])]) fs.rmSync(f, { recursive: true, force: true });
+        // About 2 minutes for the whole file; a differential download (Windows) needs less, so it's cut by bytes sent.
+        slow = Math.max(256 * 1024, Math.round(newSize / 120));
+        sent = 0;
+        start();
+        check('It starts', await until(windowUp, 120000));
+        const target = Math.round(newSize / 4);
+        const partway = await until(() => sent >= Math.min(target, 8 * 1048576), 10 * 60 * 1000, 500);
+        close();
+        const closed = await until(() => !running(), 60000);
+        if (!closed) kill();
+        await sleep(2000);
+        const pending = (() => { try { return fs.readdirSync(P.pending).map((f) => `${f} ${(fs.statSync(path.join(P.pending, f)).size / 1048576).toFixed(1)} MB`).join(', '); } catch { return '(none)'; } })();
+        check(`Closed partway through the download (${(sent / 1048576).toFixed(1)} MB sent)`, partway && !downloaded(), `closed by itself: ${closed}; left in the cache: ${pending}`);
+        // Started again, at full speed: the download has to finish soon (resumed or started over, either is fine).
+        slow = 0;
+        log.length = 0;
+        const t0 = Date.now();
+        start();
+        check('It starts again', await until(windowUp, 120000));
+        const done = await until(downloaded, 5 * 60 * 1000, 2000);
+        const d = download();
+        check(`…and finishes downloading ${NEW_VERSION} within 5 minutes`, done, `${Math.round((Date.now() - t0) / 1000)} s; this time ${d.text}${d.whole ? ', the whole file' : ''}`);
+        await sleep(5000);
+        close();
+        check(`Closing it installs ${NEW_VERSION}`, await until(() => isVersion(version(), NEW_VERSION) && !running(), 300000, 2000), version());
+        await sleep(3000);
+        const after = await hook(GET, 'mid-after');
+        check(`The next start is ${NEW_VERSION}, and the favorite is kept`, after && isVersion(agentVersion(after.agent), NEW_VERSION) && after.favorites === JSON.stringify(FAV), JSON.stringify(after));
+      } catch (e) {
+        check('Ran to the end', false, e.message);
+      }
+      slow = 0;
+      fs.writeFileSync(path.join(RESULTS, `${how}-requests.json`), JSON.stringify(log, null, 1));
+      kill();
+      continue;
+    }
     if (how === 'Installer over it') {
       try {
         await installOld();
