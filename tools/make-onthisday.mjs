@@ -16,8 +16,10 @@ async function day(md) {
       const j = await r.json();
       return (j.selected || []).map((o) => [o.year, o.text, (o.pages || [])[0]?.titles?.normalized || (o.pages || [])[0]?.title || '']);
     }
-    if (tries >= 4) throw new Error(`${md}: HTTP ${r.status}`);
-    await new Promise((res) => setTimeout(res, 2000 * (tries + 1)));
+    if (tries >= 7) throw new Error(`${md}: HTTP ${r.status}`);
+    // When Wikipedia says to slow down (429), wait as long as it asks (Retry-After), or longer each time.
+    const after = Number(r.headers.get('retry-after')) || 0;
+    await new Promise((res) => setTimeout(res, Math.max(after * 1000, 3000 * 2 ** tries)));
   }
 }
 
@@ -28,6 +30,7 @@ await Promise.all([0, 1, 2].map(async () => {
   while (next < dates.length) {
     const md = dates[next++];
     out[md.replace('/', '-')] = await day(md);
+    await new Promise((res) => setTimeout(res, 250));
     if (Object.keys(out).length % 30 === 0) console.log(`${Object.keys(out).length} of ${dates.length}`);
   }
 }));
