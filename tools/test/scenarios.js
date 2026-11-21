@@ -1116,9 +1116,13 @@ module.exports = [
       await t.js('window.e2k.library.download("test");');
       if (!(await whenPartway(t))) return t.skip('Cancelled partway', 'the download finished first (fast connection)');
       // The window redraws on the download's next progress report, a moment later on a slow computer.
-      t.check('Change… is greyed out during the download', await t.waitFor('[...document.querySelectorAll(".offline .where button")][0]?.disabled && !document.querySelector(".wherenote").hidden', 3000));
+      const greyed = await t.waitFor('[...document.querySelectorAll(".offline .where button")][0]?.disabled && !document.querySelector(".wherenote").hidden', 3000);
       await t.waitFor('document.querySelectorAll(".offline .pack.dl .acts button").length === 2', 3000);
       const tops = await t.js('return [...document.querySelectorAll(".offline .pack.dl .acts button")].map((b) => Math.round(b.getBoundingClientRect().top));');
+      // The 14 MB test pack can finish during those waits on a fast connection (it did on the lab's Windows PC).
+      const now = await t.lib();
+      if (now.current && !now.download) return t.skip('Cancelled partway', 'the download finished first (fast connection)');
+      t.check('Change… is greyed out during the download', greyed);
       t.check('Pause and Cancel are side by side', tops.length === 2 && Math.abs(tops[0] - tops[1]) <= 2, tops.join(', '));
       await t.shot('downloading');
       await t.js('await window.e2k.library.cancel();');
