@@ -358,6 +358,16 @@ protocol.registerSchemesAsPrivileged(['e2k-zim', 'e2k-saved'].map((scheme) => ({
 const library = require('./library');
 const downloads = require('./downloads');
 
+// The Windows portable's launcher keeps its picture up until the app has shown a window (tools/patch-portable.js):
+// the first window shown writes the file it's waiting for. (Deleted from the environment, so nothing the app starts
+// later, like a restart after an update, writes to a launcher that's gone.)
+const launcherShown = process.env.E2K_LAUNCHER_SHOWN;
+delete process.env.E2K_LAUNCHER_SHOWN;
+if (launcherShown) {
+  const told = () => { try { fs.writeFileSync(launcherShown, ''); } catch {} };
+  app.on('browser-window-created', (_, w) => w.once('show', () => { if (launcherShown) told(); }));
+}
+
 app.whenReady().then(() => {
   library.setup({ offline: () => !!settings.offlineMode });
   downloads.setup({ offline: () => !!settings.offlineMode });
