@@ -421,7 +421,8 @@ async function updateInstalled() {
 
 // --- portable-start: how long the Windows portable takes to start on the old Windows machine ------------------------------
 //   npm run lab -- portable-start --exe <portable .exe> [--exe <another> ...] [--runs 3]
-// Each .exe goes to its own folder on the machine (named after its folder here, e.g. "release" and "no-picture").
+// Each .exe goes to its own folder on the machine (named after its folder here, e.g. "release" and "no-picture"; .exes
+// from the same folder, like two versions in dist, are named after their files instead).
 async function portableStart() {
   const exes = [];
   for (let i; (i = args.indexOf('--exe')) >= 0;) { exes.push(path.resolve(args[i + 1])); args.splice(i, 2); }
@@ -432,7 +433,8 @@ async function portableStart() {
     const r = await ssh(m, 'if (Test-Path e2k-lab/portable-start/builds) { Remove-Item -Recurse -Force e2k-lab/portable-start/builds }; New-Item -ItemType Directory -Force e2k-lab/portable-start/builds | Out-Null; "ok"');
     if (r.code) { console.error(red(`${m.name}: not reachable`)); process.exit(1); }
     for (const exe of exes) {
-      const label = path.basename(path.dirname(exe));
+      const sameFolder = exes.filter((e) => path.dirname(e) === path.dirname(exe)).length > 1;
+      const label = sameFolder ? path.basename(exe, '.exe') : path.basename(path.dirname(exe));
       await ssh(m, `New-Item -ItemType Directory -Force 'e2k-lab/portable-start/builds/${label}' | Out-Null`);
       console.log(dim(`  copying ${label}/${path.basename(exe)} to ${m.name}...`));
       const cp = await scpTo(m, exe, `e2k-lab/portable-start/builds/${label}/${path.basename(exe)}`);
