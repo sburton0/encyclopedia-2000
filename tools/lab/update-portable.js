@@ -90,7 +90,7 @@ const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.repl
     }
     const files = () => fs.readdirSync(dir).filter((f) => f !== 'Encyclopedia 2000 Data').sort();
     const target = path.join(dir, pu.targetName(exe, OLD_VERSION, want.version));
-    return { dir, exe, files, target, previous: pu.previousOf(exe), ready: pu.readyOf(exe) };
+    return { dir, exe, files, target, previous: pu.previousOf(exe), ready: pu.readyOf(exe), info: path.join(dir, 'Encyclopedia 2000 update.json') };
   };
   const cleanUp = async (dir) => {
     let err = '';
@@ -120,7 +120,9 @@ const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.repl
       spawn(t.exe, [], { cwd: t.dir, env, detached: true, stdio: 'ignore' }).unref();
       const t0 = Date.now();
       check('The old version starts from the stick', await until(appRunning, 120000), `${Math.round((Date.now() - t0) / 1000)} s`);
-      check('It finds the new version and downloads it by itself (size, checksum, signature checked)', await until(() => fs.existsSync(t.ready), 240000, 500), t.files().join(', '));
+      // Ready is when the app says so: the download renamed and its details written beside it (on a slow stick the second
+      // can come seconds after the first; a close before then is a close mid-download, with nothing to install).
+      check('It finds the new version and downloads it by itself (size, checksum, signature checked)', await until(() => fs.existsSync(t.ready) && fs.existsSync(t.info), 240000, 500), t.files().join(', '));
       shot(`${letter}-${how}-ready.png`);
       if (how === 'restart') {
         // Restart Now (pressed by the test hook a second after it's ready): the app closes, the helper swaps, the new one starts.
