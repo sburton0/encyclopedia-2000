@@ -1,6 +1,6 @@
 {
   "name": "encyclopedia-2000",
-  "version": "0.6.0-beta",
+  "version": "0.6.1-beta",
   "private": true,
   "description": "A nostalgic early-2000s style desktop encyclopedia powered by Wikipedia",
   "homepage": "https://encyclopedia2000.com",
@@ -32,7 +32,7 @@
   "devDependencies": {
     "axe-core": "4.10.2",
     "d3-geo": "^3.1.1",
-    "electron": "^44.10.2",
+    "electron": "^44.11.5",
     "electron-builder": "^26.18.0",
     "topojson-client": "^3.1.0",
     "world-atlas": "^2.0.2"
