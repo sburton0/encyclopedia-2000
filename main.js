@@ -38,7 +38,10 @@ const MAC = process.platform === 'darwin';
 const ICON = path.join(__dirname, 'build', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
 const env = process.env;
 // The app draws its own title bar. On macOS it keeps the system's close, minimize, and zoom buttons, inset into that bar.
-const FRAME = MAC ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 10, y: 8 } } : { frame: false };
+// Options › "Use the system's title bar" gives the window the system's own instead (off by default everywhere; Scott,
+// 2026-11-22: the app's own bar matches its look). Read when the window is made, so it takes effect at the next start.
+const systemTitleBar = () => settings.systemTitleBar === true;
+const frame = () => (systemTitleBar() ? {} : MAC ? { titleBarStyle: 'hidden', trafficLightPosition: { x: 10, y: 8 } } : { frame: false });
 
 // Settings the main process needs before any window opens. Everything else lives in the page's storage.
 const SETTINGS_DEFAULTS = { showSplash: true, windowMode: 'remember', bounds: null, maximized: false, hardwareAcceleration: true, autoUpdate: true, showNews: true };
@@ -102,8 +105,9 @@ function createMain(route) {
   const saved = settings.windowMode === 'remember' && onScreen(settings.bounds) ? settings.bounds : null;
   const win = new BrowserWindow({
     ...firstBounds(), minWidth: 980, minHeight: 640,
-    ...FRAME, show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true },
+    ...frame(), show: false, backgroundColor: '#0f2250', title: 'Encyclopedia 2000', icon: ICON,
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true,
+      additionalArguments: systemTitleBar() ? ['--e2k-system-title-bar'] : [] },
   });
   // setBounds mirrors getNormalBounds exactly. Passing saved bounds to the constructor instead makes a
   // frameless window grow by its invisible resize border on every launch.
@@ -247,6 +251,7 @@ ipcMain.handle('picture:save', async (e, urls) => {
 const PORTABLE_SELF = require('./updater').SELF && (app.isPackaged || !!env.E2K_TEST_SELF_UPDATE);
 const updatesOn = () => settings.autoUpdate !== false && (!PORTABLE_SELF || settings.updateAsked === true);
 const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: settings.windowMode, hardwareAcceleration: settings.hardwareAcceleration, autoUpdate: settings.autoUpdate, showNews: settings.showNews,
+  systemTitleBar: systemTitleBar(),
   ...(PORTABLE_SELF ? { portableSelf: true, autoInstall: settings.autoInstall === true, updateAsked: settings.updateAsked === true } : {}) });
 ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
@@ -254,6 +259,7 @@ ipcMain.handle('settings:set', (_e, patch = {}) => {
   if (typeof patch.showSplash === 'boolean') settings.showSplash = patch.showSplash;
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
   if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;
+  if (typeof patch.systemTitleBar === 'boolean') settings.systemTitleBar = patch.systemTitleBar;
   if (typeof patch.autoUpdate === 'boolean') settings.autoUpdate = patch.autoUpdate;
   if (typeof patch.showNews === 'boolean') settings.showNews = patch.showNews;
   if (PORTABLE_SELF && typeof patch.autoInstall === 'boolean') settings.autoInstall = patch.autoInstall;
@@ -281,9 +287,10 @@ ipcMain.handle('print:open', (e) => {
   if (preview && !preview.isDestroyed()) { preview.focus(); return; }
   previewSource = BrowserWindow.fromWebContents(e.sender);
   preview = new BrowserWindow({
-    width: 900, height: 760, minWidth: 720, minHeight: 520, ...FRAME, show: false, parent: previewSource,
+    width: 900, height: 760, minWidth: 720, minHeight: 520, ...frame(), show: false, parent: previewSource,
     backgroundColor: '#0f2250', title: 'Print Preview', icon: ICON,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, plugins: true },
+    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, sandbox: true, plugins: true,
+      additionalArguments: systemTitleBar() ? ['--e2k-system-title-bar'] : [] },
   });
   secure(preview);
   preview.loadFile(path.join(SRC, 'preview.html'));

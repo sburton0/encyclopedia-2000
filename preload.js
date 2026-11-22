@@ -5,6 +5,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const platform = process.platform;
 window.addEventListener('DOMContentLoaded', () => {
   document.documentElement.dataset.platform = platform;
+  // With the system's title bar (Options), the app's own is hidden (styles.css).
+  if (process.argv.includes('--e2k-system-title-bar')) document.documentElement.dataset.systemTitleBar = '';
   if (platform !== 'win32') document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'fonts/fonts.css' }));
 });
 

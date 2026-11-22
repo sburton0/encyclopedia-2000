@@ -2907,6 +2907,33 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
 
   // ---------- accessibility ----------
   {
+    name: 'system-title-bar', group: 'General', title: 'Options › Use the system’s title bar: off by default (the app’s own title bar); turned on, it takes effect at the next start, with the app’s own bar hidden',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      t.check('By default the app draws its own title bar', await t.js('return getComputedStyle(document.querySelector(".titlebar")).display !== "none" && !("systemTitleBar" in document.documentElement.dataset);')
+        && (await t.js('return (await window.e2k.settings.get()).systemTitleBar;')) === false);
+      await t.js('E2K.command("options");');
+      await t.waitFor('[...document.querySelectorAll(".overlay .ocheck")].some((c) => c.textContent.includes("system’s title bar"))', 5000);
+      const box = '[...document.querySelectorAll(".overlay .ocheck")].find((c) => c.textContent.includes("system’s title bar"))';
+      t.check('Options › Startup has it, unticked', await t.js(`return ${box}.querySelector("input").checked === false;`));
+      await t.js(`${box}.querySelector("input").click(); [...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "OK").click();`);
+      t.check('OK saves it, and says it takes a restart', await t.waitFor('/Restart Encyclopedia 2000 to change the title bar/.test(document.getElementById("status").textContent)', 4000)
+        && (await t.js('return (await window.e2k.settings.get()).systemTitleBar;')) === true, await t.js('return document.getElementById("status").textContent;'));
+      const saved = JSON.parse(fs.readFileSync(path.join(t.profile, 'settings.json'), 'utf8'));
+      t.check('…in settings.json', saved.systemTitleBar === true);
+      // The next start: the system's title bar (the window has a frame), so the app's own is hidden.
+      const { spawnSync } = require('child_process');
+      const out = path.join(t.profile, 'next-start.json');
+      spawnSync(require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'electron')), [process.env.E2K_TEST_APP, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])], {
+        env: { ...process.env, E2K_NOSPLASH: '1', E2K_MUTE: '1', E2K_TEST_SCENARIO: '', E2K_DELAY: '3000', E2K_CAPTURE: path.join(t.profile, 'next-start.png'), E2K_EVAL_OUT: out,
+          E2K_EVAL: '(async () => ({ attr: "systemTitleBar" in document.documentElement.dataset, hidden: getComputedStyle(document.querySelector(".titlebar")).display === "none" }))()' },
+        timeout: 90000 });
+      let r = null; try { r = JSON.parse(fs.readFileSync(out, 'utf8')); } catch {}
+      t.check('At the next start the app’s own title bar is hidden (the system’s is used)', r && r.attr && r.hidden, JSON.stringify(r));
+    },
+  },
+  {
     name: 'full-screen', group: 'General', title: 'View › Full Screen: the title bar goes, Esc closes what\'s open first and then leaves full screen, F11 toggles it',
     route: 'article/Moon',
     async run(t) {
