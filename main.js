@@ -52,6 +52,13 @@ function saveSettings() {
 }
 // Hardware acceleration has to be decided before the app is ready, so this setting takes effect on the next launch.
 loadSettings();
+// The version this copy was first used with, for notices meant only for people who used an earlier version (notices.js).
+// A data folder already in use, from before this was recorded, gets "<this version".
+if (!settings.firstVersion) {
+  const used = ['settings.json', 'notice.json', 'Local Storage'].some((f) => fs.existsSync(path.join(app.getPath('userData'), f)));
+  settings.firstVersion = require('./notices').firstVersion(null, app.getVersion(), used);
+  saveSettings();
+}
 if (settings.hardwareAcceleration === false) app.disableHardwareAcceleration();
 
 // Only reuse saved bounds if they still land on a connected screen.
@@ -240,7 +247,7 @@ const mainSettings = () => ({ showSplash: settings.showSplash, windowMode: setti
   ...(PORTABLE_SELF ? { portableSelf: true, autoInstall: settings.autoInstall === true, updateAsked: settings.updateAsked === true } : {}) });
 ipcMain.handle('settings:get', () => mainSettings());
 ipcMain.handle('settings:set', (_e, patch = {}) => {
-  if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized };
+  if (patch.reset) settings = { ...SETTINGS_DEFAULTS, bounds: settings.bounds, maximized: settings.maximized, firstVersion: settings.firstVersion };
   if (typeof patch.showSplash === 'boolean') settings.showSplash = patch.showSplash;
   if (['remember', 'maximized', 'default'].includes(patch.windowMode)) settings.windowMode = patch.windowMode;
   if (typeof patch.hardwareAcceleration === 'boolean') settings.hardwareAcceleration = patch.hardwareAcceleration;

@@ -1552,6 +1552,16 @@ module.exports = [
       t.check('Only for the versions it names (0.5.4 Beta counts as 0.5.4)', one({ versions: '<0.5.4' }) === null && !!one({ versions: '<=0.5.4' }) && !!one({ versions: '<0.6' }) && one({ versions: 'nonsense!!' }) === null);
       t.check('A broken file shows nothing', JSON.stringify(pick('oops', env)) === '{"news":null,"important":null}' && JSON.stringify(pick(null, env)) === '{"news":null,"important":null}');
       t.check('An id that isn’t simple is ignored', one({ id: '<x>' }) === null && one({ id: '' }) === null);
+      // From 0.6.2: "usedBefore" is only for people who used the app before that version.
+      const { firstVersion } = require(path.join(process.env.E2K_TEST_APP, 'notices.js'));
+      const as = (first, x) => pick({ news: { id: 'a', text: 'Hello.', ...x } }, { ...env, first }).news;
+      t.check('usedBefore: shown to someone who started earlier, not to someone who started with it or later',
+        !!as('0.5.6-beta', { usedBefore: '0.6.0' }) && as('0.6.0-beta', { usedBefore: '0.6.0' }) === null && as('0.6.2-beta', { usedBefore: '0.6' }) === null);
+      t.check('…a copy from before it was recorded ("<0.6.2-beta") counts as an earlier one, and so does one with nothing recorded',
+        !!as('<0.6.2-beta', { usedBefore: '0.6.0' }) && !!as(undefined, { usedBefore: '0.6.0' }));
+      t.check('…a usedBefore that isn’t a version is ignored (nothing shown)', as('0.5.6-beta', { usedBefore: 'soon' }) === null && as('0.5.6-beta', { usedBefore: 6 }) === null);
+      t.check('The first version: this one on a fresh start, "<this one" in a folder already in use, and a recorded one kept',
+        firstVersion(null, '0.6.2-beta', false) === '0.6.2-beta' && firstVersion(undefined, '0.6.2-beta', true) === '<0.6.2-beta' && firstVersion('0.6.0-beta', '0.6.2-beta', true) === '0.6.0-beta');
       // From 0.6.1: a button that opens a screen in the app ({ label, route }), from a short list or a game or activity id.
       t.check('A link to a screen in the app is allowed', one({ link: { label: 'Go to Activities', route: 'activities' } })?.link?.route === 'activities'
         && !!one({ link: { label: 'Play', route: 'game/passport' } }) && !!one({ link: { label: 'History', route: 'myarticles/history' } }));
@@ -1581,6 +1591,36 @@ module.exports = [
   },
 
   // ---------- USB edition: the portable version updating itself ----------
+  {
+    name: 'notices-first-version', group: 'General', title: 'A fresh start records its first version; a notice for people who used an earlier version isn’t shown to it, and one in an existing folder records "<this version"',
+    route: 'home',
+    // Its own empty folder (the runner's profile already has a settings.json, as a copy in use would).
+    env: (profile) => ({ E2K_PROFILE: path.join(profile, 'fresh'), E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => {
+      fs.mkdirSync(path.join(ctx.profile, 'fresh'), { recursive: true });
+      fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({
+        news: { id: 'n-new', text: 'News for everyone.', usedBefore: '99.0' },
+        important: { id: 'i-old', text: 'Games have moved to Activities.', usedBefore: '0.6.0' },
+      }));
+      return {};
+    },
+    async run(t) {
+      const version = require(path.join(process.env.E2K_TEST_APP, 'package.json')).version;
+      const fresh = t.profile;   // (E2K_PROFILE, the empty folder)
+      const read = (dir) => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'settings.json'), 'utf8')).firstVersion; } catch { return null; } };
+      t.check('A fresh start records this version as its first', read(fresh) === version, read(fresh));
+      t.check('A notice for people who used an earlier version isn’t shown; one for everyone is', await t.waitFor('document.querySelector(".home .news")', 8000)
+        && await t.js('return !document.getElementById("notice") && /everyone/.test(document.querySelector(".home .news").textContent);'));
+      // A folder with a settings.json and no firstVersion, as a copy from before 0.6.2 has.
+      const old = path.join(t.profile, '..', 'existing');
+      fs.mkdirSync(old, { recursive: true });
+      fs.writeFileSync(path.join(old, 'settings.json'), JSON.stringify({ showSplash: false }));
+      const { spawnSync } = require('child_process');
+      const r = spawnSync(require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'electron')), [process.env.E2K_TEST_APP, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
+        { env: { ...process.env, E2K_PROFILE: old, E2K_NOSPLASH: '1', E2K_MUTE: '1', E2K_CAPTURE: path.join(old, 'shot.png'), E2K_DELAY: '1500', E2K_TEST_SCENARIO: '' }, timeout: 90000 });
+      t.check('In a folder already in use, it records "<this version"', read(old) === `<${version}`, `${read(old)} (exit ${r.status})`);
+    },
+  },
   {
     name: 'portable-update', group: 'USB edition', title: 'Portable self-update: download, checks, swap, and cleanup; a stick pulled out, a bad download, a read-only drive, a damaged update, a failed swap',
     route: 'home',
