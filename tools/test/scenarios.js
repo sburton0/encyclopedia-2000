@@ -723,8 +723,11 @@ module.exports = [
         ['passport', 'game/passport', 'document.querySelector(".pp-book .pp-stamp")'],
         ['animals', 'activity/animal-sounds', 'document.querySelector(".as-grid .as-card .ph")'],
       ];
+      const bars = {};
       for (const theme of themes) {
         await t.js(`localStorage.setItem('e2k.theme', JSON.stringify(${JSON.stringify(theme)})); E2K.applyPrefs();`);
+        // The location bar and status bar in the theme's own colors (from 0.6.2; before, every theme but Classic Gray had Bloom's black).
+        bars[theme] = await t.js('const c = getComputedStyle(document.querySelector(".crumbs")), s = getComputedStyle(document.querySelector(".statusbar")); return { crumbs: c.backgroundImage + c.backgroundColor, status: s.backgroundImage + s.backgroundColor };');
         const missing = [];
         for (const [name, route, ready] of screens) {
           await t.js(`E2K.go(${JSON.stringify(route)});`);
@@ -734,6 +737,8 @@ module.exports = [
         }
         t.check(`${theme}: every screen drew`, !missing.length && (await t.js('return document.documentElement.dataset.theme || E2KThemes.current();')) === theme, missing.join());
       }
+      const own = themes.filter((x) => x !== 'bloom' && (bars[x].crumbs === bars.bloom.crumbs || bars[x].status === bars.bloom.status));
+      t.check('Each theme has its own location bar and status bar (not Bloom’s black)', !own.length, own.join(', ') || `${themes.length - 1} themes`);
     },
   },
   {
