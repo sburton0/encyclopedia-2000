@@ -33,6 +33,8 @@
     set(k, v) { try { localStorage.setItem('e2k.' + k, JSON.stringify(v)); } catch {} syncMenu(); },
   };
 
+  const MAC = window.e2k.platform === 'darwin';
+
   // ---------- parts ----------
   // Parts of the app in their own files (src/parts/*.js, loaded before this one). Each is a function given this table
   // (A) of shared helpers; it returns what the rest of the app uses from it. Functions defined further down this file,
@@ -49,22 +51,61 @@
     live: { get: () => live },
     railLink: { get: () => railLink },
     railSection: { get: () => railSection },
-    closeOverlays: { get: () => closeOverlays },
     speechStop: { get: () => speechStop },
-    updateVolume: { get: () => updateVolume },
-    toggleMute: { get: () => toggleMute },
+    sized: { get: () => sized },
+    longDate: { get: () => longDate },
+    route: { get: () => route },
+    setStatus: { get: () => setStatus },
+    isOffline: { get: () => isOffline },
+    go: { get: () => go },
+    openArticle: { get: () => openArticle },
+    setCrumbs: { get: () => setCrumbs },
+    mount: { get: () => mount },
+    todayFeed: { get: () => todayFeed },
+    shell: { get: () => shell },
+    bandBtn: { get: () => bandBtn },
+    loading: { get: () => loading },
+    fitHome: { get: () => fitHome },
+    E2K: { get: () => E2K },
+    firstRun: { get: () => firstRun },
+    MAC: { get: () => MAC },
+    recentTitles: { get: () => recentTitles },
+    setOffline: { get: () => setOffline },
+    keyText: { get: () => keyText },
+    syncMenu: { get: () => syncMenu },
+    closeMenus: { get: () => closeMenus },
+    linkFrom: { get: () => linkFrom },
+    reload: { get: () => reload },
+    runCmd: { get: () => runCmd },
+    libChanged: { get: () => libChanged },
+    TOOLS: { get: () => TOOLS },
+    hasLib: { get: () => hasLib },
+    hasDownloads: { get: () => hasDownloads },
+    libMissing: { get: () => libMissing },
+    focusScreen: { get: () => focusScreen },
   });
   const part = (name) => Object.assign(A, window.E2KParts[name](A));
   const { articleText, findable, openFind, closeFind } = part('find');
   const { clock, noUtm, fileName, videoSource, creditOf, articleMedia, waveform, mediaBox, wireMedia, volControl, playerParts, soundPlayer, recordingLanguage, pronButton, sameFile, mediaSlots, mediaViewer } = part('media');
+  const { viewGallery } = part('gallery');
+  const { askAboutUpdates, checkForUpdates } = part('updates');
+  const { showNews } = part('notices');
+  const { whatsNew, maybeWhatsNew } = part('whats-new');
+  const { prettyVersion, feedback } = part('feedback');
+  const { donate, lightbox } = part('donate');
+  const { hideSuggest } = part('search-box');
+  const { updateVolume, toggleMute, closeVolume } = part('volume');
+  const { viewOnThisDay } = part('on-this-day');
+  const { viewExplore } = part('explore');
+  const { showError, relatedInLibrary } = part('errors');
+  const { closeOverlays, topOverlay, dialog, about } = part('overlays');
 
   // A brand-new install has nothing saved yet. Checked before anything is saved, for What's New below.
   const firstRun = (() => { try { return !Object.keys(localStorage).some((k) => k.startsWith('e2k.')); } catch { return false; } })();
 
   // ---------- platform ----------
   // Menus and tooltips name Windows shortcuts. macOS uses Command instead, and avoids the shortcuts it reserves
-  // (Command-H hides the app and Command-M minimizes it).
-  const MAC = window.e2k.platform === 'darwin';
+  // (Command-H hides the app and Command-M minimizes it). MAC is set at the top, since parts use it as they start.
   const MAC_KEYS = { 'Ctrl+H': 'Cmd+Shift+H', 'Ctrl+M': 'Cmd+Shift+M', 'Alt+Left': 'Cmd+[', 'Alt+Right': 'Cmd+]', F5: 'Cmd+R', 'Alt+F4': '' };
   const macKey = (k) => (k in MAC_KEYS ? MAC_KEYS[k] : k.replace('Ctrl+', 'Cmd+'));
   // How a shortcut is written for people: "Ctrl+H" on Windows and Linux, "⇧⌘H" on macOS.
@@ -1184,293 +1225,6 @@
     go(route('article', s.titles?.normalized || s.title), { replace: true });
   }
 
-  // ---------- explore ----------
-  async function viewExplore(token) {
-    const pg = shell({
-      title: 'Browse the encyclopedia', desc: 'Eight articles chosen at random. Shuffle for more.',
-      wide: true, tools: [bandBtn('Shuffle', () => reload(), 'shuffle')],
-    });
-    pg.railIn.append(
-      railLink('Today’s featured article', () => runCmd('featured')),
-      railLink('Random article', () => go('random')),
-      railLink('Picture of the Day', () => go('gallery')),
-      railLink('On this day', () => go('onthisday')));
-    const recent = recentTitles();
-    if (recent.length) pg.railIn.append(h('hr'), h('h4', {}, 'Recently viewed'), ...recent.map((t) => railLink(t, () => openArticle(t, linkFrom()), 'sub')));
-    const grid = h('div', { class: 'cards' }, Array.from({ length: 8 }, () => h('div', { class: 'card ghost' })));
-    pg.text.append(grid);
-    if (!mount(pg.root, token)) return;
-    setStatus('Picking articles…', true);
-    // Sixteen random articles in one request (Wikipedia refuses bursts of single random requests). The eight kept are
-    // the ones with opening text and a picture where there are enough, shown in their random order (so the pictures
-    // aren't all in one row). Offline, they come from the library.
-    const ghosts = [...grid.children], seen = new Set();
-    let picks = [];
-    try { picks = await Wiki.randomMany(16); } catch {}
-    if (!live(token)) return;
-    const score = (s) => (s.thumbnail?.source ? 2 : 0) + (s.extract || s.description ? 1 : 0);
-    const keep = new Set(picks.map((s, i) => [s, i]).sort((a, b) => score(b[0]) - score(a[0]) || a[1] - b[1]).slice(0, 8).map(([s]) => s));
-    picks = picks.filter((s) => keep.has(s));
-    let filled = 0;
-    const waiting = new Map();
-    for (const s of picks) {
-      const t = s.titles?.normalized || s.title;
-      if (filled >= 8 || !t || seen.has(t)) continue;
-      seen.add(t);
-      const p = h('p', { class: s.extract ? '' : 'wait' }, s.extract || '');
-      if (!s.extract) waiting.set(t, p);
-      ghosts[filled++].replaceWith(h('button', { class: 'card', onclick: () => openArticle(t) },
-        h('div', { class: 'ph', style: bg(s.thumbnail?.source) }),
-        h('div', { class: 'b' }, h('b', {}, t), s.description ? h('span', {}, s.description) : null, p)));
-    }
-    if (!filled) throw new Error('No articles returned');
-    ghosts.slice(filled).forEach((g) => g.remove());
-    setIdle();
-    // The cards show at once; their opening text follows in one more request.
-    if (waiting.size) {
-      const text = await Wiki.openings([...waiting.keys()]);
-      for (const [t, p] of waiting) { p.textContent = text[t] || ''; p.classList.remove('wait'); }
-    }
-  }
-
-  // ---------- gallery: Picture of the Day, Media of the Day (videos and sounds), and Featured Sounds ----------
-  const GALLERY_TABS = [['picture', 'Picture', 'film'], ['video', 'Video', 'play'], ['sound', 'Sound', 'vol']];
-  const weekDays = () => Array.from({ length: 7 }, (_, i) => { const d = new Date(); d.setDate(d.getDate() - i); return d; });
-  const dayName = (d, i) => (i === 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' }));
-  // Plain text from a bit of wikitext: links and {{w|…}} become their words; other templates and formatting go.
-  const wikiText = (w) => decodeHtml(String(w || '')
-    .replace(/\{\{w\|[^}|]*\|([^}]+)\}\}/g, '$1').replace(/\{\{w\|([^}]+)\}\}/g, '$1')
-    .replace(/\[\[:?(?:[^|\]]*\|)?([^\]]+)\]\]/g, '$1').replace(/\[https?:\S+ ([^\]]+)\]/g, '$1')
-    .replace(/\{\{[^{}]*\}\}/g, '').replace(/'{2,}/g, '').replace(/<[^>]+>/g, ''))
-    .replace(/^(?:Category|File):/gm, '').replace(/\s+/g, ' ').trim();
-
-  async function viewGallery(tab, token) {
-    if (!GALLERY_TABS.some(([id]) => id === tab)) tab = 'picture';
-    const tabs = h('div', { class: 'mtabs', role: 'tablist' }, GALLERY_TABS.map(([id, label, ic]) =>
-      h('button', { class: id === tab ? 'on' : '', role: 'tab', 'aria-selected': String(id === tab),
-        onclick: () => { if (id !== tab) go(id === 'picture' ? 'gallery' : route('gallery', id), { replace: true }); } }, icon(ic), label)));
-    if (tab === 'video') return viewMotd(tabs, token);
-    if (tab === 'sound') return viewSounds(tabs, token);
-
-    const pg = shell({ title: 'Picture of the Day', desc: 'Featured images from Wikimedia Commons', railTitle: 'This week', wide: true, tools: [tabs] });
-    const holder = h('div', { class: 'potd' }, loading('Loading pictures…'));
-    const stripEl = h('div', { class: 'strip' });
-    pg.text.append(holder, stripEl);
-    if (!mount(pg.root, token)) return;
-    setStatus('Loading pictures…', true);
-    // Each day appears as soon as it arrives, so one slow day doesn't hold up the rest. Today's picture shows first.
-    const days = weekDays();
-    const pics = days.map(() => null);
-    const tiles = days.map((d, i) => h('button', { disabled: true, onclick: () => { picked = true; show(i); } }, h('i'), i === 0 ? 'Today' : longDate(d)));
-    const railBtns = days.map((d, i) => railLink(dayName(d, i), () => { picked = true; show(i); }));
-    railBtns.forEach((b) => { b.disabled = true; });
-    stripEl.append(...tiles);
-    pg.railIn.append(...railBtns);
-    let shown = -1, picked = false;
-    function show(i) {
-      if (!pics[i]) return;
-      shown = i;
-      const { date, img } = pics[i];
-      const full = img.fromLibrary ? img.thumbnail.source : sized(img.thumbnail?.source, img.image?.source, img.image?.width || 0, 1280);
-      const caption = strip(img.description?.text) || strip(img.title);
-      // Offline, each day's picture comes from an article in the offline library, not from Wikimedia Commons.
-      holder.replaceChildren(
-        h('figure', {}, h('img', { src: full, alt: caption, onclick: () => lightbox(full, caption) })),
-        h('div', { class: 'desc' }, caption),
-        img.fromLibrary
-          ? h('div', { class: 'credit' }, `${longDate(date)} · From your offline library`, bandBtn(`Read about ${img.title}`, () => openArticle(img.title)))
-          : h('div', { class: 'credit' },
-            `${longDate(date)} · ${strip(img.artist?.text) || 'Unknown artist'} · ${img.license?.type || ''}`,
-            img.file_page ? bandBtn('View on Wikimedia Commons', () => window.e2k.openExternal(img.file_page), 'ext') : null));
-      tiles.forEach((b, j) => b.classList.toggle('on', j === i));
-      railBtns.forEach((b, j) => b.classList.toggle('on', j === i));
-      pg.content.scrollTo({ top: 0 });
-    }
-    await Promise.allSettled(days.map(async (d, i) => {
-      const img = (await (i === 0 ? todayFeed() : Wiki.featured(d)).catch(() => null))?.image;
-      if (!live(token)) return;
-      if (!img) { tiles[i].remove(); railBtns[i].remove(); return; }
-      if (img.fromLibrary) pg.root.querySelector('.band .desc').textContent = 'Pictures from your offline library (the Picture of the Day comes back when you’re online)';
-      pics[i] = { date: d, img };
-      tiles[i].disabled = railBtns[i].disabled = false;
-      tiles[i].firstChild.style.cssText = bg(img.thumbnail?.source);
-      if (!picked && (shown < 0 || i < shown)) show(i);
-    }));
-    if (!live(token)) return;
-    if (!pics.some(Boolean)) throw Object.assign(new Error('No pictures available'), { noPictures: isOffline() || !Wiki.connected() });
-    setIdle();
-  }
-
-  // A video or sound that plays right on the page, with the viewer's controls.
-  function inlinePlayer(m) {
-    const label = m.caption || fileName(m.file);
-    const stage = h('div', { class: 'mstage ' + m.type });
-    const el = h(m.type, { src: m.src, preload: 'none', poster: m.type === 'video' ? m.thumb : null });
-    const parts = playerParts();
-    const controls = h('div', { class: 'ctl' }, parts.pb, parts.cur, parts.bar, parts.tot, ...volControl());
-    const toggle = wireMedia(el, { ...parts, duration: m.duration, onState: (on) => stage.classList.toggle('playing', on) });
-    el.addEventListener('error', () => stage.append(h('div', { class: 'merr' }, 'This file can’t be played right now.')));
-    const big = h('button', { class: 'big', title: 'Play', onclick: toggle }, icon('play'));
-    if (m.type === 'video') { el.addEventListener('click', toggle); stage.append(el, big); }
-    else stage.append(waveform(m.file, 48), h('div', { class: 'lbl' }, label), big, el);
-    return h('div', { class: 'mviewer inline' }, stage, controls);
-  }
-  // A file from videoInfo as something inlinePlayer can play.
-  function playable(file, ii, extra = {}) {
-    const audio = /^audio\//.test(ii.mime) || (!ii.width && !ii.height);
-    const derivs = (ii.derivatives || []).map((d) => ({ url: d.src, mime: d.type || '', height: d.height }));
-    const src = audio ? noUtm((ii.derivatives || []).find((d) => /mpeg|ogg|opus/.test(d.type || ''))?.src || ii.url) : videoSource(derivs) || noUtm(ii.url);
-    return { type: audio ? 'audio' : 'video', file, src, thumb: audio ? '' : noUtm(ii.thumburl), duration: ii.duration || 0,
-      credit: creditOf(ii), page: ii.descriptionurl, ...extra };
-  }
-  const mediaTileBg = (m) => (m.type === 'video' ? bg(m.thumb) : '');
-
-  // Media of the Day: a video (now and then a sound) picked by Wikimedia Commons for each day.
-  async function viewMotd(tabs, token) {
-    const pg = shell({ title: 'Media of the Day', desc: 'A video or sound chosen each day by Wikimedia Commons', railTitle: 'This week', wide: true, tools: [tabs] });
-    pg.text.append(loading('Loading videos…'));
-    if (!mount(pg.root, token)) return;
-    setCrumbs(['Media of the Day']);
-    setStatus('Loading videos…', true);
-    const days = weekDays();
-    const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const pages = await Wiki.commonsPages(days.flatMap((d) => [`Template:Motd/${ymd(d)}`, `Template:Motd/${ymd(d)} (en)`]));
-    const week = days.map((d) => ({
-      date: d,
-      file: /\|\s*1=([^|}]+)/.exec(pages[`Template:Motd/${ymd(d)}`] || '')?.[1]?.trim(),
-      caption: wikiText(/\|\s*1=([\s\S]*?)\|\s*2=/.exec(pages[`Template:Motd/${ymd(d)} (en)`] || '')?.[1] || ''),
-    })).filter((w) => w.file);
-    if (!week.length) throw new Error('No media of the day available');
-    const info = await Wiki.videoInfo(week.map((w) => 'File:' + w.file));
-    if (!live(token)) return;
-    const items = week.filter((w) => info['File:' + w.file]).map((w) => playable('File:' + w.file, info['File:' + w.file], { date: w.date, caption: w.caption }));
-    if (!items.length) throw new Error('No media of the day available');
-    const holder = h('div', { class: 'potd motd' });
-    const tiles = items.map((m, i) => h('button', { onclick: () => show(i) },
-      h('i', { class: m.type, style: mediaTileBg(m) }, h('b', {}, (m.type === 'video' ? '▶︎ ' : '♪︎ ') + clock(m.duration))),
-      days.indexOf(m.date) === 0 ? 'Today' : longDate(m.date)));
-    const railBtns = items.map((m, i) => railLink(dayName(m.date, days.indexOf(m.date)), () => show(i)));
-    function show(i) {
-      const m = items[i];
-      holder.replaceChildren(inlinePlayer(m),
-        m.caption ? h('div', { class: 'desc' }, m.caption) : null,
-        h('div', { class: 'credit' }, [longDate(m.date), m.credit.replace(/ · From Wikimedia Commons$/, '')].filter(Boolean).join(' · '),
-          m.page ? bandBtn('View on Wikimedia Commons', () => window.e2k.openExternal(m.page), 'ext') : null));
-      tiles.forEach((b, j) => b.classList.toggle('on', j === i));
-      railBtns.forEach((b, j) => b.classList.toggle('on', j === i));
-      updateVolume();
-      pg.content.scrollTo({ top: 0 });
-    }
-    pg.railIn.append(...railBtns);
-    pg.text.replaceChildren(holder, h('div', { class: 'strip' }, tiles));
-    show(0);
-    setIdle();
-  }
-
-  // Featured Sounds: recordings picked by Wikimedia Commons, in its collections. The large player shows a sound of
-  // the day, chosen in turn from the whole list.
-  const AUDIO_FILE = /\.(ogg|oga|opus|flac|wav|mp3|mid|midi)$/i;
-  async function viewSounds(tabs, token) {
-    const pg = shell({ title: 'Featured Sounds', desc: 'Music, speeches, and historic recordings chosen by Wikimedia Commons', railTitle: 'Collections', wide: true, tools: [tabs] });
-    pg.text.append(loading('Loading sounds…'));
-    if (!mount(pg.root, token)) return;
-    setCrumbs(['Featured Sounds']);
-    setStatus('Loading sounds…', true);
-    const NAMES = ['Historical recordings', 'Music', 'Field recordings', 'Other'];
-    const pages = await Wiki.commonsPages(NAMES.map((n) => `Commons:Featured sounds/${n}`));
-    const collections = NAMES.map((name) => ({
-      name,
-      sounds: (pages[`Commons:Featured sounds/${name}`] || '').split('\n').map((l) => /^\s*(?:File|Image):([^|]+?)\s*(?:\|(.*))?$/.exec(l))
-        .filter((m) => m && AUDIO_FILE.test(m[1])).map((m) => ({ file: 'File:' + m[1], label: (m[2] || '').trim() })),
-    })).filter((c) => c.sounds.length);
-    if (!collections.length) throw new Error('No featured sounds available');
-    const all = collections.flatMap((c) => c.sounds);
-    const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 864e5);
-    const today = all[dayOfYear % all.length];
-    const hero = h('div', { class: 'potd sotd' });
-    const listHead = h('h3', { class: 'mlist-h' });
-    const list = h('div', { class: 'mlist' });
-    const infoCache = {};
-    const infoFor = async (files) => {
-      const need = files.filter((f) => !(f in infoCache));
-      for (let i = 0; i < need.length; i += 50) Object.assign(infoCache, await Wiki.videoInfo(need.slice(i, i + 50)));
-      return infoCache;
-    };
-    const titleOf = (s) => s.label || fileName(s.file).replace(/^\d+,\d+\s+/, '');
-    const descOf = (ii) => {
-      const d = decodeHtml(strip(ii?.extmetadata?.ImageDescription?.value || '')).replace(/\s+/g, ' ').trim();
-      return d.length > 320 ? d.slice(0, 317).replace(/\s+\S*$/, '') + '…' : d;
-    };
-    const railBtns = collections.map((c, i) => {
-      const b = railLink(c.name, () => showCollection(i));
-      b.append(h('span', { class: 'n' }, String(c.sounds.length)));
-      return b;
-    });
-    async function showCollection(i) {
-      const c = collections[i];
-      railBtns.forEach((b, j) => b.classList.toggle('on', j === i));
-      listHead.textContent = c.name;
-      list.replaceChildren(loading('Loading sounds…'));
-      const inf = await infoFor(c.sounds.map((s) => s.file));
-      if (!live(token)) return;
-      list.replaceChildren(...c.sounds.filter((s) => inf[s.file]).map((s) => {
-        const p = playable(s.file, inf[s.file]);
-        return soundPlayer({ file: s.file, dur: p.duration, label: titleOf(s), src: JSON.stringify([[p.src]]) });
-      }));
-      updateVolume();
-    }
-    const inf = await infoFor([today.file]);
-    if (!live(token)) return;
-    if (inf[today.file]) {
-      const m = playable(today.file, inf[today.file], { caption: titleOf(today) });
-      const desc = descOf(inf[today.file]);
-      hero.append(h('div', { class: 'eyebrow' }, 'Sound of the day'), inlinePlayer(m),
-        desc ? h('div', { class: 'desc' }, desc) : null,
-        h('div', { class: 'credit' }, m.credit.replace(/ · From Wikimedia Commons$/, ''),
-          m.page ? bandBtn('View on Wikimedia Commons', () => window.e2k.openExternal(m.page), 'ext') : null));
-    }
-    pg.railIn.append(...railBtns);
-    pg.text.replaceChildren(hero, listHead, list);
-    await showCollection(Math.max(0, collections.findIndex((c) => c.sounds.includes(today))));
-    setIdle();
-  }
-
-  // ---------- on this day ----------
-  async function viewOnThisDay(token) {
-    const pg = shell({ title: `On this day: ${longDate()}`, desc: 'Events, births, and deaths from across history', railTitle: 'Categories', wide: true });
-    pg.text.append(loading('Consulting the almanac…'));
-    if (!mount(pg.root, token)) return;
-    setStatus('Consulting the almanac…', true);
-    const data = await Wiki.onThisDay(new Date());
-    if (!live(token)) return;
-    const cats = [['selected', 'Highlights'], ['events', 'Events'], ['births', 'Births'], ['deaths', 'Deaths'], ['holidays', 'Holidays']]
-      .filter(([k]) => (data[k] || []).length);
-    const list = h('div', { class: 'tl' });
-    const links = cats.map(([k, label], i) => {
-      const b = railLink(label, () => show(i));
-      b.append(h('span', { class: 'n' }, String(data[k].length)));
-      return b;
-    });
-    function show(i) {
-      const [k] = cats[i];
-      links.forEach((l, j) => l.classList.toggle('on', j === i));
-      list.replaceChildren(...data[k].map((o) => {
-        const page = (o.pages || []).find((p) => p.thumbnail) || (o.pages || [])[0];
-        const t = page ? page.titles?.normalized || page.title : null;
-        // An event without an article (offline, when the library doesn't have it) is plain text.
-        return h(t ? 'button' : 'div', t ? { class: 'tl-item', onclick: () => openArticle(t, linkFrom()) } : { class: 'tl-item nolink', title: data.offline ? 'Not in your offline library' : '' },
-          h('div', { class: 'yr' }, o.year !== undefined ? String(o.year) : '•'),
-          h('div', { class: 'tx' }, o.text, t ? h('small', {}, t + ' ›') : null),
-          page?.thumbnail ? h('i', { class: 'th', style: bg(page.thumbnail.source) }) : null);
-      }));
-      pg.content.scrollTo({ top: 0 });
-    }
-    pg.railIn.append(...links);
-    pg.text.replaceChildren(list);
-    show(0);
-    setIdle();
-  }
-
   // ---------- games ----------
   // Games are listed first on the Activities page; each game has its own screen.
   function viewGame(id, token) {
@@ -1599,187 +1353,6 @@
     focusScreen(root);
   }
 
-  // ---------- errors ----------
-  // The library can't be found (its drive was disconnected, or it was moved or deleted): where it was, and what to do.
-  const missingBox = () => h('div', { class: 'errbox' },
-    h('b', {}, 'Your offline library can’t be found'),
-    `${libMissing.label} isn’t in ${libMissing.where}. If it’s on a drive that was disconnected, reconnect it and the library will open again on its own. You can also find it or download it again in ${TOOLS} Offline Library.`,
-    h('div', {}, bandBtn('Offline Library…', () => E2KLibrary.open(E2K)), navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null));
-  function showError(err, name, arg, token) {
-    if (isOffline()) {
-      // First, whether the library itself just went missing (its drive was disconnected, say).
-      window.e2k.library.state().then(libChanged, () => {}).finally(() => { if (live(token)) offlineError(err, arg, token); });
-      return;
-    }
-    onlineError(err, name, arg, token);
-  }
-  function offlineError(err, arg, token) {
-    // Media's pictures offline, with a library that has none (a text-only library).
-    if (err.noPictures && hasLib) {
-      const pg = shell({ title: 'Picture of the Day', railTitle: '', wide: true });
-      pg.text.append(h('div', { class: 'errbox' },
-        h('b', {}, 'Your offline library has no pictures'),
-        `Text-only libraries leave out pictures to save space. The Picture of the Day comes back when you’re online, or with a library that includes pictures (${TOOLS} Offline Library).`,
-        h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
-      mount(pg.root, token);
-      setIdle('Offline mode');
-      return;
-    }
-    if (libMissing) {
-      const pg = shell({ title: 'Offline library not found', railTitle: '', wide: true });
-      pg.text.append(missingBox());
-      mount(pg.root, token);
-      setIdle('Offline mode');
-      return;
-    }
-    // Offline mode: the page needs the internet, or the article isn't in the library. For a missing article, related
-    // ones that are in the library follow (see relatedInLibrary).
-    const onlyDownloads = !hasLib && hasDownloads;
-    const pg = shell({ title: !err.notInLibrary ? 'Offline mode' : onlyDownloads ? 'Not downloaded' : 'Not in the offline library', railTitle: '', wide: true });
-    const related = h('p', { class: 'inlib', hidden: true });
-    pg.text.append(h('div', { class: 'errbox' },
-      h('b', {}, !err.notInLibrary ? 'This page needs the internet' : onlyDownloads ? `“${arg}” isn’t downloaded` : `“${arg}” isn’t in the offline library`),
-      onlyDownloads ? 'You’re in Offline mode, so only the articles you’ve downloaded are available.'
-        : hasDownloads ? 'You’re in Offline mode, so only the offline library and the articles you’ve downloaded are available.'
-          : 'You’re in Offline mode, so only the offline library is available.',
-      related,
-      h('div', {}, navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
-    mount(pg.root, token);
-    setIdle('Offline mode');
-    if (err.notInLibrary && hasLib) relatedInLibrary(arg).then((titles) => {
-      if (!titles.length || !live(token)) return;
-      related.append(h('b', {}, 'In your library:'), ' ', ...titles.flatMap((t, i) => [i ? ' · ' : null,
-        h('a', { href: '#', 'data-title': t }, t)]).filter(Boolean));
-      related.hidden = false;
-    });
-  }
-  // Up to four articles in the library related to a title that isn't: the library's titles starting with shorter and
-  // shorter versions of it ("Apollo 11 lunar sample display" → "Apollo 11 lunar sample" → … → "Apollo 11").
-  async function relatedInLibrary(title) {
-    const words = String(title).split(/\s+/), found = [];
-    for (let n = words.length - 1; n >= 1 && found.length < 4; n--) {
-      const hits = await window.e2k.library.titles(words.slice(0, n).join(' '), 6).catch(() => []);
-      for (const hit of hits) if (!found.includes(hit.title) && hit.title.toLowerCase() !== title.toLowerCase() && found.length < 4) found.push(hit.title);
-    }
-    return found;
-  }
-  function onlineError(err, name, arg, token) {
-    const offline = !Wiki.connected();
-    const notFound = err.status === 404;
-    const pg = shell({ title: notFound ? 'Article not found' : 'Something went wrong', railTitle: '', wide: true });
-    pg.text.append(h('div', { class: 'errbox' },
-      h('b', {}, offline ? 'You’re offline' : notFound ? `There’s no article called “${arg}”` : 'This page couldn’t be loaded'),
-      offline ? 'Encyclopedia 2000 retrieves its articles from Wikipedia, so it needs an internet connection.'
-        : notFound ? 'Try searching for it instead.' : `Wikipedia didn’t respond as expected (${err.message}).`,
-      h('div', {}, notFound
-        ? bandBtn(`Search for “${arg}”`, () => go(route('search', arg), { replace: true }))
-        : bandBtn('Try again', () => reload()))));
-    mount(pg.root, token);
-    setIdle(offline ? 'Offline' : 'Error: ' + err.message);
-  }
-
-  // ---------- overlays ----------
-  function closeOverlays() { $$('.overlay:not(.stay)').forEach((o) => o.remove()); }
-  // Every window (dialogs, the Offline Library, Options, the media viewer, Star Chart's awards) keeps focus inside
-  // itself while it's open, is named for screen readers by its title, and gives focus back to what opened it.
-  const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-  const topOverlay = () => $$('.overlay').at(-1) || null;
-  const focusables = (box) => $$(FOCUSABLE, box).filter((e) => e.getClientRects().length && !e.closest('[hidden]'));
-  const openers = new WeakMap();
-  let lastFocus = null;
-  // The last thing focused in a window, so focus can come back to it when the window redraws (the Offline Library
-  // does as a download goes on).
-  let inWindow = '';
-  const focusKey = (e) => `${e.tagName}|${e.className}|${(e.textContent || '').trim().slice(0, 40)}`;
-  document.addEventListener('focusin', (e) => { if (e.target.closest?.('.overlay')) inWindow = focusKey(e.target); else lastFocus = e.target; });
-  function refocus(ov) {
-    const a = document.activeElement;
-    if (ov !== topOverlay() || (a && a !== document.body && a.isConnected)) return;
-    const list = focusables(ov);
-    (list.find((e) => focusKey(e) === inWindow) || list[0] || ov.querySelector('[role="dialog"]'))?.focus({ preventScroll: true });
-  }
-  new MutationObserver((records) => {
-    for (const r of records) {
-      for (const ov of r.addedNodes) {
-        if (!(ov instanceof HTMLElement) || !ov.classList.contains('overlay')) continue;
-        openers.set(ov, lastFocus);
-        // A picture opened on its own is just the picture: the overlay itself is the window.
-        const box = ov.querySelector('[role="dialog"]') || (ov.firstElementChild?.tagName === 'DIV' ? ov.firstElementChild : ov);
-        if (!box.getAttribute('role')) box.setAttribute('role', 'dialog');
-        box.setAttribute('aria-modal', 'true');
-        if (!box.hasAttribute('tabindex')) box.tabIndex = -1;
-        const name = box.querySelector('.dt, h2');
-        if (!box.getAttribute('aria-label') && !box.getAttribute('aria-labelledby')) {
-          if (name) { name.id ||= 'dlg-' + Math.random().toString(36).slice(2, 8); box.setAttribute('aria-labelledby', name.id); }
-          else box.setAttribute('aria-label', box.querySelector('img')?.alt || 'Picture');
-        }
-        setTimeout(() => { if (ov.isConnected && !ov.contains(document.activeElement)) (focusables(ov)[0] || box)?.focus?.(); }, 0);
-        new MutationObserver(() => setTimeout(() => refocus(ov), 0)).observe(ov, { childList: true, subtree: true });
-      }
-      for (const ov of r.removedNodes) {
-        if (!(ov instanceof HTMLElement) || !ov.classList.contains('overlay')) continue;
-        const back = openers.get(ov);
-        setTimeout(() => {
-          if (topOverlay() || (document.activeElement && document.activeElement !== document.body)) return;
-          if (back?.isConnected) back.focus({ preventScroll: true }); else focusScreen();
-        }, 0);
-      }
-    }
-  }).observe(document.body, { childList: true });
-  document.addEventListener('keydown', (e) => {
-    const ov = topOverlay();
-    if (e.key !== 'Tab' || !ov) return;
-    const list = focusables(ov);
-    if (!list.length) { e.preventDefault(); return; }
-    const i = list.indexOf(document.activeElement);
-    if (e.shiftKey && i <= 0) { e.preventDefault(); list.at(-1).focus(); }
-    else if (!e.shiftKey && (i === -1 || i === list.length - 1)) { e.preventDefault(); list[0].focus(); }
-  });
-  document.addEventListener('focusin', (e) => {
-    const ov = topOverlay();
-    if (ov && !ov.contains(e.target) && !e.target.closest?.('.menu.ctx')) (focusables(ov)[0] || ov.querySelector('[role="dialog"]'))?.focus();
-  });
-
-  // Every dialog can be moved by its title bar, and always keeps the title bar on screen.
-  document.addEventListener('mousedown', (e) => {
-    const bar = e.button === 0 && e.target.closest('.dialog .dt');
-    if (!bar) return;
-    e.preventDefault();
-    const box = bar.parentElement;
-    const [x0, y0] = (box.dataset.drag || '0,0').split(',').map(Number);
-    const r = box.getBoundingClientRect();
-    const left = r.left - x0, top = r.top - y0;
-    const sx = e.clientX, sy = e.clientY;
-    const move = (m) => {
-      const x = Math.min(Math.max(x0 + m.clientX - sx, 40 - r.width - left), innerWidth - 40 - left);
-      const y = Math.min(Math.max(y0 + m.clientY - sy, -top), innerHeight - bar.offsetHeight - top);
-      box.dataset.drag = `${x},${y}`;
-      box.style.transform = `translate(${x}px, ${y}px)`;
-    };
-    const up = () => { removeEventListener('mousemove', move); removeEventListener('mouseup', up); };
-    addEventListener('mousemove', move);
-    addEventListener('mouseup', up);
-  });
-
-  // A click outside closes a dialog, except a question that needs an answer ("stay": only its buttons close it, and the
-  // click doesn't take the keyboard focus out of it).
-  function dialog(title, heading, paragraphs, buttons = [['OK']], { stay = false, cls = '' } = {}) {
-    const ov = h('div', { class: 'overlay' + (stay ? ' stay' : ''), onmousedown: (e) => { if (e.target !== ov) return; if (stay) e.preventDefault(); else ov.remove(); } });
-    ov.append(h('div', { class: 'dialog' + (cls ? ' ' + cls : ''), role: 'dialog' },
-      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), title),
-      h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
-        h('div', {}, h('h2', {}, heading), paragraphs.map((p) => (p instanceof Node ? p : h('p', {}, p))))),
-      h('div', { class: 'df' }, buttons.map(([label, fn, isDefault]) => h('button', { class: 'go' + (isDefault ? ' default' : ''), onclick: () => { ov.remove(); fn && fn(); } }, label)))));
-    document.body.append(ov);
-    (ov.querySelector('.df .go.default') || ov.querySelector('.df .go')).focus();
-  }
-  const about = async () => dialog('About Encyclopedia 2000', 'Encyclopedia 2000', [
-    `Version ${prettyVersion((await window.e2k.appInfo().catch(() => ({}))).version)}.`,
-    'Articles and pictures come live from Wikipedia and Wikimedia Commons, written by volunteers and shared under Creative Commons licenses.',
-    'Offline libraries are Wikipedia as packaged by Kiwix (kiwix.org), a nonprofit that makes Wikipedia available offline, downloaded through mirrors run by volunteers around the world.',
-    'Encyclopedia 2000 is an independent project. It isn’t affiliated with the Wikimedia Foundation, Kiwix, or Microsoft.',
-    h('p', { class: 'support' }, 'Encyclopedia 2000 is free because Wikipedia is. If you find it useful, please consider supporting the Wikimedia Foundation, the nonprofit that runs Wikipedia.'),
-  ], [['Donate…', () => donate()], ['OK', null, true]]);
   // ---------- keyboard shortcuts ----------
   // Help › Keyboard Shortcuts (Ctrl+/): every shortcut in groups, as keycaps. Listed the Windows way and turned into
   // the macOS keys there (⌘ for Ctrl, Cmd+[ for Back, and so on), the same as the menus.
@@ -1806,316 +1379,6 @@
     const cols = h('div', { class: 'kcols' }, SHORTCUTS.map((col) => h('div', {}, col.map(([title, rows]) => h('div', {}, h('h3', {}, title), rows.map(row))))));
     dialog('Keyboard Shortcuts', 'Keyboard shortcuts', [cols]);
     $$('.overlay .dialog').at(-1).classList.add('keys');
-  }
-
-  // ---------- what's new ----------
-  // Shown once after updating to a new feature release (0.2, 0.3, and so on), and any time from Help › What's New.
-  // New installs skip it, and bug-fix releases don't change it.
-  const WHATS_NEW = {
-    version: '0.6',
-    name: '0.6 Beta',
-    // Three features, each with a close-up picture (whatsnew/, 480×300, shown at half size so they're sharp on
-    // high-DPI screens; made from the real app, see mockups/whats-new/), then the rest in a short list.
-    pictures: [
-      ['whatsnew/download.jpg', 'An article’s Download for Offline menu', 'Download for Offline', 'Save articles with their pictures and sounds to read anywhere.'],
-      ['whatsnew/myarticles.jpg', 'The My Articles pane, with favorites in folders', 'My Articles', `Favorites in folders, downloads, and History, all in one place (${MAC ? '⌘I' : 'Ctrl+I'}).`],
-      ['whatsnew/passport.jpg', 'Passport, with three continent stamps', 'Passport and Animal Sounds', 'New in Activities, beside Star Chart. Star the ones you like.'],
-    ],
-    also: ['Every activity works offline.', 'A new toolbar: Browse, Media, Activities, My Articles, then History and Random.', 'Links to part of an article open at that part.'],
-  };
-  const RELEASES_URL = 'https://github.com/sburton0/encyclopedia-2000/releases/latest';
-  const featureVersion = (v) => (v || '').split(/[.-]/).slice(0, 2).join('.');
-  function whatsNew() {
-    if (document.querySelector('.dialog.whatsnew')) return;
-    dialog('What’s New', `What’s new in version ${WHATS_NEW.name}`, [
-      h('div', { class: 'wnpics' }, WHATS_NEW.pictures.map(([src, alt, name, line]) =>
-        h('figure', {}, h('img', { src, alt }), h('figcaption', {}, h('b', {}, name), h('span', {}, line))))),
-      h('div', { class: 'wnalso' }, h('b', {}, 'Also new'), h('ul', {}, WHATS_NEW.also.map((t) => h('li', {}, t)))),
-    ], [['See All Changes…', () => { window.e2k.openExternal(RELEASES_URL); setIdle('Opened in your web browser'); }], ['Close', null, true]]);
-    document.querySelector('.overlay:last-child .dialog').classList.add('whatsnew');
-  }
-  async function maybeWhatsNew() {
-    const { version } = await window.e2k.appInfo().catch(() => ({}));
-    if (featureVersion(version) !== WHATS_NEW.version || store.get('whatsNewSeen', '') === WHATS_NEW.version) return;
-    store.set('whatsNewSeen', WHATS_NEW.version);
-    if (!firstRun) setTimeout(whatsNew, 1200);
-  }
-
-  // ---------- feedback ----------
-  // Both choices open in the web browser; the app itself sends nothing.
-  // The Discord address forwards to the server's invite (a Cloudflare redirect rule), so the invite can change without an app update.
-  const DISCORD_URL = 'https://discord.encyclopedia2000.com';
-  const FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSfCzlaWDSgLJfiaTmDzbbJ9dW2yQLKUjwxtbEqByurrhiARYg/viewform';
-  const FORM_FIELDS = { version: 'entry.286759181', windows: 'entry.1837651922' };
-  const prettyVersion = (v) => E2KVersion.pretty(v);
-  async function feedback() {
-    if (document.querySelector('.dialog.feedback')) return;
-    const info = await window.e2k.appInfo().catch(() => ({ version: '', windows: '' }));
-    const line = `Encyclopedia 2000 ${prettyVersion(info.version)} (${info.version}) · ${info.windows}`;
-    const form = `${FORM_URL}?usp=pp_url&${FORM_FIELDS.version}=${encodeURIComponent(info.version)}&${FORM_FIELDS.windows}=${encodeURIComponent(info.windows)}`;
-    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
-    const go = (url) => { window.e2k.openExternal(url); ov.remove(); setIdle('Opened in your web browser'); };
-    const copyBtn = h('button', { onclick: () => {
-      navigator.clipboard.writeText(line).then(() => { copyBtn.textContent = 'Copied'; }, () => { copyBtn.textContent = 'Copy failed'; });
-    } }, 'Copy');
-    ov.append(h('div', { class: 'dialog feedback', role: 'dialog', 'aria-label': 'Send Feedback' },
-      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Send Feedback'),
-      h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
-        h('div', {},
-          h('h2', {}, 'Help shape the Beta'),
-          h('p', {}, 'Found a problem, or have an idea? We’d love to hear it. Both choices open in your web browser.'),
-          h('div', { class: 'fbopts' },
-            h('button', { class: 'fbopt', onclick: () => go(DISCORD_URL) }, h('i', { style: 'background:#5865f2' }, 'D'),
-              h('div', {}, h('b', {}, 'Join the Discord'), h('span', {}, 'Report bugs, share ideas and screenshots, and see what’s coming next.'))),
-            h('button', { class: 'fbopt', onclick: () => go(form) }, h('i', { style: 'background:#2a86d6' }, '✎'),
-              h('div', {}, h('b', {}, 'Send feedback without an account'), h('span', {}, 'A short form. Your app and system versions are filled in for you.')))),
-          h('div', { class: 'fbver' }, 'Your versions', h('code', {}, line), copyBtn))),
-      h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
-    document.body.append(ov);
-    ov.querySelector('.fbopt').focus();
-  }
-
-  // ---------- notices ----------
-  // From encyclopedia2000.com (notices.js): a news item on Home, above Explore, and an important notice as a banner
-  // under the toolbar on every screen. Each is shown until it's closed, then never again. The first time news is
-  // closed, a line in its place says where news can be turned off, and fades away by itself.
-  let notices = { news: null, important: null };
-  const noticeSeen = (id) => store.get('noticeSeen', []).includes(id);
-  const closeNotice = (id) => store.set('noticeSeen', [...store.get('noticeSeen', []), id].slice(-50));
-  // A link opens the website in the browser, or (link.route) a screen in the app, which also closes the notice.
-  const noticeLink = (link, cls, done) => (link ? h('button', { class: cls, onclick: () => {
-    if (!link.route) return window.e2k.openExternal(link.url);
-    done();
-    go(link.route);
-  } }, link.label) : null);
-  function showBanner() {
-    $('#notice')?.remove();
-    const n = notices.important;
-    if (!n || noticeSeen(n.id)) return;
-    const close = () => { closeNotice(n.id); bar.remove(); fitHome(); };
-    const bar = h('div', { class: 'notice', id: 'notice', role: 'region', 'aria-label': 'Important notice' },
-      h('span', { class: 'ni', 'aria-hidden': 'true' }, '!'), h('span', { class: 'nt' }, n.text), noticeLink(n.link, 'nl', close),
-      h('button', { class: 'nx', title: 'Close', 'aria-label': 'Close notice', onclick: close }, '✕'));
-    $('.stage').before(bar);
-    fitHome();
-  }
-  function showNews(canvas = $('.home-canvas')) {
-    if (!canvas) return;
-    canvas.querySelector('.news')?.remove();
-    const n = notices.news;
-    if (!n || noticeSeen(n.id)) return;
-    const strip = h('div', { class: 'news', role: 'region', 'aria-label': 'News' },
-      h('small', {}, 'NEWS'), h('span', { title: n.text }, n.text), noticeLink(n.link, 'more', () => { closeNotice(n.id); strip.remove(); }),
-      h('button', { class: 'x', title: 'Close', 'aria-label': 'Close news', onclick: () => {
-        closeNotice(n.id);
-        strip.classList.add('gone');
-        setTimeout(() => { strip.remove(); if (!store.get('newsHintShown', false)) newsHint(canvas); }, 150);
-      } }, '✕'));
-    // Before Explore in the page, so Tab reaches it where it's seen (above Explore), not after the Almanac.
-    canvas.insertBefore(strip, canvas.querySelector('.shelf'));
-  }
-  // Where news can be turned off, once: in the news strip's place, until it fades (not while pointed at or focused).
-  function newsHint(canvas) {
-    store.set('newsHintShown', true);
-    let timer = 0;
-    const hide = () => { clearTimeout(timer); hint.classList.add('gone'); setTimeout(() => hint.remove(), 400); };
-    const later = () => { clearTimeout(timer); timer = setTimeout(hide, 8000); };
-    const hint = h('div', { class: 'newshint', role: 'status' },
-      h('span', {}, 'You can turn off news anytime in ', h('a', { href: '#', onclick: (e) => { e.preventDefault(); hide(); E2KOptions.open(E2K, 'Privacy', 'News'); } }, 'Options'), '.'),
-      h('button', { class: 'x', title: 'Close', 'aria-label': 'Close', onclick: () => hide() }, '✕'));
-    hint.addEventListener('mouseenter', () => clearTimeout(timer));
-    hint.addEventListener('focusin', () => clearTimeout(timer));
-    hint.addEventListener('mouseleave', later);
-    hint.addEventListener('focusout', later);
-    canvas.insertBefore(hint, canvas.querySelector('.shelf'));
-    later();
-  }
-  window.e2k.notice.onChange((n) => { notices = n || notices; showBanner(); showNews(); });
-  window.e2k.notice.get().then((n) => { notices = n || notices; showBanner(); showNews(); }).catch(() => {});
-
-  // ---------- updates ----------
-  // The installed app downloads new versions in the background (updater.js); the status bar offers to restart when one is ready.
-  const updateBar = $('#updatebar');
-  // The Windows portable updates itself on its drive, as the user chose on its first run (updater.js): Download (unless
-  // it downloads by itself), then Restart Now or Update on Close. ✕ hides a version's notice until the next one.
-  // Everything else (the installed app, Mac, Linux) is handled after this, as before.
-  const releasePage = (version) => window.e2k.openExternal(`https://github.com/sburton0/encyclopedia-2000/releases/tag/v${version}`);
-  function showSelfUpdate(s) {
-    const v = prettyVersion(s.version);
-    let shown = true;
-    if (s.state === 'available' && store.get('updateHidden', '') !== s.version) {
-      updateBar.replaceChildren(`Version ${v} is available`, h('button', { onclick: () => selfDownload(s) }, 'Download'),
-        h('button', { class: 'ux', title: 'Hide until the next version', 'aria-label': 'Hide until the next version',
-          onclick: () => { store.set('updateHidden', s.version); updateBar.hidden = true; } }, '✕'));
-      updateBar.title = 'Downloads the new version to this drive, next to this one. Nothing is installed on this computer.';
-    } else if (s.state === 'downloading') {
-      updateBar.replaceChildren(`Downloading version ${v} · ${s.percent || 0}%`);
-      updateBar.title = '';
-    } else if (s.state === 'ready' && !s.onQuit) {
-      updateBar.replaceChildren(`Version ${v} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'),
-        h('button', { onclick: () => window.e2k.update.installOnQuit() }, 'Update on Close'));
-      updateBar.title = 'Restart Now starts the new version; Update on Close switches to it when you close Encyclopedia 2000.';
-    } else shown = false;
-    updateBar.hidden = !shown;
-    if (s.failed) dialog('Update Encyclopedia 2000', 'The update couldn’t be finished', [s.failed,
-      'Nothing has changed: the version you have still works. You can try again from the status bar.']);
-  }
-  function readOnlyDrive(s) {
-    dialog('Update Encyclopedia 2000', 'This drive can’t be updated', [
-      'Encyclopedia 2000 is running from a drive it can’t save to (it may be locked, or a DVD).',
-      `To update, download version ${prettyVersion(s.version)} from the website and copy it onto a drive you can write to.`],
-    [['Open the Download Page', () => window.e2k.update.install(), true], ['Not Now']]);
-  }
-  const selfDownload = (s) => (s.readonly ? readOnlyDrive(s) : window.e2k.update.download());
-  // Help › Check for Updates on the portable: the same choices as the status bar, plus the website and deleting a
-  // downloaded update.
-  function selfUpdateDialog(s) {
-    const title = 'Check for Updates', v = prettyVersion(s.version);
-    if (s.state === 'available' && s.readonly) return readOnlyDrive(s);
-    if (s.state === 'available') {
-      return dialog(title, 'A new version is available', [
-        `Version ${v} is ready to download (${Math.ceil((s.size || 0) / 1048576)} MB). It downloads to this drive, next to the version you’re using, and nothing is installed on this computer.`,
-        h('p', { class: 'fine' }, 'Or download it yourself from the website and use it in place of this copy. Keep the “Encyclopedia 2000 Data” folder next to it to keep your settings.')],
-      [['Download', () => selfDownload(s), true], ['Download from Website…', () => releasePage(s.version)], ['Later']]);
-    }
-    if (s.state === 'ready') {
-      return dialog(title, 'An update is ready', [
-        `Version ${v} is downloaded and saved on this drive, next to the version you’re using.`,
-        'Restart now to start using it, or it takes this version’s place when you close Encyclopedia 2000. If you’d rather not have it, delete it.'],
-      [['Restart Now', () => window.e2k.update.install(), true], ['Update on Close', () => window.e2k.update.installOnQuit()], ['Delete Update', () => window.e2k.update.discard()]]);
-    }
-    return dialog(title, 'An update is on its way', [`Version ${v} is downloading. Restart Now appears in the status bar when it’s ready.`]);
-  }
-  // The portable's first run (and its first run of 0.5.4): whether to check for updates, and whether to download and
-  // install them by itself. Only its buttons answer it (Escape is Don't Check, which also turns news off); a click outside
-  // does nothing. If it goes away unanswered some other way, nothing is saved, nothing is contacted, and it asks again
-  // at the next start (Scott, 2026-11-08: a click outside used to count as Don't Check, and it never asked again).
-  async function askAboutUpdates() {
-    const main = await window.e2k.settings.get().catch(() => ({}));
-    if (!main.portableSelf || main.updateAsked) return;
-    const esc = (e) => {
-      if (e.key !== 'Escape' || !ov.isConnected) return;
-      e.preventDefault(); e.stopImmediatePropagation();
-      ov.querySelector('.df .go:not(.default)').click();   // Don't Check
-    };
-    const answer = async (on) => {
-      document.removeEventListener('keydown', esc, true);
-      // Don't Check means the app contacts nothing by itself: news goes off too (it can be turned on in Options).
-      await window.e2k.settings.set({ autoUpdate: on, autoInstall: on && auto.checked, updateAsked: true, ...(on ? {} : { showNews: false }) });
-      window.e2k.update.settingsChanged();
-      window.e2k.notice.refresh();
-      if (on) window.e2k.update.check().then(showUpdate).catch(() => {});
-    };
-    const auto = h('input', { type: 'checkbox' });
-    dialog('Encyclopedia 2000', 'Check for updates automatically?', [
-      'Once a day, along with news and important notices. You can also check anytime in Help › Check for Updates.',
-      h('label', { class: 'askauto' }, auto, h('span', {}, 'Also update automatically')),
-      h('p', { class: 'fine' }, 'You can change this anytime in Options.'),
-    ], [['Check for Updates', () => answer(true), true], ['Don’t Check', () => answer(false)]], { stay: true });
-    const ov = $$('.overlay').at(-1);
-    ov.querySelector('.dialog').classList.add('askupdate');
-    document.addEventListener('keydown', esc, true);
-  }
-
-  function showUpdate(s) {
-    if (s.self) return showSelfUpdate(s);
-    if (s.state === 'installed') {
-      // Linux: the computer installed a new version (apt or Flathub) while this one was open.
-      updateBar.replaceChildren(s.version ? `Version ${prettyVersion(s.version)} was installed` : 'A new version was installed', h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
-      updateBar.title = 'Your computer installed this update. Restart Encyclopedia 2000 to start using it.';
-      updateBar.hidden = false;
-    } else if (s.state === 'ready') {
-      updateBar.replaceChildren(`Version ${prettyVersion(s.version)} is ready`, h('button', { onclick: () => window.e2k.update.install() }, 'Restart Now'));
-      updateBar.title = 'Restart Encyclopedia 2000 to finish updating. Otherwise the update installs the next time you close it.';
-      updateBar.hidden = false;
-    } else if (s.state === 'available') {
-      updateBar.replaceChildren(`Version ${prettyVersion(s.version)} is available`, h('button', { onclick: () => window.e2k.update.install() }, 'Download'));
-      updateBar.title = 'Opens the download page in your web browser.';
-      updateBar.hidden = false;
-    } else if (s.state === 'downloading') {
-      updateBar.replaceChildren(`Downloading version ${prettyVersion(s.version)}${s.percent ? ` · ${s.percent}%` : '…'}`);
-      updateBar.title = '';
-      updateBar.hidden = false;
-    } else updateBar.hidden = true;
-  }
-  window.e2k.update.onChange(showUpdate);
-  window.e2k.update.state().then(showUpdate).catch(() => {});
-
-  async function checkForUpdates() {
-    // (A Linux copy the computer updates checks nothing online, so Offline mode doesn't matter there.)
-    const now = await window.e2k.update.state().catch(() => ({}));
-    if (isOffline() && !['system', 'installed'].includes(now.state)) return dialog('Check for Updates', 'You’re in Offline mode', ['Go online from the status bar to check for updates.']);
-    setStatus('Checking for updates…', true);
-    const s = await window.e2k.update.check().catch(() => ({ state: 'error' }));
-    setIdle();
-    showUpdate(s);
-    const title = 'Check for Updates';
-    if (s.self && ['available', 'ready', 'downloading'].includes(s.state)) return selfUpdateDialog(s);
-    if (s.state === 'installed') dialog(title, 'Restart to finish updating', [
-      `Your computer installed ${s.version ? `version ${prettyVersion(s.version)}` : 'a new version'} along with its other updates. Restart Encyclopedia 2000 to start using it.`],
-      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
-    else if (s.state === 'system') dialog(title, 'Updates come from your computer', [
-      `Encyclopedia 2000 updates along with your other apps, through your computer’s software updates (${s.kind === 'flatpak' ? 'Software, Discover, or Update Manager' : 'Update Manager or Software Updater'}). When a new version is installed, you’ll see Restart Now in the status bar.`]);
-    else if (s.state === 'ready') dialog(title, 'An update is ready', [`Version ${prettyVersion(s.version)} has been downloaded. Restart Encyclopedia 2000 to finish installing it.`],
-      [['Restart Now', () => window.e2k.update.install(), true], ['Later']]);
-    else if (s.state === 'available' && s.kind === 'deb') {
-      // Ubuntu's App Center won't replace an app that's already installed, so updating takes one command in a terminal.
-      const cmd = `sudo apt install ~/Downloads/${s.file || `Encyclopedia-2000-${s.version}-linux-amd64.deb`}`;
-      const copy = h('button', { class: 'bbtn', onclick: () => { navigator.clipboard.writeText(cmd).catch(() => {}); copy.textContent = 'Copied'; } }, 'Copy');
-      dialog(title, 'A new version is available', [
-        `Version ${prettyVersion(s.version)} is ready to download. Download the new .deb file, then open a terminal and run:`,
-        h('p', { class: 'cmd' }, h('code', {}, cmd), copy),
-        'Your settings and favorites are kept. (The App Center can’t update an app that’s already installed.)'],
-      [['Download', () => window.e2k.update.install(), true], ['Later']]);
-    } else if (s.state === 'available') dialog(title, 'A new version is available', [
-      `Version ${prettyVersion(s.version)} is ready to download. This portable copy can’t update itself, so download the new version and use it in place of this one. Your settings and favorites carry over if you keep its “Encyclopedia 2000 Data” folder next to it.`],
-      [['Download', () => window.e2k.update.install(), true], ['Later']]);
-    else if (s.state === 'downloading') dialog(title, 'An update is on its way', [`Version ${prettyVersion(s.version)} is downloading. You’ll see a Restart Now button in the status bar when it’s ready.`]);
-    else if (s.state === 'none') dialog(title, 'You’re up to date', [`Encyclopedia 2000 ${prettyVersion((await window.e2k.appInfo()).version)} is the newest version.`]);
-    else if (s.state === 'dev') dialog(title, 'Updates aren’t available here', ['This copy of Encyclopedia 2000 is running from its source folder. Updates work in the installed app.']);
-    else {
-      // What went wrong, in a small Details line, so a problem can be reported exactly. A copy missing its update file
-      // (Mac 0.4.1 and 0.4.2 shipped that way) can't ever check, so it says where to get a working one.
-      const msg = s.message || '';
-      const broken = /app-update\.yml/.test(msg);
-      dialog(title, 'Couldn’t check for updates', [
-        broken ? 'This copy of Encyclopedia 2000 can’t check for updates. Download the newest version from encyclopedia2000.com, and updates will work again.'
-          : Wiki.connected() ? 'The update server didn’t respond. Please try again later.' : 'You’re offline. Connect to the internet and try again.',
-        msg ? h('p', { class: 'fine' }, `Details: ${msg}`) : null].filter(Boolean),
-      broken ? [['Open the Website', () => window.e2k.openExternal('https://encyclopedia2000.com'), true], ['Close']] : undefined);
-    }
-  }
-
-  // ---------- donate ----------
-  // One dialog for both kinds of donation, opened from the status bar, Help › Donate, and About. Both open in the browser.
-  // The tip address forwards to the developer's Ko-fi page (a Cloudflare redirect rule), so it can change without an app update.
-  const WIKIPEDIA_DONATE_URL = 'https://donate.wikimedia.org/';
-  const TIP_URL = 'https://donate.encyclopedia2000.com';
-  function donate() {
-    if (document.querySelector('.dialog.donate')) return;
-    const ov = h('div', { class: 'overlay', onmousedown: (e) => { if (e.target === ov) ov.remove(); } });
-    const go = (url) => { window.e2k.openExternal(url); ov.remove(); setIdle('Opened in your web browser'); };
-    ov.append(h('div', { class: 'dialog feedback donate', role: 'dialog', 'aria-label': 'Donate' },
-      h('div', { class: 'dt' }, h('img', { src: 'icon-small.svg', alt: '' }), 'Donate'),
-      h('div', { class: 'db' }, h('img', { src: 'icon.svg', alt: '' }),
-        h('div', {},
-          h('h2', {}, 'Keep the encyclopedia going'),
-          h('p', {}, 'Encyclopedia 2000 is free, with no ads. If you enjoy it, you can help in two ways. Both open in your web browser.'),
-          h('div', { class: 'fbopts' },
-            h('button', { class: 'fbopt', onclick: () => go(WIKIPEDIA_DONATE_URL) }, h('i', { class: 'wp' }, 'W'),
-              h('div', {}, h('b', {}, 'Donate to Wikipedia'), h('span', {}, 'Volunteers write every article, and the nonprofit Wikimedia Foundation keeps Wikipedia running.'))),
-            h('button', { class: 'fbopt', onclick: () => go(TIP_URL) }, h('i', { class: 'tip' }, '♥'),
-              h('div', {}, h('b', {}, 'Tip the developer'), h('span', {}, 'Encyclopedia 2000 is made by one independent developer. Tips help pay for new features, code signing, and the website.')))),
-          h('p', { class: 'fine' }, 'Tips go to the developer through Ko-fi, not to Wikipedia.'))),
-      h('div', { class: 'df' }, h('button', { class: 'go', onclick: () => ov.remove() }, 'Close'))));
-    document.body.append(ov);
-    ov.querySelector('.fbopt').focus();
-  }
-
-  function lightbox(src, caption) {
-    if (!src) return;
-    const ov = h('div', { class: 'overlay lightbox', onclick: () => ov.remove() }, h('img', { src, alt: caption || '' }), caption ? h('div', {}, caption) : null);
-    document.body.append(ov);
   }
 
   // ---------- favorites, recent, read aloud ----------
@@ -3711,91 +2974,6 @@
   addEventListener('resize', closeCtx);
   document.addEventListener('wheel', closeCtx, { passive: true });
 
-  // ---------- search box ----------
-  const q = $('#q');
-  const sug = $('#suggest');
-  let sugItems = [];
-  let sugSel = -1;
-  let sugTimer = 0;
-  let sugToken = 0;
-  // Clicking into the box selects what's there, so a new search can be typed straight away (like a browser's address
-  // bar); a click while it's already active places the cursor as usual. Tabbing in selects it too.
-  let qClickFocus = false;
-  q.addEventListener('mousedown', () => { qClickFocus = document.activeElement !== q; });
-  q.addEventListener('focus', () => q.select());
-  q.addEventListener('mouseup', (e) => { if (qClickFocus) { e.preventDefault(); qClickFocus = false; } });
-
-  function hideSuggest() { sug.hidden = true; sugItems = []; sugSel = -1; q.setAttribute('aria-expanded', 'false'); q.removeAttribute('aria-activedescendant'); }
-  function showSuggest(items, emptyMsg) {
-    sugItems = items;
-    sugSel = -1;
-    sug.replaceChildren(...(items.length ? items.map((it, i) => h('div', {
-      class: 'si' + (it.action ? ' act' : ''), id: 'sug-' + i, role: 'option', 'aria-selected': 'false',
-      onmousedown: (e) => { e.preventDefault(); e.stopPropagation(); pick(i); },
-      onmouseenter: () => highlight(i),
-    }, it.action ? h('i', { class: 'th' }, icon(it.icon)) : it.thumb || it.desc === 'Recently viewed' ? h('i', { class: 'th', style: bg(it.thumb) }) : h('i', { class: 'th ph' }, E2KKinds.icon(svg, it.desc)), h('div', {}, h('b', {}, it.title), it.desc ? h('span', {}, it.desc) : null))) : [h('div', { class: 'empty', role: 'option', 'aria-disabled': 'true' }, emptyMsg || 'No suggestions')]));
-    sug.hidden = false;
-    q.setAttribute('aria-expanded', 'true');
-    q.removeAttribute('aria-activedescendant');
-  }
-  function highlight(i) {
-    sugSel = i;
-    [...sug.children].forEach((c, j) => { c.classList.toggle('sel', j === i); if (c.id) c.setAttribute('aria-selected', String(j === i)); });
-    q.setAttribute('aria-activedescendant', 'sug-' + i);
-  }
-  function pick(i) {
-    const it = sugItems[i];
-    if (!it) return;
-    if (it.action) return it.action();
-    q.value = it.title;
-    hideSuggest();
-    q.blur();
-    openArticle(it.title);
-  }
-  // Enter and the Search button show the results page. Enter opens a suggestion only if one was picked with the arrow keys.
-  function submit({ fromButton = false } = {}) {
-    if (!fromButton && sugSel >= 0) return pick(sugSel);
-    const v = q.value.trim();
-    if (!v) return q.focus();
-    hideSuggest();
-    q.blur();
-    go(route('search', v));
-  }
-  q.addEventListener('input', () => {
-    clearTimeout(sugTimer);
-    const v = q.value.trim();
-    if (!v) return hideSuggest();
-    sugTimer = setTimeout(async () => {
-      const t = ++sugToken;
-      try {
-        const r = await Wiki.searchTitles(v);
-        if (t !== sugToken || document.activeElement !== q) return;
-        const items = (r.pages || []).map((p) => ({ title: p.title, desc: p.description, thumb: https(p.thumbnail?.url) }));
-        // In Offline mode only the library is searched; the last row goes back online and searches again.
-        if (isOffline() && navigator.onLine) {
-          items.push({ title: 'Go online to search all of Wikipedia', desc: 'You’re in Offline mode. Only the offline library is searched.', icon: 'globe',
-            action: () => { setOffline(false); q.dispatchEvent(new Event('input')); } });
-        }
-        showSuggest(items, 'No matching articles');
-      } catch {}
-    }, 180);
-  });
-  q.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowDown' && sugItems.length) { e.preventDefault(); highlight((sugSel + 1) % sugItems.length); }
-    else if (e.key === 'ArrowUp' && sugItems.length) { e.preventDefault(); highlight((sugSel - 1 + sugItems.length) % sugItems.length); }
-    else if (e.key === 'Enter') { e.preventDefault(); submit(); }
-    else if (e.key === 'Escape') hideSuggest();
-  });
-  q.addEventListener('blur', () => setTimeout(hideSuggest, 120));
-  $('#go').addEventListener('click', () => submit({ fromButton: true }));
-  $('#qdd').addEventListener('mousedown', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!sug.hidden) return hideSuggest();
-    q.focus();
-    showSuggest(recentTitles().map((t) => ({ title: t, desc: 'Recently viewed' })), 'No recently viewed articles');
-  });
-
   // ---------- connection ----------
   // The status bar's connection menu: Online or Offline (remembered between launches), "library first", and the
   // offline library. Offline mode loads nothing from the internet; the main process refuses the window's requests too.
@@ -3897,57 +3075,6 @@
     window.e2k.library.state().then(libChanged).catch(() => {});
   }
 
-  // ---------- volume ----------
-  const volBtn = $('#volbtn');
-  const volPop = $('#volpop');
-  const volRange = $('#volrange');
-  const volMute = $('#volmute');
-  function updateVolume() {
-    syncMenu();
-    const pct = Math.round(E2KAudio.getVolume() * 100);
-    const muted = E2KAudio.isMuted();
-    const ic = muted ? 'mute' : pct < 50 ? 'vol-low' : 'vol';
-    [volBtn, volMute, ...$$('.mviewer .vb')].forEach((b) => b.querySelector('use').setAttribute('href', '#i-' + ic));
-    $$('.mviewer .vr').forEach((r) => { r.value = pct; r.style.setProperty('--p', pct + '%'); r.classList.toggle('muted', muted); });
-    $$('video, audio').forEach((m) => { m.volume = E2KAudio.level(); });
-    volRange.value = pct;
-    volRange.style.setProperty('--p', pct + '%');
-    $('#volpct').textContent = muted ? 'Muted' : pct + '%';
-    volBtn.title = muted ? 'Volume: muted' : `Volume: ${pct}%`;
-    volMute.title = muted ? 'Unmute' : `Mute (${keyText('Ctrl+M')})`;
-    volBtn.classList.toggle('on', !volPop.hidden);
-    volPop.classList.toggle('muted', muted);
-  }
-  function toggleMute() {
-    if (E2KAudio.isMuted()) {
-      if (E2KAudio.getVolume() === 0) E2KAudio.setVolume(0.5);
-      E2KAudio.setMuted(false);
-    } else {
-      E2KAudio.setMuted(true);
-      speechStop();
-    }
-    updateVolume();
-    setIdle(E2KAudio.isMuted() ? 'Sound muted' : `Volume ${Math.round(E2KAudio.getVolume() * 100)}%`);
-  }
-  function closeVolume() { volPop.hidden = true; updateVolume(); }
-  volBtn.addEventListener('mousedown', (e) => { e.stopPropagation(); closeMenus(); volPop.hidden = !volPop.hidden; updateVolume(); });
-  volPop.addEventListener('mousedown', (e) => e.stopPropagation());
-  document.addEventListener('mousedown', () => { if (!volPop.hidden) closeVolume(); });
-  volRange.addEventListener('input', () => {
-    E2KAudio.setVolume(volRange.value / 100);
-    if (Number(volRange.value) === 0) speechStop();
-    updateVolume();
-  });
-  volRange.addEventListener('change', () => { try { E2KAudio.click(); } catch {} });
-  volMute.addEventListener('click', toggleMute);
-  volBtn.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    E2KAudio.setVolume(Math.round((E2KAudio.getVolume() + (e.deltaY < 0 ? 0.05 : -0.05)) * 20) / 20);
-    updateVolume();
-    setIdle(E2KAudio.isMuted() ? 'Sound muted' : `Volume ${Math.round(E2KAudio.getVolume() * 100)}%`);
-  }, { passive: false });
-  updateVolume();
-
   // ---------- window controls ----------
   $$('[data-win]').forEach((b) => b.addEventListener('click', () => window.e2k.win(b.dataset.win)));
   window.e2k.onMaximized((max) => {
@@ -4010,6 +3137,7 @@
 
   // ---------- start ----------
   // Where to start: a route from the command line (for testing), otherwise the "Start on" option.
+  updateVolume();   // the volume control's first look (src/parts/volume.js)
   const startOn = store.get('startOn', 'home');
   const last = store.get('lastArticle', '');
   if (location.hash.length > 1) go(location.hash.slice(1));
