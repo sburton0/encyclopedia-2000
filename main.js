@@ -202,6 +202,9 @@ ipcMain.on('win', (e, cmd) => {
   if (!win) return;
   if (cmd === 'min') win.minimize();
   else if (cmd === 'max') win.isMaximized() ? win.unmaximize() : win.maximize();
+  // View › Full Screen (F11; Ctrl+Cmd+F on a Mac), and Esc to leave it.
+  else if (cmd === 'fullscreen') win.setFullScreen(!win.isFullScreen());
+  else if (cmd === 'windowed') win.setFullScreen(false);
   else if (cmd === 'close') win.close();
   else if (cmd === 'print') win.webContents.print({});
   else if (cmd === 'cut') win.webContents.cut();

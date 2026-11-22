@@ -2902,6 +2902,44 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
 
   // ---------- accessibility ----------
   {
+    name: 'full-screen', group: 'General', title: 'View › Full Screen: the title bar goes, Esc closes what\'s open first and then leaves full screen, F11 toggles it',
+    route: 'article/Moon',
+    async run(t) {
+      await t.waitFor('document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      const before = t.win.getBounds();
+      const isFull = () => t.js('return document.documentElement.classList.contains("fullscreen");');
+      await t.command('Full Screen', 'F11', {});
+      t.check('View › Full Screen fills the screen', await t.waitFor('document.documentElement.classList.contains("fullscreen")', 5000) && t.win.isFullScreen());
+      if (process.platform !== 'darwin') t.check('…without the title bar', await t.js('return getComputedStyle(document.querySelector(".titlebar")).display === "none";'));
+      if (process.platform !== 'darwin') {
+        // The View menu ticks Full Screen.
+        await t.js('[...document.querySelectorAll(".menubar .m")].find((m) => m.textContent.trim() === "View").dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));');
+        await t.waitFor('document.querySelector(".menubar .menu")', 2000);
+        t.check('…and View ticks Full Screen', await t.js('return [...document.querySelectorAll(".menubar .menu .mi")].find((m) => m.textContent.includes("Full Screen"))?.getAttribute("aria-checked") === "true";'));
+        await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+        t.check('Esc closes the menu, and stays in full screen', await t.waitFor('!document.querySelector(".menubar .menu")', 2000) && await isFull());
+      }
+      await t.sleep(600);
+      await t.shot('full-screen');
+      // Esc with the find bar open closes the find bar only.
+      await t.command('Find in Article…', 'f');
+      await t.waitFor('document.querySelector(".findbar")', 3000);
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('Esc closes the find bar first, and stays in full screen', await t.waitFor('!document.querySelector(".findbar")', 2000) && await isFull() && t.win.isFullScreen());
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('…then Esc leaves full screen', await t.waitFor('!document.documentElement.classList.contains("fullscreen")', 5000) && !t.win.isFullScreen());
+      await t.sleep(800);
+      const after = t.win.getBounds();
+      t.check('The window comes back to its size', Math.abs(after.width - before.width) <= 4 && Math.abs(after.height - before.height) <= 4, `${before.width}x${before.height} → ${after.width}x${after.height}`);
+      if (process.platform !== 'darwin') {
+        await t.key('F11');
+        t.check('F11 goes full screen…', await t.waitFor('document.documentElement.classList.contains("fullscreen")', 5000));
+        await t.key('F11');
+        t.check('…and back', await t.waitFor('!document.documentElement.classList.contains("fullscreen")', 5000));
+      }
+    },
+  },
+  {
     name: 'keyboard-menus', group: 'Accessibility', title: 'The menu bar by keyboard (Alt, F10, arrows, Enter, Escape); windows keep focus inside',
     route: 'home',
     async run(t) {

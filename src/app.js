@@ -149,7 +149,7 @@
   // ---------- platform ----------
   // Menus and tooltips name Windows shortcuts. macOS uses Command instead, and avoids the shortcuts it reserves
   // (Command-H hides the app and Command-M minimizes it). MAC is set at the top, since parts use it as they start.
-  const MAC_KEYS = { 'Ctrl+H': 'Cmd+Shift+H', 'Ctrl+M': 'Cmd+Shift+M', 'Alt+Left': 'Cmd+[', 'Alt+Right': 'Cmd+]', F5: 'Cmd+R', 'Alt+F4': '' };
+  const MAC_KEYS = { 'Ctrl+H': 'Cmd+Shift+H', 'Ctrl+M': 'Cmd+Shift+M', 'Alt+Left': 'Cmd+[', 'Alt+Right': 'Cmd+]', F5: 'Cmd+R', F11: 'Ctrl+Cmd+F', 'Alt+F4': '' };
   const macKey = (k) => (k in MAC_KEYS ? MAC_KEYS[k] : k.replace('Ctrl+', 'Cmd+'));
   // How a shortcut is written for people: "Ctrl+H" on Windows and Linux, "⇧⌘H" on macOS.
   const keyText = (k) => {
@@ -1036,7 +1036,7 @@
     b.replaceChildren(winIcon(max ? 'restore' : 'max'));
     b.title = max ? 'Restore Down' : 'Maximize';
   });
-  window.e2k.onFullscreen((on) => document.documentElement.classList.toggle('fullscreen', on));
+  window.e2k.onFullscreen((on) => { document.documentElement.classList.toggle('fullscreen', on); syncMenu(); });
   // Tooltips name shortcuts the Windows way; show the macOS ones there instead.
   if (MAC) $$('[title]').forEach((el) => { el.title = el.title.replace(/\(((?:Ctrl|Alt)\+[^)]+)\)$/, (_, k) => `(${keyText(k)})`); });
   $('.titlebar').addEventListener('dblclick', (e) => { if (!e.target.closest('.wc')) window.e2k.win('max'); });
@@ -1044,7 +1044,12 @@
   // ---------- keyboard ----------
   document.addEventListener('keydown', (e) => {
     const k = e.key;
-    if (k === 'Escape') { closeFind(); closeMenus(); closeCtx(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden && !pinned()) toggleFavPane(false); return; }
+    if (k === 'Escape') {
+      // In full screen, Esc leaves it, unless it has something else to close first (a menu, a dialog, the find bar…).
+      const open = $('.overlay, .findbar, .menubar .menu') || A.ctxMenu || !$('#suggest').hidden || !$('#volpop')?.hidden || (!fpane.hidden && !pinned());
+      if (!open && document.documentElement.classList.contains('fullscreen')) { window.e2k.win('windowed'); return; }
+      closeFind(); closeMenus(); closeCtx(); hideSuggest(); closeOverlays(); closeVolume(); if (!fpane.hidden && !pinned()) toggleFavPane(false); return;
+    }
     // Home (or Ctrl+Home) goes to the top of an article, unless you're typing.
     if (k === 'Home' && current?.content && !$('.overlay') && !e.target.closest?.('input, textarea, select, [contenteditable="true"]')) {
       e.preventDefault();
@@ -1055,6 +1060,7 @@
     if (e.altKey && k === 'ArrowLeft') { e.preventDefault(); back(); }
     else if (e.altKey && k === 'ArrowRight') { e.preventDefault(); fwd(); }
     else if (k === 'F5') { e.preventDefault(); reload(); }
+    else if (k === 'F11') { e.preventDefault(); runCmd('fullscreen'); }
     else if (e.ctrlKey && e.shiftKey && !e.altKey && { p: 1, l: 1, o: 1 }[k.toLowerCase()]) { e.preventDefault(); runCmd({ p: 'printNow', l: 'library', o: 'offline' }[k.toLowerCase()]); }
     else if (e.ctrlKey && !e.shiftKey && !e.altKey && /^Digit[1-5]$/.test(e.code)) { e.preventDefault(); runCmd(['explore', 'gallery', 'onthisday', 'world', 'activities'][e.code.slice(5) - 1]); }
     else if (e.ctrlKey && !e.shiftKey) {

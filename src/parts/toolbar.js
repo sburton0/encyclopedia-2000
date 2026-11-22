@@ -27,6 +27,7 @@ E2KParts['toolbar'] = (A) => {
 
   const COMMANDS = {
     back, fwd, reload,
+    fullscreen: () => window.e2k.win('fullscreen'),
     home: () => go('home'),
     explore: () => go('explore'),
     gallery: () => go('gallery'),
