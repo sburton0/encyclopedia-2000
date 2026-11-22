@@ -74,7 +74,7 @@
     <display_length compare="ge">768</display_length>
   </requires>
   <releases>
-    <release version="0.6.1" date="2026-11-30">
+    <release version="0.6.1" date="2026-11-22">
       <description>
         <p>The first version on Flathub. It updates with your other apps.</p>
       </description>

@@ -15,6 +15,19 @@ metainfo (Flathub's page: description, screenshots from encyclopedia2000.com/ima
 3. On Flathub (once it's listed): the same two changes as a pull request to github.com/flathub/com.encyclopedia2000.Encyclopedia2000.
    Flathub builds it, and copies update within a day or so.
 
+## Flathub's Generative AI policy (read 2026-11-22, docs.flathub.org/docs/for-app-authors/requirements)
+
+- Flathub manifests must not contain AI-generated or AI-assisted content, and disclosing it doesn't exempt them. The
+  manifest in this folder was written with Claude, so it can't be submitted as is: a Flathub manifest has to be
+  written by a person.
+- AI must not open or automate the submission pull request, or write its commit messages, description, review
+  comments, or replies.
+- The submission must disclose AI-generated code, documentation, or packaging in the app, which parts and roughly how
+  much. Reviewers may reject a submission because of it, at their discretion.
+
+The steps below are on hold until Scott decides whether to submit on those terms. The Flatpak itself still works (the
+lab test below), and other places to publish it are an option.
+
 ## First submission to Flathub (after 0.6.1 is released)
 
 - Fill in the real 0.6.1 url, sha256 and release date.

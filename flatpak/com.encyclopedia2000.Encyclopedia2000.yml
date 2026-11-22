@@ -26,7 +26,7 @@ modules:
       - type: file
         dest-filename: encyclopedia-2000.deb
         url: https://github.com/sburton0/encyclopedia-2000/releases/download/v0.6.1-beta/Encyclopedia-2000-0.6.1-beta-linux-amd64.deb
-        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        sha256: 2488d920db086bcc6ad1a67ec912d8a143d791ff3ea5b9079a8455ac4501644d
         only-arches: [x86_64]
       - type: file
         path: encyclopedia-2000.sh
