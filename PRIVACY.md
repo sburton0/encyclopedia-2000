@@ -31,8 +31,9 @@ To show you articles and keep itself up to date, the app connects to these servi
 | **Wikimedia Commons** (upload.wikimedia.org and commons.wikimedia.org) | Pictures, videos, and sounds, and the Media of the Day and Featured Sounds lists |
 | **Wikimedia** (wikimedia.org) | Pictures of math formulas in articles |
 | **Wikidata** (query.wikidata.org) | Facts in World Explorer and Lifelines |
-| **GitHub** (github.com) | Checking for and downloading updates |
+| **GitHub** (github.com) | Checking for and downloading updates (Windows, Mac, and Linux copies that don't update through the system) |
 | **encyclopedia2000.com** | News and notices about the app (a small file, notice.json), at most once a day. The site is hosted on GitHub Pages and served through Cloudflare, which process your IP address to deliver it, as any web host does |
+| **apt.encyclopedia2000.com** | Linux, if you installed the .deb: your computer's own update check (Update Manager, Software Updater, or `apt update`) reads the list of versions here and downloads new ones, like any other software source. The app itself doesn't contact it. It's stored on Cloudflare R2, which processes your IP address to deliver it, as any web host does |
 | **Kiwix** (opds.library.kiwix.org and download.kiwix.org) | Only if you use the offline library: the list of library files, their sizes, and new editions (when you open **Tools → Offline Library**, at most once a day, and otherwise at most once a month once you have a library), and the address of each download |
 | **Download mirrors** (listed by Kiwix, for example dumps.wikimedia.org and your.org) | Only while you download an offline library: the file itself, from mirror servers run by universities, companies, and volunteers. The app uses them in the order Kiwix lists |
 
@@ -41,6 +42,8 @@ These services are covered by their own privacy policies: the [Wikimedia Foundat
 When you read an article from your offline library while you're connected, the app may load sharper copies of its pictures from Wikipedia (unless you choose **Use the library's images only** in **Tools → Offline Library**).
 
 You can turn off automatic update checks in **Tools → Options → Privacy**. The portable version asks on its first start whether to check for updates (and news), and whether to also update automatically; it contacts nothing until you answer, and **Don't Check** turns news off too. Otherwise it downloads an update only when you choose **Download**, and switches to it only when you choose **Restart Now** or **Update on Close**.
+
+On Linux, a copy installed from the .deb (from 0.6.1) updates through your computer's own updates, from apt.encyclopedia2000.com, and doesn't check for updates itself. To stop that, delete `/etc/apt/sources.list.d/encyclopedia-2000.sources`; the app then checks GitHub itself, as above.
 
 You can turn off news on the Home page in **Tools → Options → Privacy**. Notices about problems that need your attention come with the update check. With both turned off, the app doesn't check for news or notices at all.
 
