@@ -14,9 +14,9 @@ Get the newest version from [encyclopedia2000.com](https://encyclopedia2000.com/
 | Computer | File | Notes |
 | --- | --- | --- |
 | **Windows** | **Encyclopedia-2000-Installer-….exe** | Recommended. Installs like a normal app, with Start menu and desktop shortcuts and **automatic updates**. Installs in a few seconds; no administrator rights needed. |
-| Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. It tells you when a new version is out, and updates itself where it is only when you choose to. |
+| Windows | **Encyclopedia-2000-Portable-….exe** | Nothing to install. Run it from any folder or a USB stick; it keeps its data in a folder next to itself. On first start it asks whether to check for updates and whether to update automatically, and it updates itself where it is. |
 | **Mac** | **Encyclopedia-2000-….dmg** | Open it and drag Encyclopedia 2000 to Applications. Updates automatically. For Apple Silicon and Intel Macs. (On version 0.4.1 or 0.4.2? Those can't update themselves, so download 0.5 once; updates are automatic again after that.) |
-| **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. It tells you when a new version is out; install updates the same way with `sudo apt install`. |
+| **Linux** | **Encyclopedia-2000-…-linux-amd64.deb** | For Ubuntu, Debian, Linux Mint, and similar (64-bit). Open it with your software installer, or run `sudo apt install ./` followed by the file name. From 0.6.1 on, it **updates automatically** with the rest of your system (Update Manager or Software Updater). On an older version? Install the new .deb once by hand. |
 
 Requires Windows 10 or 11 (64-bit), macOS 13 Ventura or later, or 64-bit Linux, and an internet connection or an offline library (2.7 GB to 127 GB of disk space, depending on the library). On Linux, Read Aloud needs text-to-speech voices; if none are installed, run `sudo apt install speech-dispatcher espeak-ng`.
 
@@ -26,7 +26,7 @@ Use **Help → Send Feedback** in the app, join the [Discord](https://discord.en
 
 ## Privacy
 
-Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, game progress, and offline library stay on your computer. The app connects only to Wikipedia, Wikimedia Commons, Wikidata, and wikimedia.org to fetch what you ask for, to GitHub to check for updates (you can turn that off in Tools → Options → Privacy), and, only if you use the offline library, to Kiwix and its download mirrors. In **Offline mode** it loads nothing from the internet at all. Read the full [privacy policy](PRIVACY.md).
+Encyclopedia 2000 collects no personal information and has no ads or accounts. Your favorites, settings, game progress, and offline library stay on your computer. The app connects only to Wikipedia, Wikimedia Commons, Wikidata, and wikimedia.org to fetch what you ask for, to GitHub to check for updates (you can turn that off in Tools → Options → Privacy; on Linux, a copy installed from the .deb gets its updates through your computer's own update check, from apt.encyclopedia2000.com), and, only if you use the offline library, to Kiwix and its download mirrors. In **Offline mode** it loads nothing from the internet at all. Read the full [privacy policy](PRIVACY.md).
 
 ## Features
 
