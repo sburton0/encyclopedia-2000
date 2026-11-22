@@ -86,6 +86,11 @@ module.exports = [
       await t.js('const i = document.querySelector(".findbar input"); i.value = "moon"; i.dispatchEvent(new Event("input", { bubbles: true }));');
       t.check('Find in Article highlights matches', await t.waitFor('document.querySelectorAll("mark.fh").length > 3', 4000));
       await t.shot('find-in-article');
+      // Enter steps to the next match; Esc closes the bar and takes the highlights away.
+      const at = await t.js('const i = document.querySelector(".findbar input"); const before = document.querySelector(".findbar .n").textContent; i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); return [before, document.querySelector(".findbar .n").textContent];');
+      t.check('Enter steps to the next match', /^\d+ of \d+$/.test(at[0]) && at[0] !== at[1], at.join(' → '));
+      await t.js('document.querySelector(".findbar input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('Esc closes the bar and removes the highlights', await t.waitFor('!document.querySelector(".findbar") && !document.querySelector("mark.fh")', 2000));
     },
   },
   {
