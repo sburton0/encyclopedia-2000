@@ -1464,6 +1464,22 @@ module.exports = [
         const r = d.getBoundingClientRect(), n = document.querySelector(".home .news").getBoundingClientRect();
         return { bottom: Math.round(r.bottom), news: Math.round(n.top) };`);
       t.check('With a long title and summary, Today’s discovery still ends above the news', !disc.missing && disc.bottom <= disc.news, JSON.stringify(disc));
+      // …in every theme, at this size and maximized (a theme redraws Home, so the long text goes in again each time).
+      const themes = await t.js('return E2KThemes.list.map((x) => x.id);');
+      const original = await t.js('return localStorage.getItem("e2k.theme");');
+      const overlaps = [];
+      for (const max of [false, true]) {
+        if (max) { t.win.maximize(); await t.sleep(800); }
+        for (const theme of themes) {
+          await t.js(`localStorage.setItem('e2k.theme', JSON.stringify(${JSON.stringify(theme)})); E2K.applyPrefs();`);
+          await t.sleep(250);
+          const m = await t.js('const e = document.querySelector(".home .disc"); e.querySelector("b").textContent = "Can\'t Let Go (Mariah Carey song), with a title long enough to wrap onto three lines or more in this box"; e.querySelector("p").textContent = "A long summary. ".repeat(40); const d = e.getBoundingClientRect(), n = document.querySelector(".home .news").getBoundingClientRect(); return { long: /long enough/.test(e.textContent), bottom: Math.round(d.bottom), news: Math.round(n.top) };');
+          if (!m.long || m.bottom > m.news) overlaps.push(`${theme}${max ? ' maximized' : ''} ${m.long ? `${m.bottom}>${m.news}` : 'long title gone'}`);
+        }
+      }
+      t.check(`…in all ${themes.length} themes, at 1024×740 and maximized`, themes.length === 7 && !overlaps.length, overlaps.join(', ') || `${themes.length} themes × 2 sizes`);
+      t.win.unmaximize(); await t.sleep(800);
+      await t.js(`${original === null ? 'localStorage.removeItem("e2k.theme")' : `localStorage.setItem("e2k.theme", ${JSON.stringify(original)})`}; E2K.applyPrefs();`);
       t.check('…and Tab reaches it before Explore (it comes first in the page)', await t.js('return !!(document.querySelector(".home .news").compareDocumentPosition(document.querySelector(".home .shelf")) & Node.DOCUMENT_POSITION_FOLLOWING);'));
       t.check('The important notice shows under the toolbar', await t.js('return /fixes a problem/.test(document.getElementById("notice")?.textContent || "") && document.getElementById("notice").nextElementSibling?.classList.contains("stage");'));
       await t.sleep(600);                     // the news fades in
