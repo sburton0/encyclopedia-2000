@@ -150,11 +150,20 @@ function gpgExe(opt) {
   const git = 'C:\\Program Files\\Git\\usr\\bin\\gpg.exe';
   return process.platform === 'win32' && fs.existsSync(git) ? git : 'gpg';
 }
+// Git's gpg finds its helpers (keyboxd, the key database since gpg 2.4) only with Git's tools on the PATH, as in Git
+// Bash; started from PowerShell without them, it can't open the keys ("No Keybox daemon running").
+function gpgEnv(gpg) {
+  if (!path.isAbsolute(gpg)) return process.env;
+  const env = { ...process.env };
+  const key = Object.keys(env).find((k) => k.toUpperCase() === 'PATH') || 'PATH';   // "Path" on Windows
+  env[key] = path.dirname(gpg) + path.delimiter + (env[key] || '');
+  return env;
+}
 function sign(gpg, home, key, releasePath) {
   const base = [...(home ? ['--homedir', home] : []), '--batch', '--yes', '--local-user', key, '--digest-algo', 'SHA512'];
   // (gpg's own window asks for the passphrase; --batch only stops it asking questions in the terminal.)
   for (const [args, what] of [[['--clearsign', '-o', releasePath.replace(/Release$/, 'InRelease')], 'InRelease'], [['--armor', '--detach-sign', '-o', releasePath + '.gpg'], 'Release.gpg']]) {
-    const r = spawnSync(gpg, [...base, ...args, releasePath], { stdio: ['inherit', 'inherit', 'pipe'] });
+    const r = spawnSync(gpg, [...base, ...args, releasePath], { stdio: ['inherit', 'inherit', 'pipe'], env: gpgEnv(gpg) });
     if (r.status !== 0) throw new Error(`gpg couldn’t sign ${what}: ${String(r.stderr).trim()}`);
   }
 }
@@ -163,7 +172,9 @@ function verify(gpg, keyring, dir) {
   const gpgv = path.join(path.dirname(gpg), process.platform === 'win32' ? 'gpgv.exe' : 'gpgv');
   const exe = fs.existsSync(gpgv) ? gpgv : 'gpgv';
   for (const args of [['InRelease'], ['Release.gpg', 'Release']]) {
-    const r = spawnSync(exe, ['--keyring', keyring, ...args.map((a) => path.join(dir, a))], { encoding: 'utf8' });
+    // Git's gpgv reads "C:\…" as a URL ("invalid key resource URL"); it takes the keyring as /c/….
+    const ring = process.platform === 'win32' ? keyring.replace(/^([A-Za-z]):[\\/]/, (_, d) => `/${d.toLowerCase()}/`).replace(/\\/g, '/') : keyring;
+    const r = spawnSync(exe, ['--keyring', ring, ...args.map((a) => path.join(dir, a))], { encoding: 'utf8', env: gpgEnv(exe) });
     if (r.status !== 0) throw new Error(`The signature on ${args[0]} doesn’t check out: ${r.stderr}`);
   }
 }
