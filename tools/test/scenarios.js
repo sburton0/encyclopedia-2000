@@ -74,6 +74,33 @@ module.exports = [
     },
   },
   {
+    name: 'home-no-picture', group: 'General', title: 'Home: a featured article without a picture shows no empty circle; its text takes the room',
+    route: 'article/Moon',   // Home's feed isn't fetched yet, so it can be given one without a picture
+    async run(t) {
+      await t.waitFor('window.Wiki && window.E2K', 15000);
+      await t.js(`const real = Wiki.featured;
+        Wiki.featured = async (d) => { const f = structuredClone(await real(d)); if (f.tfa) { delete f.tfa.thumbnail; delete f.tfa.originalimage; } return f; };
+        E2K.go('home');`);
+      t.check('Today’s discovery has its article', await t.waitFor('(document.querySelector(".home .disc")?.innerText || "").includes("Read the full article")', 20000));
+      await t.waitFor('document.querySelector(".home .disc .thumb").hidden', 10000);   // once the day's article is in
+      const m = await t.js('const th = document.querySelector(".home .disc .thumb"), tx = document.querySelector(".home .disc .row > div"); return { hidden: th.hidden, shown: th.getBoundingClientRect().width > 0, textLeft: Math.round(tx.getBoundingClientRect().left), rowLeft: Math.round(th.parentElement.getBoundingClientRect().left) };');
+      t.check('No empty circle', m.hidden && !m.shown, JSON.stringify(m));
+      t.check('…the summary starts at the box’s edge instead', Math.abs(m.textLeft - m.rowLeft) <= 2, JSON.stringify(m));
+      await t.sleep(600);
+      await t.shot('home-no-picture');
+    },
+  },
+  {
+    name: 'infobox-symbols', group: 'General', title: 'Quick facts keeps small pictures that stand for a symbol as their text (Moon’s Symbol: ☾ or ☽), not just the “or” between them',
+    route: 'article/Moon',
+    async run(t) {
+      t.check('Quick facts is there', await t.waitFor('document.querySelector(".facts")?.innerText.includes("Designation")', 40000));
+      const facts = await t.js('return document.querySelector(".facts").innerText.replace(/\\s+/g, " ");');
+      t.check('Symbol shows ☾ or ☽', /Symbol ☾ or ☽/.test(facts), (facts.match(/Symbol .{0,20}/) || [''])[0]);
+      t.check('No row is left as a bare “or”', !/\bSymbol or\b/.test(facts));
+    },
+  },
+  {
     name: 'article', group: 'General', title: 'An article (Apollo 11)',
     route: 'article/Apollo%2011',
     async run(t) {

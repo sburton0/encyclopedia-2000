@@ -646,6 +646,12 @@
         cell.querySelectorAll('sup.reference, .mw-ref, style, .noprint').forEach((el) => el.remove());
         // Coordinates come in three forms (degrees, decimal, and a hidden one for maps); keep the readable first one.
         cell.querySelectorAll('.geo-nondefault, .geo-multi-punct, .geo-dec, [style*="display:none"]').forEach((el) => el.remove());
+        // Small pictures standing for a word or symbol (Moon's "Symbol": ☾ or ☽) become the text Wikipedia gives them for
+        // screen readers; other pictures go (the facts are text).
+        cell.querySelectorAll('img').forEach((img) => {
+          const alt = (img.getAttribute('alt') || '').trim(), w = Number(img.getAttribute('width')) || 0, hh = Number(img.getAttribute('height')) || 0;
+          img.replaceWith(alt && alt.length <= 40 && Math.max(w, hh) > 0 && Math.max(w, hh) <= 60 ? alt : '');
+        });
         const SUP = { 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹', '-': '⁻', '−': '⁻' };
         cell.querySelectorAll('sup').forEach((el) => { if (/^[0-9\-−]{1,3}$/.test(el.textContent)) el.replaceWith([...el.textContent].map((c) => SUP[c]).join('')); });
         cell.querySelectorAll('a').forEach((el) => {
@@ -657,7 +663,8 @@
         cell.querySelectorAll('br').forEach((br) => br.replaceWith('; '));
         cell.querySelectorAll('li, div, p').forEach((el) => el.append('; '));
         let v = cell.textContent.replace(/\[(\d+|[a-z])\]/g, '').replace(/\s+/g, ' ').replace(/(\s*;\s*)+/g, '; ').replace(/^[;\s]+|[;\s]+$/g, '').trim();
-        if (!k || !v || k.length > 40) continue;
+        // A row left with only joining words or marks (a picture with no text for screen readers): not worth showing.
+        if (!k || !v || k.length > 40 || /^(?:\s|or|and|[,;/&·–—-])*$/i.test(v)) continue;
         if (v.length > 90) v = v.slice(0, 87) + '…';
         facts.push([k, v]);
         if (facts.length >= 10) break;

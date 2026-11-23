@@ -54,6 +54,12 @@ E2KParts['home'] = (A) => {
 
     // Offline with downloaded articles: one of them in place of today's discovery (a different one each day), and a
     // link to them all.
+    // Today's discovery's picture; an article without one (some songs and albums) shows no empty circle, and its
+    // text takes the room.
+    function setDiscPicture(url) {
+      discThumb.style.cssText = 'padding:0;' + bg(url);
+      discThumb.hidden = !url;
+    }
     async function fromDownloads() {
       const list = await A.saved.list().catch(() => []);
       if (!list.length || !live(token)) return false;
@@ -61,7 +67,7 @@ E2KParts['home'] = (A) => {
       const sum = await Wiki.summary(e.title).catch(() => null);
       if (!live(token)) return true;
       discHead.textContent = 'From your downloaded articles';
-      discThumb.style.cssText = 'padding:0;' + bg(sum?.thumbnail?.source || e.thumb);
+      setDiscPicture(sum?.thumbnail?.source || e.thumb);
       discTitle.textContent = e.title;
       discText.textContent = sum?.extract || e.desc || '';
       discMore.textContent = 'Read it ›';
@@ -89,7 +95,7 @@ E2KParts['home'] = (A) => {
         if (!live(token)) return;
       } else if (tfa) {
         const t = tfa.titles?.normalized || tfa.title;
-        discThumb.style.cssText = 'padding:0;' + bg(tfa.thumbnail?.source);
+        setDiscPicture(tfa.thumbnail?.source);
         discTitle.textContent = t;
         discText.textContent = tfa.extract || '';
         discMore.onclick = discThumb.onclick = () => openArticle(t);
