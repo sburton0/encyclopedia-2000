@@ -28,8 +28,11 @@ E2KParts['connection'] = (A) => {
   }
   // Offline picked with no library: offer one. The app stays online meanwhile, and asks again once it's ready.
   function askDownload() {
-    A.dialog('Encyclopedia 2000', 'Offline mode needs an offline library', ['Download one to read Wikipedia without the internet. You can keep reading online while it downloads.'],
-      [['Not now'], ['Download offline library…', () => { store.set('offlineWhenReady', true); E2KLibrary.open(A.E2K); }, true]]);
+    // Also for a library file someone already has (a Kiwix .zim they downloaded themselves): a Reddit user, 2026-11-22,
+    // had one and was only offered a download.
+    A.dialog('Encyclopedia 2000', 'Offline mode needs an offline library', ['Download one to read Wikipedia without the internet, or use a library file (.zim) you already have. You can keep reading online meanwhile.'],
+      [['Not now'], ['Use my file…', () => { store.set('offlineWhenReady', 'now'); E2KLibrary.open(A.E2K, { openFile: true }); }],
+        ['Download one…', () => { store.set('offlineWhenReady', true); E2KLibrary.open(A.E2K); }, true]]);
   }
   // Offline mode on or off from the keyboard (Ctrl+Shift+O) or Tools › Offline Mode.
   function toggleOffline() {
@@ -93,8 +96,10 @@ E2KParts['connection'] = (A) => {
     updateNet();
     if (wasMissing && A.hasLib && (isOffline() || A.nav.stack[A.nav.idx] === 'home')) reload();
     if (A.hasLib && !s.download && store.get('offlineWhenReady', false)) {
+      const now = store.get('offlineWhenReady', false) === 'now';   // a file just chosen for Offline mode: no need to ask again
       store.set('offlineWhenReady', false);
       if (isOffline()) return;
+      if (now) { setOffline(true); return; }
       A.dialog('Encyclopedia 2000', 'Your offline library is ready',
         [`${s.current ? s.current.label : s.open.title} · ${s.open.articles.toLocaleString('en-US')} articles. Switch to Offline mode now? You can switch back any time from the status bar.`],
         [['Stay online'], ['Switch to Offline', () => setOffline(true), true]]);

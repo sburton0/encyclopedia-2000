@@ -1277,6 +1277,24 @@ module.exports = [
   },
 
   {
+    name: 'offline-use-my-file', group: 'Offline library', title: 'Offline mode with no library offers “Use my file…” beside “Download one…”; choosing a .zim uses it and goes offline',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
+    async run(t) {
+      const mine = path.join(t.profile, 'My Kiwix files');
+      process.env.E2K_TEST_OPEN_FILE = path.join(mine, libFiles(mine).find((f) => f.endsWith('.zim')));   // read by library.js
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      await t.js('E2K.command("offline");');
+      t.check('Offline mode without a library asks, with “Use my file…” and “Download one…”', await t.waitFor('[...document.querySelectorAll(".overlay .go")].some((b) => b.textContent === "Use my file…") && [...document.querySelectorAll(".overlay .go")].some((b) => b.textContent === "Download one…")', 4000));
+      await t.sleep(600);   // the dialog fades in
+      await t.shot('offline-ask');
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Use my file…").click();');
+      t.check('It opens the Offline Library and uses the chosen file where it is', await t.waitFor('(async () => { const s = await window.e2k.library.state(); return !!(s.open && s.current && s.current.own); })()', 10000));
+      t.check('…and Offline mode comes on', await t.waitFor('window.e2k.net.offline()', 8000));
+    },
+  },
+
+  {
     name: 'open-file', group: 'Offline library', title: 'Open library file…: use your own file where it is, then Stop using it',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
