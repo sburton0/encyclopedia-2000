@@ -967,6 +967,23 @@
       // The library only finds titles that start with what was typed, so suggest articles it has that start with part
       // of it ("Apollo 11 lunar sample display" → "Apollo 11").
       const related = h('p', { class: 'inlib', hidden: true });
+      // Nothing because the library couldn't be read (not because nothing matched): say so, with the error, and the log
+      // to send in.
+      const failed = await window.e2k.library.lastError().catch(() => null);
+      if (!live(token)) return;
+      if (failed && failed.what === 'search' && failed.about.trim() === q.trim()) {
+        pg.text.replaceChildren(h('div', { class: 'errbox' },
+          h('b', {}, 'The offline library couldn’t be searched'),
+          `Something went wrong reading the offline library while searching for “${q}”, so this isn’t a real “no matches”. `
+            + 'The details are saved in library-errors.log, in Encyclopedia 2000’s data folder; sending that file in helps get it fixed.',
+          h('p', { class: 'errdetail' }, failed.message),
+          h('div', {}, bandBtn('Show the error log', () => window.e2k.library.showErrorLog()),
+            isOffline() && navigator.onLine ? bandBtn('Go online', () => setOffline(false)) : null)));
+        const note = pg.railIn.querySelector('.note');
+        if (note) note.textContent = 'The offline library couldn’t be searched.';
+        setIdle('The offline library couldn’t be searched');
+        return;
+      }
       pg.text.replaceChildren(h('div', { class: 'errbox' },
         h('b', {}, 'No matches in the offline library'),
         `Nothing in the offline library matched “${q}”. `

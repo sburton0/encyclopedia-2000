@@ -482,7 +482,9 @@ body.resizing, body.resizing * { cursor: ew-resize !important; user-select: none
 .home .disc .more:hover, .home .alm .more:hover { color: var(--gold); text-decoration: underline; }
 .home .disc .savedlink { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .home .disc .savedlink[hidden] { display: none; }
-.home .disc .thumb[hidden] { display: none; }   /* an article without a picture: no empty circle */
+.home .disc .thumb[hidden] { display: none; }
+/* A library error's own words, under its explanation (search results). */
+.errbox .errdetail { margin: 8px 0 12px; font: 12px Consolas, "Courier New", monospace; opacity: .85; overflow-wrap: anywhere; }   /* an article without a picture: no empty circle */
 .home .disc .savedlink .ic { width: 12px; height: 12px; fill: #7fd18b; flex: none; }
 .home .alm { right: 18px; top: 18px; bottom: 18px; width: 214px; display: flex; flex-direction: column; }
 .home .alm .d { margin: -4px 0 10px; font: 600 10px "Segoe UI"; letter-spacing: 3px; color: var(--sky); }

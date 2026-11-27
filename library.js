@@ -183,6 +183,25 @@ function useNearby() {
   }
 }
 
+// ---------- errors ----------
+// The last error reading the library (for the window to show, with what was being done), and a log of them in the data
+// folder (library-errors.log: newest last, kept under about 200 KB) for someone to send in when the library misbehaves.
+let lastError = null;
+const errorLog = () => path.join(app.getPath('userData'), 'library-errors.log');
+function noteError(what, e, about = '') {
+  lastError = { what, about: String(about || ''), message: String((e && e.message) || e), at: Date.now() };
+  try {
+    const cur = state.current || {};
+    const info = `library ${cur.file || '?'} (${cur.size ? Math.round(cur.size / 1e9 * 10) / 10 + ' GB' : 'size ?'}; ${lib ? lib.entryCount + ' entries' : 'not open'}); app ${app.getVersion()} on ${process.platform}`;
+    const entry = `${new Date().toISOString()} ${what}${lastError.about ? ` (${lastError.about})` : ''}: ${(e && e.stack) || e}
+  ${info}
+`;
+    let old = '';
+    try { old = fs.readFileSync(errorLog(), 'utf8'); } catch {}
+    fs.writeFileSync(errorLog(), (old.length > 200000 ? old.slice(-150000) : old) + entry);
+  } catch {}
+}
+
 // ---------- reading ----------
 const toPath = (title) => String(title).trim().replace(/ /g, '_');
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -232,6 +251,7 @@ function find(title) {
 // typed (shortest first), then articles reached only through a redirect, then partial-phrase matches (below).
 function titles(q, limit = 8, deep = false) {
   if (!lib || !String(q).trim()) return [];
+  if (process.env.E2K_TEST_LIBRARY_FAIL === 'search') throw new Error('Test: the library failed while searching');   // (tests)
   const t = String(q).trim(), lower = t.toLowerCase(), best = new Map();
   for (const v of new Set([t, cap(t), t.replace(/\b\w/g, (c) => c.toUpperCase())])) {
     for (const e of lib.titleEntries(v, limit * 4)) {
@@ -818,10 +838,14 @@ function setup({ offline = () => false } = {}) {
   });
   ipcMain.handle('library:info', () => { try { return lib ? { title: lib.meta('Title'), date: lib.meta('Date'), language: lib.meta('Language'), articles: articleCount() } : null; } catch { return null; } });
   // A library that can't be read (its drive was disconnected) answers like no library at all; see lost().
-  const orNone = (fn, none = null) => (...a) => { try { return fn(...a); } catch { return none; } };
-  ipcMain.handle('library:find', (_e, title) => orNone(find)(title));
-  ipcMain.handle('library:titles', (_e, q, limit, deep) => orNone(titles, [])(q, limit, deep));
-  ipcMain.handle('library:random', () => orNone(random)());
+  // A library that fails while being read isn't passed off as "nothing found" any more (a Reddit user's full
+  // Wikipedia file, 2026-11-27: every search said "No matches"): the error is noted (noteError) and the window can ask.
+  const orNone = (what, fn, none = null) => (...a) => { try { return fn(...a); } catch (e) { noteError(what, e, a[0]); return none; } };
+  ipcMain.handle('library:find', (_e, title) => orNone('find', find)(title));
+  ipcMain.handle('library:titles', (_e, q, limit, deep) => orNone('search', titles, [])(q, limit, deep));
+  ipcMain.handle('library:random', () => orNone('random', random)());
+  ipcMain.handle('library:last-error', () => lastError);
+  ipcMain.handle('library:show-error-log', () => { if (fs.existsSync(errorLog())) shell.showItemInFolder(errorLog()); });
   ipcMain.handle('library:daily', async (_e, key) => { try { return await daily(key); } catch { return null; } });
   ipcMain.handle('library:state', () => publicState());
   // Kiwix asks apps to go easy on its catalog (every Kiwix reader uses it), so the Offline Library window reuses what

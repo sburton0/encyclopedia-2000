@@ -2927,6 +2927,25 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
     },
   },
   {
+    name: 'offline-search-error', group: 'Reading offline', title: 'A library that fails while searching says so, with the error and library-errors.log (not “No matches”)',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1', E2K_TEST_LIBRARY_FAIL: 'search' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      await t.js('E2K.go(E2K.route("search", "Ray Charles"));');
+      t.check('It says the library couldn’t be searched, not that nothing matched', await t.waitFor('/couldn’t be searched/.test(document.querySelector(".errbox")?.innerText || "")', 10000)
+        && !(await t.js('return /No matches/.test(document.querySelector(".errbox").innerText);')));
+      t.check('…with the error’s own words', /Test: the library failed while searching/.test(await t.js('return document.querySelector(".errbox .errdetail")?.textContent || "";')));
+      t.check('…and Show the error log', await t.js('return [...document.querySelectorAll(".errbox .bbtn")].some((b) => b.textContent === "Show the error log");'));
+      t.check('The sidebar agrees', /couldn’t be searched/.test(await t.js('return document.querySelector(".rail .note")?.textContent || "";')));
+      const log = path.join(t.profile, 'library-errors.log');
+      const text = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+      t.check('library-errors.log has it, with the library and the app', /search \(Ray Charles\): Error: Test: the library failed while searching/.test(text) && /library .*\.zim/.test(text) && /app \d/.test(text), text.split('\n').slice(0, 2).join(' / '));
+      t.check('The window can ask for the last error', (await t.js('return (await window.e2k.library.lastError())?.what;')) === 'search');
+      await t.sleep(800);
+      await t.shot('offline-search-error');
+    },
+  },
+  {
     name: 'offline-search-none', group: 'Reading offline', title: 'An offline search with no matches suggests articles in the library',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),

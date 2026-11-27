@@ -57,6 +57,9 @@ contextBridge.exposeInMainWorld('e2k', {
     info: () => ipcRenderer.invoke('library:info'),
     find: (title) => ipcRenderer.invoke('library:find', title),
     titles: (q, limit, deep) => ipcRenderer.invoke('library:titles', q, limit, deep),
+    // The last error reading the library ({ what, message, at }, or null), and the log of them in the data folder.
+    lastError: () => ipcRenderer.invoke('library:last-error'),
+    showErrorLog: () => ipcRenderer.invoke('library:show-error-log'),
     random: () => ipcRenderer.invoke('library:random'),
     daily: (key) => ipcRenderer.invoke('library:daily', key),
     state: () => ipcRenderer.invoke('library:state'),
