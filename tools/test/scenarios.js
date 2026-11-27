@@ -74,6 +74,33 @@ module.exports = [
     },
   },
   {
+    name: 'home-no-picture', group: 'General', title: 'Home: a featured article without a picture shows no empty circle; its text takes the room',
+    route: 'article/Moon',   // Home's feed isn't fetched yet, so it can be given one without a picture
+    async run(t) {
+      await t.waitFor('window.Wiki && window.E2K', 15000);
+      await t.js(`const real = Wiki.featured;
+        Wiki.featured = async (d) => { const f = structuredClone(await real(d)); if (f.tfa) { delete f.tfa.thumbnail; delete f.tfa.originalimage; } return f; };
+        E2K.go('home');`);
+      t.check('Today’s discovery has its article', await t.waitFor('(document.querySelector(".home .disc")?.innerText || "").includes("Read the full article")', 20000));
+      await t.waitFor('document.querySelector(".home .disc .thumb").hidden', 10000);   // once the day's article is in
+      const m = await t.js('const th = document.querySelector(".home .disc .thumb"), tx = document.querySelector(".home .disc .row > div"); return { hidden: th.hidden, shown: th.getBoundingClientRect().width > 0, textLeft: Math.round(tx.getBoundingClientRect().left), rowLeft: Math.round(th.parentElement.getBoundingClientRect().left) };');
+      t.check('No empty circle', m.hidden && !m.shown, JSON.stringify(m));
+      t.check('…the summary starts at the box’s edge instead', Math.abs(m.textLeft - m.rowLeft) <= 2, JSON.stringify(m));
+      await t.sleep(600);
+      await t.shot('home-no-picture');
+    },
+  },
+  {
+    name: 'infobox-symbols', group: 'General', title: 'Quick facts keeps small pictures that stand for a symbol as their text (Moon’s Symbol: ☾ or ☽), not just the “or” between them',
+    route: 'article/Moon',
+    async run(t) {
+      t.check('Quick facts is there', await t.waitFor('document.querySelector(".facts")?.innerText.includes("Designation")', 40000));
+      const facts = await t.js('return document.querySelector(".facts").innerText.replace(/\\s+/g, " ");');
+      t.check('Symbol shows ☾ or ☽', /Symbol ☾ or ☽/.test(facts), (facts.match(/Symbol .{0,20}/) || [''])[0]);
+      t.check('No row is left as a bare “or”', !/\bSymbol or\b/.test(facts));
+    },
+  },
+  {
     name: 'article', group: 'General', title: 'An article (Apollo 11)',
     route: 'article/Apollo%2011',
     async run(t) {
@@ -86,6 +113,11 @@ module.exports = [
       await t.js('const i = document.querySelector(".findbar input"); i.value = "moon"; i.dispatchEvent(new Event("input", { bubbles: true }));');
       t.check('Find in Article highlights matches', await t.waitFor('document.querySelectorAll("mark.fh").length > 3', 4000));
       await t.shot('find-in-article');
+      // Enter steps to the next match; Esc closes the bar and takes the highlights away.
+      const at = await t.js('const i = document.querySelector(".findbar input"); const before = document.querySelector(".findbar .n").textContent; i.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); return [before, document.querySelector(".findbar .n").textContent];');
+      t.check('Enter steps to the next match', /^\d+ of \d+$/.test(at[0]) && at[0] !== at[1], at.join(' → '));
+      await t.js('document.querySelector(".findbar input").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('Esc closes the bar and removes the highlights', await t.waitFor('!document.querySelector(".findbar") && !document.querySelector("mark.fh")', 2000));
     },
   },
   {
@@ -718,8 +750,11 @@ module.exports = [
         ['passport', 'game/passport', 'document.querySelector(".pp-book .pp-stamp")'],
         ['animals', 'activity/animal-sounds', 'document.querySelector(".as-grid .as-card .ph")'],
       ];
+      const bars = {};
       for (const theme of themes) {
         await t.js(`localStorage.setItem('e2k.theme', JSON.stringify(${JSON.stringify(theme)})); E2K.applyPrefs();`);
+        // The location bar and status bar in the theme's own colors (from 0.6.2; before, every theme but Classic Gray had Bloom's black).
+        bars[theme] = await t.js('const c = getComputedStyle(document.querySelector(".crumbs")), s = getComputedStyle(document.querySelector(".statusbar")); return { crumbs: c.backgroundImage + c.backgroundColor, status: s.backgroundImage + s.backgroundColor };');
         const missing = [];
         for (const [name, route, ready] of screens) {
           await t.js(`E2K.go(${JSON.stringify(route)});`);
@@ -729,6 +764,8 @@ module.exports = [
         }
         t.check(`${theme}: every screen drew`, !missing.length && (await t.js('return document.documentElement.dataset.theme || E2KThemes.current();')) === theme, missing.join());
       }
+      const own = themes.filter((x) => x !== 'bloom' && (bars[x].crumbs === bars.bloom.crumbs || bars[x].status === bars.bloom.status));
+      t.check('Each theme has its own location bar and status bar (not Bloom’s black)', !own.length, own.join(', ') || `${themes.length - 1} themes`);
     },
   },
   {
@@ -1267,6 +1304,24 @@ module.exports = [
   },
 
   {
+    name: 'offline-use-my-file', group: 'Offline library', title: 'Offline mode with no library offers “Use my file…” beside “Download one…”; choosing a .zim uses it and goes offline',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
+    async run(t) {
+      const mine = path.join(t.profile, 'My Kiwix files');
+      process.env.E2K_TEST_OPEN_FILE = path.join(mine, libFiles(mine).find((f) => f.endsWith('.zim')));   // read by library.js
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      await t.js('E2K.command("offline");');
+      t.check('Offline mode without a library asks, with “Use my file…” and “Download one…”', await t.waitFor('[...document.querySelectorAll(".overlay .go")].some((b) => b.textContent === "Use my file…") && [...document.querySelectorAll(".overlay .go")].some((b) => b.textContent === "Download one…")', 4000));
+      await t.sleep(600);   // the dialog fades in
+      await t.shot('offline-ask');
+      await t.js('[...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "Use my file…").click();');
+      t.check('It opens the Offline Library and uses the chosen file where it is', await t.waitFor('(async () => { const s = await window.e2k.library.state(); return !!(s.open && s.current && s.current.own); })()', 10000));
+      t.check('…and Offline mode comes on', await t.waitFor('window.e2k.net.offline()', 8000));
+    },
+  },
+
+  {
     name: 'open-file', group: 'Offline library', title: 'Open library file…: use your own file where it is, then Stop using it',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'My Kiwix files')); return {}; },
@@ -1552,6 +1607,16 @@ module.exports = [
       t.check('Only for the versions it names (0.5.4 Beta counts as 0.5.4)', one({ versions: '<0.5.4' }) === null && !!one({ versions: '<=0.5.4' }) && !!one({ versions: '<0.6' }) && one({ versions: 'nonsense!!' }) === null);
       t.check('A broken file shows nothing', JSON.stringify(pick('oops', env)) === '{"news":null,"important":null}' && JSON.stringify(pick(null, env)) === '{"news":null,"important":null}');
       t.check('An id that isn’t simple is ignored', one({ id: '<x>' }) === null && one({ id: '' }) === null);
+      // From 0.6.2: "usedBefore" is only for people who used the app before that version.
+      const { firstVersion } = require(path.join(process.env.E2K_TEST_APP, 'notices.js'));
+      const as = (first, x) => pick({ news: { id: 'a', text: 'Hello.', ...x } }, { ...env, first }).news;
+      t.check('usedBefore: shown to someone who started earlier, not to someone who started with it or later',
+        !!as('0.5.6-beta', { usedBefore: '0.6.0' }) && as('0.6.0-beta', { usedBefore: '0.6.0' }) === null && as('0.6.2-beta', { usedBefore: '0.6' }) === null);
+      t.check('…a copy from before it was recorded ("<0.6.2-beta") counts as an earlier one, and so does one with nothing recorded',
+        !!as('<0.6.2-beta', { usedBefore: '0.6.0' }) && !!as(undefined, { usedBefore: '0.6.0' }));
+      t.check('…a usedBefore that isn’t a version is ignored (nothing shown)', as('0.5.6-beta', { usedBefore: 'soon' }) === null && as('0.5.6-beta', { usedBefore: 6 }) === null);
+      t.check('The first version: this one on a fresh start, "<this one" in a folder already in use, and a recorded one kept',
+        firstVersion(null, '0.6.2-beta', false) === '0.6.2-beta' && firstVersion(undefined, '0.6.2-beta', true) === '<0.6.2-beta' && firstVersion('0.6.0-beta', '0.6.2-beta', true) === '0.6.0-beta');
       // From 0.6.1: a button that opens a screen in the app ({ label, route }), from a short list or a game or activity id.
       t.check('A link to a screen in the app is allowed', one({ link: { label: 'Go to Activities', route: 'activities' } })?.link?.route === 'activities'
         && !!one({ link: { label: 'Play', route: 'game/passport' } }) && !!one({ link: { label: 'History', route: 'myarticles/history' } }));
@@ -1581,6 +1646,36 @@ module.exports = [
   },
 
   // ---------- USB edition: the portable version updating itself ----------
+  {
+    name: 'notices-first-version', group: 'General', title: 'A fresh start records its first version; a notice for people who used an earlier version isn’t shown to it, and one in an existing folder records "<this version"',
+    route: 'home',
+    // Its own empty folder (the runner's profile already has a settings.json, as a copy in use would).
+    env: (profile) => ({ E2K_PROFILE: path.join(profile, 'fresh'), E2K_NOTICE_FILE: path.join(profile, 'notice-test.json') }),
+    setup: (ctx) => {
+      fs.mkdirSync(path.join(ctx.profile, 'fresh'), { recursive: true });
+      fs.writeFileSync(path.join(ctx.profile, 'notice-test.json'), JSON.stringify({
+        news: { id: 'n-new', text: 'News for everyone.', usedBefore: '99.0' },
+        important: { id: 'i-old', text: 'Games have moved to Activities.', usedBefore: '0.6.0' },
+      }));
+      return {};
+    },
+    async run(t) {
+      const version = require(path.join(process.env.E2K_TEST_APP, 'package.json')).version;
+      const fresh = t.profile;   // (E2K_PROFILE, the empty folder)
+      const read = (dir) => { try { return JSON.parse(fs.readFileSync(path.join(dir, 'settings.json'), 'utf8')).firstVersion; } catch { return null; } };
+      t.check('A fresh start records this version as its first', read(fresh) === version, read(fresh));
+      t.check('A notice for people who used an earlier version isn’t shown; one for everyone is', await t.waitFor('document.querySelector(".home .news")', 8000)
+        && await t.js('return !document.getElementById("notice") && /everyone/.test(document.querySelector(".home .news").textContent);'));
+      // A folder with a settings.json and no firstVersion, as a copy from before 0.6.2 has.
+      const old = path.join(t.profile, '..', 'existing');
+      fs.mkdirSync(old, { recursive: true });
+      fs.writeFileSync(path.join(old, 'settings.json'), JSON.stringify({ showSplash: false }));
+      const { spawnSync } = require('child_process');
+      const r = spawnSync(require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'electron')), [process.env.E2K_TEST_APP, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])],
+        { env: { ...process.env, E2K_PROFILE: old, E2K_NOSPLASH: '1', E2K_MUTE: '1', E2K_CAPTURE: path.join(old, 'shot.png'), E2K_DELAY: '1500', E2K_TEST_SCENARIO: '' }, timeout: 90000 });
+      t.check('In a folder already in use, it records "<this version"', read(old) === `<${version}`, `${read(old)} (exit ${r.status})`);
+    },
+  },
   {
     name: 'portable-update', group: 'USB edition', title: 'Portable self-update: download, checks, swap, and cleanup; a stick pulled out, a bad download, a read-only drive, a damaged update, a failed swap',
     route: 'home',
@@ -2832,6 +2927,49 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
     },
   },
   {
+    name: 'zim-big-clusters', group: 'Reading offline', title: 'The reader takes one blob from an uncompressed cluster without reading the whole cluster (the full Wikipedia keeps its title lists in one of 2.5 GB)',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Lib')); return {}; },
+    async run(t) {
+      const Zim = require(path.join(process.env.E2K_TEST_APP, 'zim-reader.js'));
+      const dir = path.join(t.profile, 'Lib'), file = path.join(dir, libFiles(dir).find((f) => f.endsWith('.zim')));
+      const z = new Zim(file);
+      try {
+        const x = z.find('X', 'listing/titleOrdered/v1') || z.find('X', 'listing/titleOrdered/v0');
+        t.check('The test library has a title list', !!x);
+        // The cluster holding it, and whether it's uncompressed (as Kiwix stores the listings).
+        const start = z.clusterStart(x.cluster), info = z.read(start, 1)[0];
+        const end = x.cluster + 1 < z.clusterCount ? z.clusterStart(x.cluster + 1) : z.checksumPos;
+        const reads = [], read = z.read.bind(z);
+        z.read = (pos, len) => { reads.push(len); return read(pos, len); };
+        const list = z.titleList();
+        const biggest = Math.max(...reads), blob = list.length * 4;
+        t.check('Its cluster is uncompressed (the case that broke)', (info & 0x0f) <= 1, `compression ${info & 0x0f}, cluster ${end - start} bytes, list ${blob} bytes`);
+        t.check('Only the title list is read, not its whole cluster', biggest <= blob + 16 && (end - start <= blob + 64 || biggest < end - start), `largest read ${biggest} bytes; list ${blob}; cluster ${end - start}`);
+        t.check('…and the list is right (a title search works)', z.titleEntries('Ray', 3).length > 0);
+      } finally { z.close(); }
+    },
+  },
+  {
+    name: 'offline-search-error', group: 'Reading offline', title: 'A library that fails while searching says so, with the error and library-errors.log (not “No matches”)',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1', E2K_TEST_LIBRARY_FAIL: 'search' },
+    setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
+    async run(t) {
+      await t.js('E2K.go(E2K.route("search", "Ray Charles"));');
+      t.check('It says the library couldn’t be searched, not that nothing matched', await t.waitFor('/couldn’t be searched/.test(document.querySelector(".errbox")?.innerText || "")', 10000)
+        && !(await t.js('return /No matches/.test(document.querySelector(".errbox").innerText);')));
+      t.check('…with the error’s own words', /Test: the library failed while searching/.test(await t.js('return document.querySelector(".errbox .errdetail")?.textContent || "";')));
+      t.check('…and Show the error log', await t.js('return [...document.querySelectorAll(".errbox .bbtn")].some((b) => b.textContent === "Show the error log");'));
+      t.check('The sidebar agrees', /couldn’t be searched/.test(await t.js('return document.querySelector(".rail .note")?.textContent || "";')));
+      const log = path.join(t.profile, 'library-errors.log');
+      const text = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
+      t.check('library-errors.log has it, with the library and the app', /search \(Ray Charles\): Error: Test: the library failed while searching/.test(text) && /library .*\.zim/.test(text) && /app \d/.test(text), text.split('\n').slice(0, 2).join(' / '));
+      t.check('The window can ask for the last error', (await t.js('return (await window.e2k.library.lastError())?.what;')) === 'search');
+      await t.sleep(800);
+      await t.shot('offline-search-error');
+    },
+  },
+  {
     name: 'offline-search-none', group: 'Reading offline', title: 'An offline search with no matches suggests articles in the library',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
     setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
@@ -2856,6 +2994,71 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
   },
 
   // ---------- accessibility ----------
+  {
+    name: 'system-title-bar', group: 'General', title: 'Options › Use the system’s title bar: off by default (the app’s own title bar); turned on, it takes effect at the next start, with the app’s own bar hidden',
+    route: 'home',
+    async run(t) {
+      await t.waitFor('window.E2K && document.querySelector(".home")', 15000);
+      t.check('By default the app draws its own title bar', await t.js('return getComputedStyle(document.querySelector(".titlebar")).display !== "none" && !("systemTitleBar" in document.documentElement.dataset);')
+        && (await t.js('return (await window.e2k.settings.get()).systemTitleBar;')) === false);
+      await t.js('E2K.command("options");');
+      await t.waitFor('[...document.querySelectorAll(".overlay .ocheck")].some((c) => c.textContent.includes("system’s title bar"))', 5000);
+      const box = '[...document.querySelectorAll(".overlay .ocheck")].find((c) => c.textContent.includes("system’s title bar"))';
+      t.check('Options › Startup has it, unticked', await t.js(`return ${box}.querySelector("input").checked === false;`));
+      await t.js(`${box}.querySelector("input").click(); [...document.querySelectorAll(".overlay .go")].find((b) => b.textContent === "OK").click();`);
+      t.check('OK saves it, and says it takes a restart', await t.waitFor('/Restart Encyclopedia 2000 to change the title bar/.test(document.getElementById("status").textContent)', 4000)
+        && (await t.js('return (await window.e2k.settings.get()).systemTitleBar;')) === true, await t.js('return document.getElementById("status").textContent;'));
+      const saved = JSON.parse(fs.readFileSync(path.join(t.profile, 'settings.json'), 'utf8'));
+      t.check('…in settings.json', saved.systemTitleBar === true);
+      // The next start: the system's title bar (the window has a frame), so the app's own is hidden.
+      const { spawnSync } = require('child_process');
+      const out = path.join(t.profile, 'next-start.json');
+      spawnSync(require(path.join(process.env.E2K_TEST_APP, 'node_modules', 'electron')), [process.env.E2K_TEST_APP, ...(process.platform === 'linux' ? ['--no-sandbox'] : [])], {
+        env: { ...process.env, E2K_NOSPLASH: '1', E2K_MUTE: '1', E2K_TEST_SCENARIO: '', E2K_DELAY: '3000', E2K_CAPTURE: path.join(t.profile, 'next-start.png'), E2K_EVAL_OUT: out,
+          E2K_EVAL: '(async () => ({ attr: "systemTitleBar" in document.documentElement.dataset, hidden: getComputedStyle(document.querySelector(".titlebar")).display === "none" }))()' },
+        timeout: 90000 });
+      let r = null; try { r = JSON.parse(fs.readFileSync(out, 'utf8')); } catch {}
+      t.check('At the next start the app’s own title bar is hidden (the system’s is used)', r && r.attr && r.hidden, JSON.stringify(r));
+    },
+  },
+  {
+    name: 'full-screen', group: 'General', title: 'View › Full Screen: the title bar goes, Esc closes what\'s open first and then leaves full screen, F11 toggles it',
+    route: 'article/Moon',
+    async run(t) {
+      await t.waitFor('document.querySelectorAll(".content.article .text p").length > 3', 40000);
+      const before = t.win.getBounds();
+      const isFull = () => t.js('return document.documentElement.classList.contains("fullscreen");');
+      await t.command('Full Screen', 'F11', {});
+      t.check('View › Full Screen fills the screen', await t.waitFor('document.documentElement.classList.contains("fullscreen")', 5000) && t.win.isFullScreen());
+      if (process.platform !== 'darwin') t.check('…without the title bar', await t.js('return getComputedStyle(document.querySelector(".titlebar")).display === "none";'));
+      if (process.platform !== 'darwin') {
+        // The View menu ticks Full Screen.
+        await t.js('[...document.querySelectorAll(".menubar .m")].find((m) => m.textContent.trim() === "View").dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));');
+        await t.waitFor('document.querySelector(".menubar .menu")', 2000);
+        t.check('…and View ticks Full Screen', await t.js('return [...document.querySelectorAll(".menubar .menu .mi")].find((m) => m.textContent.includes("Full Screen"))?.getAttribute("aria-checked") === "true";'));
+        await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+        t.check('Esc closes the menu, and stays in full screen', await t.waitFor('!document.querySelector(".menubar .menu")', 2000) && await isFull());
+      }
+      await t.sleep(600);
+      await t.shot('full-screen');
+      // Esc with the find bar open closes the find bar only.
+      await t.command('Find in Article…', 'f');
+      await t.waitFor('document.querySelector(".findbar")', 3000);
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('Esc closes the find bar first, and stays in full screen', await t.waitFor('!document.querySelector(".findbar")', 2000) && await isFull() && t.win.isFullScreen());
+      await t.js('document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));');
+      t.check('…then Esc leaves full screen', await t.waitFor('!document.documentElement.classList.contains("fullscreen")', 5000) && !t.win.isFullScreen());
+      await t.sleep(800);
+      const after = t.win.getBounds();
+      t.check('The window comes back to its size', Math.abs(after.width - before.width) <= 4 && Math.abs(after.height - before.height) <= 4, `${before.width}x${before.height} → ${after.width}x${after.height}`);
+      if (process.platform !== 'darwin') {
+        await t.key('F11');
+        t.check('F11 goes full screen…', await t.waitFor('document.documentElement.classList.contains("fullscreen")', 5000));
+        await t.key('F11');
+        t.check('…and back', await t.waitFor('!document.documentElement.classList.contains("fullscreen")', 5000));
+      }
+    },
+  },
   {
     name: 'keyboard-menus', group: 'Accessibility', title: 'The menu bar by keyboard (Alt, F10, arrows, Enter, Escape); windows keep focus inside',
     route: 'home',

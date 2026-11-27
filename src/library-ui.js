@@ -24,7 +24,8 @@ window.E2KLibrary = (() => {
 
   let dlg = null;   // the open dialog's redraw function
 
-  async function open(api) {
+  // { openFile: true } goes straight to choosing a library file (Offline mode's "Use a file I have…").
+  async function open(api, { openFile = false } = {}) {
     const { h, dialog } = api;
     const L = window.e2k.library;
     if (document.querySelector('.dialog.offline')) return;
@@ -347,6 +348,7 @@ window.E2KLibrary = (() => {
     fitUp();
     // Fresh sizes and editions from Kiwix's catalog.
     L.catalog().then((s) => { if (dlg) { if (s.error && !s.packs.some((p) => p.size)) showErr(s.error); dlg(s); } });
+    if (openFile) openLibFile();
   }
 
   // Keep the open dialog (and the rest of the app) up to date.

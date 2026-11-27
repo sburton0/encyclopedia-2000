@@ -5,7 +5,8 @@
 // nothing until its first-run question is answered, and Don't Check there turns news off too (main.js, app.js).
 // Anything the app doesn't expect (HTML, a link to another site, a broken file) means nothing is shown. The text is
 // only ever shown as plain text. E2K_NOTICE_FILE reads a local file instead, for previewing a notice before posting it
-// (and E2K_FAKE_EDITION=portable or installed, to see it as that edition would).
+// (and E2K_FAKE_EDITION=portable or installed, to see it as that edition would; E2K_FAKE_FIRST_VERSION=0.6.2-beta, as
+// someone who started with that version would, or <0.6.2-beta, as someone from before).
 const fs = require('fs');
 const path = require('path');
 
@@ -37,10 +38,23 @@ function safeLink(link) {
     || (u.hostname === 'github.com' && /^\/sburton0\/encyclopedia-2000(\/|$)/.test(u.pathname)));
   return ok ? { label: label.trim(), url: u.href } : undefined;
 }
-// One item, if it's well formed and meant for this copy (its platform, its edition, its version, and before its end date).
-// Editions: "portable" (the Windows portable .exe, the USB edition's too) and "installed" (everything else: the Windows
-// installer, the Mac, Linux).
-function item(x, { platform, edition, version, today, satisfies }) {
+// The version this copy was first used with (from 0.6.2, kept in settings.json as firstVersion): the version itself on
+// a fresh start, or "<version" when the data folder was already in use (by an earlier version that didn't record it).
+function firstVersion(recorded, version, used) {
+  if (typeof recorded === 'string' && recorded) return recorded;
+  return used ? `<${version}` : version;
+}
+// "usedBefore": "0.6.0" is for people who used the app before 0.6.0 (a change they'd notice), not people new since.
+// A copy whose first version isn't known exactly ("<0.6.2-beta") counts as having been used before.
+function usedBefore(first, v, satisfies) {
+  if (typeof first !== 'string' || !first || first.startsWith('<')) return true;
+  return satisfies(first, `<${v}`);
+}
+// One item, if it's well formed and meant for this copy (its platform, its edition, its version, who it's for, and
+// before its end date). Editions: "portable" (the Windows portable .exe, the USB edition's too) and "installed"
+// (everything else: the Windows installer, the Mac, Linux). Copies before 0.6.2 don't know "usedBefore" and show the
+// notice to everyone; aim such a notice at "versions": ">=0.6.2" too if that matters.
+function item(x, { platform, edition, version, first, today, satisfies }) {
   if (!x || typeof x !== 'object') return null;
   if (typeof x.id !== 'string' || !/^[\w.-]{1,64}$/.test(x.id)) return null;
   if (typeof x.text !== 'string' || !x.text.trim() || x.text.length > 200 || /[<>]/.test(x.text)) return null;
@@ -50,6 +64,10 @@ function item(x, { platform, edition, version, today, satisfies }) {
   if (x.platforms != null && !(Array.isArray(x.platforms) && x.platforms.includes(platform))) return null;
   if (x.editions != null && !(Array.isArray(x.editions) && x.editions.includes(edition))) return null;
   if (x.versions != null) { try { if (!satisfies(version, x.versions)) return null; } catch { return null; } }
+  if (x.usedBefore != null) {
+    if (typeof x.usedBefore !== 'string' || !/^\d+\.\d+(\.\d+)?$/.test(x.usedBefore)) return null;
+    try { if (!usedBefore(first, x.usedBefore, satisfies)) return null; } catch { return null; }
+  }
   return { id: x.id, text: x.text.trim(), link };
 }
 // What this copy shows from a notice file: { news, important }, either of them null.
@@ -62,7 +80,7 @@ function setup({ getWindows, settings }) {
   const { app, ipcMain } = require('electron');
   const semver = require('semver');   // comes with electron-updater
   const edition = process.env.E2K_FAKE_EDITION || (process.env.PORTABLE_EXECUTABLE_DIR ? 'portable' : 'installed');
-  const env = () => ({ platform: process.platform, edition, version: app.getVersion(), today: new Date().toISOString().slice(0, 10),
+  const env = () => ({ platform: process.platform, edition, version: app.getVersion(), first: process.env.E2K_FAKE_FIRST_VERSION || settings().firstVersion, today: new Date().toISOString().slice(0, 10),
     // Every version is a beta: "0.5.4-beta" counts as 0.5.4, so "<0.5.4" means the versions before it.
     satisfies: (v, range) => semver.satisfies(semver.coerce(v).version, range) });
   const cacheFile = path.join(app.getPath('userData'), 'notice.json');
@@ -102,4 +120,4 @@ function setup({ getWindows, settings }) {
   setInterval(check, SOON).unref();
 }
 
-module.exports = { setup, pick, item, safeLink, due, ROUTES };
+module.exports = { setup, pick, item, safeLink, due, firstVersion, usedBefore, ROUTES };

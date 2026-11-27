@@ -239,3 +239,29 @@
 :root[data-theme="sunset"] { --night: linear-gradient(#140a24 0%, #2b1238 50%, #4a1d3c 85%, #6b2c4a 100%); }
 :root[data-theme="ocean"] { --night: linear-gradient(#0a3c5a 0%, #052a42 45%, #021626 100%); }
 :root[data-theme="classic"] { --night: #000040; }
+
+/* The location bar (breadcrumbs) and the status bar in each theme's own colors: a shade darker than its toolbar.
+   Bloom's (near black) stays as it is; Classic Gray already has its own. */
+[data-theme="aurora"] .crumbs  { background: linear-gradient(#060c17, #03060c); border-bottom-color: #14243a; }
+[data-theme="aurora"] .statusbar { background: #03060c; border-top-color: #14243a; }
+[data-theme="sunset"] .crumbs  { background: linear-gradient(#1a0c16, #0e060c); border-bottom-color: #3a1e30; }
+[data-theme="sunset"] .statusbar { background: #0e060c; border-top-color: #3a1e30; }
+[data-theme="ocean"] .crumbs   { background: linear-gradient(#051d2d, #02111a); border-bottom-color: #0f3a52; }
+[data-theme="ocean"] .statusbar { background: #02111a; border-top-color: #0f3a52; }
+[data-theme="library"] .crumbs { background: linear-gradient(#2a190c, #1c1007); border-bottom-color: #4a2e18; }
+[data-theme="library"] .statusbar { background: #1c1007; border-top-color: #4a2e18; }
+[data-theme="library"] .crumbs .lbl, [data-theme="library"] .crumbs .sep { color: #8a7058; }
+[data-theme="library"] .crumbs a, [data-theme="library"] .crumbs .step { color: #e6d6bf; }
+[data-theme="library"] .crumbs a:hover { border-color: #6a4a2c; background: #3a2414; }
+[data-theme="library"] .statusbar .sb { border-right-color: #3a2414; }
+/* CD-ROM: silver like its toolbar, with dark text. */
+[data-theme="disc"] .crumbs { background: linear-gradient(#b9bfca, #a6adba); border-bottom-color: #7c8494; color: #3a4252; }
+[data-theme="disc"] .crumbs .lbl, [data-theme="disc"] .crumbs .sep { color: #4e5666; }
+[data-theme="disc"] .crumbs a, [data-theme="disc"] .crumbs .step { color: #1d2330; }
+[data-theme="disc"] .crumbs .here { color: #000; }
+[data-theme="disc"] .crumbs a:hover { color: #000; border-color: #7c8494; background: rgba(255, 255, 255, .45); }
+[data-theme="disc"] .crumbs .cstar { color: #1d2330; }
+[data-theme="disc"] .statusbar { background: linear-gradient(#c9ced8, #b3b9c5); border-top-color: #eef0f4; color: #1d2330; }
+[data-theme="disc"] .statusbar .sb { border-right-color: #8a93a6; }
+[data-theme="disc"] .statusbar .sup { color: #1d2330; text-decoration-color: rgba(29, 35, 48, .4); }
+[data-theme="disc"] .statusbar .sup:hover { color: #000; }

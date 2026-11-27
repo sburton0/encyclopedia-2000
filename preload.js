@@ -5,6 +5,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 const platform = process.platform;
 window.addEventListener('DOMContentLoaded', () => {
   document.documentElement.dataset.platform = platform;
+  // With the system's title bar (Options), the app's own is hidden (styles.css).
+  if (process.argv.includes('--e2k-system-title-bar')) document.documentElement.dataset.systemTitleBar = '';
   if (platform !== 'win32') document.head.append(Object.assign(document.createElement('link'), { rel: 'stylesheet', href: 'fonts/fonts.css' }));
 });
 
@@ -55,6 +57,9 @@ contextBridge.exposeInMainWorld('e2k', {
     info: () => ipcRenderer.invoke('library:info'),
     find: (title) => ipcRenderer.invoke('library:find', title),
     titles: (q, limit, deep) => ipcRenderer.invoke('library:titles', q, limit, deep),
+    // The last error reading the library ({ what, message, at }, or null), and the log of them in the data folder.
+    lastError: () => ipcRenderer.invoke('library:last-error'),
+    showErrorLog: () => ipcRenderer.invoke('library:show-error-log'),
     random: () => ipcRenderer.invoke('library:random'),
     daily: (key) => ipcRenderer.invoke('library:daily', key),
     state: () => ipcRenderer.invoke('library:state'),
