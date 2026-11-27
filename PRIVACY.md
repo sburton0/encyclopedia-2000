@@ -16,6 +16,7 @@ The app saves a few things so it works the way you left it. They're stored only 
 - What you enter in activities, such as the birthday in The Day You Were Born and the people in Lifelines
 - The window's size and position
 - Your offline library, if you download one: a Wikipedia file saved in the folder you choose in **Tools → Offline Library**, along with the library's settings (Online or Offline mode, "use the offline library first", and the image choice) and the progress of a download in progress
+- A log of problems reading your offline library (library-errors.log), if there are any: what the app was doing (such as the words you searched for), the error, and the library file's name and size, for you to send in if you choose. It's kept short (the newest entries), and you can delete it any time.
 
 The installed version keeps these in your user profile on your computer. The portable version keeps them in an "Encyclopedia 2000 Data" folder next to the program.
 
