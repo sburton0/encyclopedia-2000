@@ -54,9 +54,9 @@ class Zim {
   resolve(e) { for (let n = 0; e && e.redirect !== undefined && n < 10; n++) e = this.entry(e.redirect); return e; }
   clusterData(c) {
     if (this.cache.has(c)) return this.cache.get(c);
-    const start = Number(this.read(this.clusterPtrPos + c * 8, 8).readBigUInt64LE(0));
-    const end = c + 1 < this.clusterCount ? Number(this.read(this.clusterPtrPos + (c + 1) * 8, 8).readBigUInt64LE(0)) : this.checksumPos;
-    const raw = this.read(start, end - start), info = raw[0], comp = info & 0x0f, ext = !!(info & 0x10);
+    const start = this.clusterStart(c);
+    const end = c + 1 < this.clusterCount ? this.clusterStart(c + 1) : this.checksumPos;
+    const raw = this.readLong(start, end - start), info = raw[0], comp = info & 0x0f, ext = !!(info & 0x10);
     let data = raw.subarray(1);
     if (comp === 5) data = Buffer.from(zstd(data));
     else if (comp === 4) throw new Error('xz cluster (older ZIM): needs the xz decoder');
@@ -66,9 +66,26 @@ class Zim {
   }
   content(e) {
     e = this.resolve(e);
+    // An uncompressed cluster can be gigabytes (the title lists of the full Wikipedia share one of 2.5 GB, more than
+    // can be read at once: a Reddit user's every search failed, 2026-11-27). So only the one blob is read from it, by
+    // its offsets at the cluster's start. Compressed clusters are small and are unpacked whole (and cached).
+    const start = this.clusterStart(e.cluster), info = this.read(start, 1)[0];
+    if ((info & 0x0f) <= 1) {
+      const ext = !!(info & 0x10), w = ext ? 8 : 4, o = this.read(start + 1 + e.blob * w, 2 * w);
+      const a = ext ? Number(o.readBigUInt64LE(0)) : o.readUInt32LE(0), b = ext ? Number(o.readBigUInt64LE(w)) : o.readUInt32LE(w);
+      return this.readLong(start + 1 + a, b - a);
+    }
     const { data, ext } = this.clusterData(e.cluster), w = ext ? 8 : 4;
     const off = (k) => (ext ? Number(data.readBigUInt64LE(k * w)) : data.readUInt32LE(k * w));
     return data.subarray(off(e.blob), off(e.blob + 1));
+  }
+  clusterStart(c) { return Number(this.read(this.clusterPtrPos + c * 8, 8).readBigUInt64LE(0)); }
+  // A read of any length (one read can't be more than 2 GB).
+  readLong(pos, len) {
+    if (len <= 1 << 30) return this.read(pos, len);
+    const out = Buffer.alloc(len);
+    for (let done = 0; done < len;) { const n = Math.min(1 << 30, len - done); this.read(pos + done, n).copy(out, done); done += n; }
+    return out;
   }
   // Entries whose title starts with prefix, in title order: binary search the title list, then walk forward.
   titleEntries(prefix, limit = 8, ns = 'C') {

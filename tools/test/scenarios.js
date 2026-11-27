@@ -2927,6 +2927,30 @@ ${st('install ok installed', '0.6.2~beta')}`) === '0.6.2-beta'
     },
   },
   {
+    name: 'zim-big-clusters', group: 'Reading offline', title: 'The reader takes one blob from an uncompressed cluster without reading the whole cluster (the full Wikipedia keeps its title lists in one of 2.5 GB)',
+    route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1' },
+    setup: (ctx) => { ctx.fixtureIn(path.join(ctx.profile, 'Lib')); return {}; },
+    async run(t) {
+      const Zim = require(path.join(process.env.E2K_TEST_APP, 'zim-reader.js'));
+      const dir = path.join(t.profile, 'Lib'), file = path.join(dir, libFiles(dir).find((f) => f.endsWith('.zim')));
+      const z = new Zim(file);
+      try {
+        const x = z.find('X', 'listing/titleOrdered/v1') || z.find('X', 'listing/titleOrdered/v0');
+        t.check('The test library has a title list', !!x);
+        // The cluster holding it, and whether it's uncompressed (as Kiwix stores the listings).
+        const start = z.clusterStart(x.cluster), info = z.read(start, 1)[0];
+        const end = x.cluster + 1 < z.clusterCount ? z.clusterStart(x.cluster + 1) : z.checksumPos;
+        const reads = [], read = z.read.bind(z);
+        z.read = (pos, len) => { reads.push(len); return read(pos, len); };
+        const list = z.titleList();
+        const biggest = Math.max(...reads), blob = list.length * 4;
+        t.check('Its cluster is uncompressed (the case that broke)', (info & 0x0f) <= 1, `compression ${info & 0x0f}, cluster ${end - start} bytes, list ${blob} bytes`);
+        t.check('Only the title list is read, not its whole cluster', biggest <= blob + 16 && (end - start <= blob + 64 || biggest < end - start), `largest read ${biggest} bytes; list ${blob}; cluster ${end - start}`);
+        t.check('…and the list is right (a title search works)', z.titleEntries('Ray', 3).length > 0);
+      } finally { z.close(); }
+    },
+  },
+  {
     name: 'offline-search-error', group: 'Reading offline', title: 'A library that fails while searching says so, with the error and library-errors.log (not “No matches”)',
     route: 'home', needs: 'fixture', env: { E2K_LIBRARY_TEST: '1', E2K_TEST_LIBRARY_FAIL: 'search' },
     setup: (ctx) => ({ library: ctx.fixtureIn(path.join(ctx.profile, 'Library')), settings: { offlineMode: true } }),
