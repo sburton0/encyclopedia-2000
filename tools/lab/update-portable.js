@@ -53,7 +53,23 @@ const appRunning = () => { try { return Number(ps(`@(Get-Process | Where-Object 
 // (This is a test machine, so any copy of the app running is one of ours.)
 const closeApp = () => { try { ps(`Get-Process | Where-Object { $_.ProcessName -like 'Encyclopedia*' } | Stop-Process -Force; 'ok'`); } catch {} };
 // Closing it as a person would: its window's close button (the app then quits, and Update on Close runs).
-const closeWindow = () => { try { ps(`Get-Process | Where-Object { $_.MainWindowTitle -like '*Encyclopedia 2000*' } | ForEach-Object { [void]$_.CloseMainWindow() }; 'ok'`); } catch {} };
+// WM_CLOSE to the app's visible, titled windows. (Not Process.CloseMainWindow: Windows sometimes reports one of
+// Electron's hidden, untitled windows as the main window, and then nothing is closed; see update-installed.js.)
+const closeWindow = () => { try { ps(`Add-Type @'
+using System; using System.Text; using System.Runtime.InteropServices;
+public class E2KClose { public delegate bool CB(IntPtr h, IntPtr l);
+ [DllImport("user32.dll")] public static extern bool EnumWindows(CB cb, IntPtr l);
+ [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+ [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+ [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
+ [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h, uint m, IntPtr w, IntPtr l); }
+'@
+$ids = @(Get-Process | Where-Object { $_.ProcessName -like 'Encyclopedia*' } | ForEach-Object Id)
+[void][E2KClose]::EnumWindows({ param($h, $l) $p = 0; [void][E2KClose]::GetWindowThreadProcessId($h, [ref]$p)
+  $t = New-Object Text.StringBuilder 256; [void][E2KClose]::GetWindowText($h, $t, 256)
+  if ($ids -contains $p -and [E2KClose]::IsWindowVisible($h) -and "$t" -like '*Encyclopedia 2000*') { [void][E2KClose]::PostMessage($h, 0x10, [IntPtr]::Zero, [IntPtr]::Zero) }
+  $true }, [IntPtr]::Zero)
+'ok'`); } catch {} };
 const fileVersion = (exe) => { try { return ps(`(Get-Item -LiteralPath ${lit(exe)}).VersionInfo.ProductVersion`); } catch { return ''; } };
 const isVersion = (v, want) => v === want || v.replace(/\.0$/, '') === want.replace(/-.*/, '');
 
